@@ -20,11 +20,9 @@
   },
   "scripts": {
     "test": "jest",
-    "commit": "git-cz",
     "setup": "npm install --force && npm run build",
-    "build:local": "tsc -p tsconfig.local.json",
-    "coverage": "jest --coverage",
-    "semantic-release": "semantic-release"
+    "build:local": "tsc -p tsconfig.json",
+    "coverage": "jest --coverage"
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
@@ -33,7 +31,8 @@
     "url": "https://github.com/Eleven-am/pondSocket.git"
   },
   "dependencies": {
-    "ws": "^8.8.1"
+    "ws": "^8.8.1",
+    "rxjs": "^7.5.6"
   },
   "devDependencies": {
     "@types/chai": "^4.3.3",
@@ -42,6 +41,7 @@
     "@types/ws": "^8.5.3",
     "cz-conventional-changelog": "^3.3.0",
     "jest": "^29.0.1",
+    "parcel": "^2.7.0",
     "semantic-release": "^19.0.5",
     "supertest": "^6.2.4",
     "superwstest": "^2.0.3",

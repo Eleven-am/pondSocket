@@ -137,10 +137,8 @@ var Channel = /** @class */ (function (_super) {
             payload: {
                 presence: this.presence, change: __assign(__assign({}, user.presence), { id: clientId })
             },
-            channel: this,
-            clientId: enums_1.PondSenders.POND_CHANNEL,
-            clientAssigns: user.assigns,
-            clientPresence: __assign(__assign({}, user.presence), { id: clientId })
+            channel: this, clientId: enums_1.PondSenders.POND_CHANNEL,
+            clientAssigns: user.assigns, clientPresence: __assign(__assign({}, user.presence), { id: clientId })
         });
     };
     /**
@@ -174,10 +172,8 @@ var Channel = /** @class */ (function (_super) {
                     payload: {
                         presence: _this.presence, change: null,
                     },
-                    channel: _this,
-                    clientId: enums_1.PondSenders.POND_CHANNEL,
-                    clientAssigns: client.assigns,
-                    clientPresence: client.presence.doc
+                    channel: _this, clientId: enums_1.PondSenders.POND_CHANNEL,
+                    clientAssigns: client.assigns, clientPresence: client.presence.doc
                 });
             }
         });
@@ -186,11 +182,9 @@ var Channel = /** @class */ (function (_super) {
                 event: 'REMOVE_CHANNEL',
                 channelName: this.name,
                 action: enums_1.ServerActions.CLOSE,
-                payload: {},
-                channel: this,
+                payload: {}, channel: this,
                 clientId: enums_1.PondSenders.POND_CHANNEL,
-                clientAssigns: {},
-                clientPresence: {}
+                clientAssigns: {}, clientPresence: {}
             });
             this.removeChannel();
         }

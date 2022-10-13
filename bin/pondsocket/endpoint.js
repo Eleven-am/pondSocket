@@ -173,7 +173,9 @@ var Endpoint = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         assign = {
-                            assigns: {}, presence: {}, channelData: {}
+                            assigns: {},
+                            presence: {},
+                            channelData: {}
                         };
                         doc = this._sockets.set({});
                         req = __assign(__assign({ headers: request.headers }, data), { clientId: doc.id });
@@ -185,7 +187,8 @@ var Endpoint = /** @class */ (function (_super) {
                             _this._server.handleUpgrade(request, socket, head, function (ws) {
                                 _this._server.emit("connection", ws);
                                 var socketCache = {
-                                    socket: ws, assigns: data.assigns.assigns
+                                    socket: ws,
+                                    assigns: data.assigns.assigns
                                 };
                                 doc.updateDoc(socketCache);
                                 _this._manageSocket(doc);
@@ -216,7 +219,9 @@ var Endpoint = /** @class */ (function (_super) {
      */
     Endpoint.prototype.closeConnection = function (clientId) {
         var message = {
-            action: enums_1.ServerActions.CLOSE, channelName: "SERVER", event: "CLOSED_FROM_SERVER", payload: {}
+            action: enums_1.ServerActions.CLOSE,
+            channelName: "SERVER",
+            event: "CLOSED_FROM_SERVER", payload: {}
         };
         var stringifiedMessage = JSON.stringify(message);
         var socketDoc = this._sockets.get(clientId);
@@ -234,7 +239,8 @@ var Endpoint = /** @class */ (function (_super) {
      */
     Endpoint.prototype.send = function (clientId, event, message) {
         var newMessage = {
-            action: enums_1.ServerActions.MESSAGE, channelName: enums_1.PondSenders.ENDPOINT,
+            action: enums_1.ServerActions.MESSAGE,
+            channelName: enums_1.PondSenders.ENDPOINT,
             event: event,
             payload: message
         };
@@ -263,7 +269,8 @@ var Endpoint = /** @class */ (function (_super) {
     Endpoint.prototype.broadcast = function (event, message) {
         var sockets = __spreadArray([], __read(this._sockets.generate()), false);
         var newMessage = {
-            action: enums_1.ServerActions.MESSAGE, channelName: enums_1.PondSenders.ENDPOINT,
+            action: enums_1.ServerActions.MESSAGE,
+            channelName: enums_1.PondSenders.ENDPOINT,
             event: event,
             payload: message
         };
@@ -350,7 +357,10 @@ var Endpoint = /** @class */ (function (_super) {
                 switch (_c.label) {
                     case 0:
                         errorMessage = {
-                            action: enums_1.ServerActions.ERROR, event: "INVALID_MESSAGE", channelName: enums_1.PondSenders.ENDPOINT, payload: {}
+                            action: enums_1.ServerActions.ERROR,
+                            event: "INVALID_MESSAGE",
+                            channelName: enums_1.PondSenders.ENDPOINT,
+                            payload: {}
                         };
                         _c.label = 1;
                     case 1:
@@ -385,7 +395,10 @@ var Endpoint = /** @class */ (function (_super) {
                         e_3 = _c.sent();
                         if (e_3 instanceof SyntaxError) {
                             message_1 = {
-                                action: enums_1.ServerActions.ERROR, event: "INVALID_MESSAGE", channelName: enums_1.PondSenders.ENDPOINT, payload: {
+                                action: enums_1.ServerActions.ERROR,
+                                event: "INVALID_MESSAGE",
+                                channelName: enums_1.PondSenders.ENDPOINT,
+                                payload: {
                                     message: "Invalid message"
                                 }
                             };
@@ -397,7 +410,9 @@ var Endpoint = /** @class */ (function (_super) {
                                 event: ((_a = e_3.data) === null || _a === void 0 ? void 0 : _a.event) || "INVALID_MESSAGE",
                                 channelName: ((_b = e_3.data) === null || _b === void 0 ? void 0 : _b.channelName) || "END_POINT",
                                 payload: {
-                                    message: e_3.errorMessage, code: e_3.errorCode, data: e_3.data.event ? undefined : e_3.data
+                                    message: e_3.errorMessage,
+                                    code: e_3.errorCode,
+                                    data: e_3.data.event ? undefined : e_3.data
                                 }
                             };
                             Endpoint._sendMessage(cache.doc.socket, message_2);
@@ -434,14 +449,17 @@ var Endpoint = /** @class */ (function (_super) {
                         pond = this._findPondChannel(message.channelName);
                         if (!pond) return [3 /*break*/, 3];
                         user = {
-                            clientId: cache.id, socket: cache.doc.socket, assigns: cache.doc.assigns
+                            clientId: cache.id,
+                            socket: cache.doc.socket,
+                            assigns: cache.doc.assigns
                         };
                         return [4 /*yield*/, pond.doc.addUser(user, message.channelName, message.payload)];
                     case 2:
                         _b.sent();
                         return [3 /*break*/, 4];
                     case 3: throw new pondbase_1.PondError("The channel was not found", 4004, {
-                        channelName: message.channelName, event: "JOIN_CHANNEL"
+                        channelName: message.channelName,
+                        event: "JOIN_CHANNEL"
                     });
                     case 4: return [3 /*break*/, 15];
                     case 5: return [4 /*yield*/, this._channelAction(message.channelName, "LEAVE_CHANNEL", function (channel) {
@@ -476,7 +494,8 @@ var Endpoint = /** @class */ (function (_super) {
                             return __generator(this, function (_a) {
                                 if (!message.addresses || message.addresses.length === 0)
                                     throw new pondbase_1.PondError("No addresses provided", 400, {
-                                        event: message.event, channelName: message.channelName
+                                        event: message.event,
+                                        channelName: message.channelName
                                     });
                                 channel.sendTo(message.event, message.payload, cache.id, message.addresses);
                                 return [2 /*return*/];

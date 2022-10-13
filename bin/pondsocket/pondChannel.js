@@ -142,7 +142,9 @@ var PondChannel = /** @class */ (function (_super) {
                         _b.label = 2;
                     case 2:
                         assigns = {
-                            assigns: user.assigns, presence: {}, channelData: channel.data
+                            assigns: user.assigns,
+                            presence: {},
+                            channelData: channel.data
                         };
                         request = __assign(__assign({ joinParams: joinParams }, resolved), { clientId: user.clientId, channelName: channelName, clientAssigns: user.assigns });
                         resolver = function (data) {
@@ -154,7 +156,10 @@ var PondChannel = /** @class */ (function (_super) {
                                 PondChannel._sendMessage(user.socket, event);
                             });
                             channel.addUser({
-                                presence: presence, assigns: assigns, channelData: channelData, client: user
+                                presence: presence,
+                                assigns: assigns,
+                                channelData: channelData,
+                                client: user
                             });
                             _this._subscriptions[user.clientId].push({ name: channelName, sub: sub });
                             if (data.message)
@@ -330,7 +335,9 @@ var PondChannel = /** @class */ (function (_super) {
             var info = _this.generateEventRequest(event, data.event);
             if (info) {
                 var assigns = {
-                    assigns: data.clientAssigns, presence: data.clientPresence, channelData: data.channel.data
+                    assigns: data.clientAssigns,
+                    presence: data.clientPresence,
+                    channelData: data.channel.data
                 };
                 var request = {
                     channelName: data.channelName,
@@ -339,14 +346,17 @@ var PondChannel = /** @class */ (function (_super) {
                     query: info.query,
                     event: data.event,
                     client: {
-                        clientId: data.clientId, clientAssigns: data.clientAssigns, clientPresence: data.clientPresence
+                        clientId: data.clientId,
+                        clientAssigns: data.clientAssigns,
+                        clientPresence: data.clientPresence
                     }
                 };
                 var resolver = function (innerData) {
                     var _a = innerData.assigns, presence = _a.presence, assigns = _a.assigns, channelData = _a.channelData;
                     if (innerData.error)
                         returnVal = new pondbase_1.PondError(innerData.error.errorMessage, innerData.error.errorCode, {
-                            event: data.event, channelName: data.channelName
+                            event: data.event,
+                            channelName: data.channelName
                         });
                     else {
                         if (!_this.isObjectEmpty(channelData))

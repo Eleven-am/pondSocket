@@ -188,39 +188,4 @@ describe('server', function () {
             }
         });
     }); });
-    it('should be able to hook into the onConnection event', function () { return __awaiter(void 0, void 0, void 0, function () {
-        var socket, server;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    socket = new pondSocket_1.PondSocket();
-                    server = socket.listen(3001, function () {
-                    });
-                    expect(server).toBeDefined();
-                    socket.createEndpoint('/api/:path', function (req, res) {
-                        expect(req.params.path).toBe('socket');
-                        res.send('testEvent', { test: 'test' });
-                    });
-                    socket.useOnUpgrade(function (req, _socket, _head, next) {
-                        expect(req.url).toBe('/api/socket');
-                        next();
-                    });
-                    return [4 /*yield*/, (0, superwstest_1.default)(server)
-                            .ws('/api/socket')
-                            .expectUpgrade(function (res) { return expect(res.statusCode).toBe(101); })
-                            .expectJson({
-                            action: enums_1.ServerActions.MESSAGE,
-                            event: 'testEvent',
-                            channelName: 'SERVER',
-                            payload: { test: 'test' },
-                        })
-                            .close()
-                            .expectClosed()];
-                case 1:
-                    _a.sent();
-                    server.close();
-                    return [2 /*return*/];
-            }
-        });
-    }); });
 });
