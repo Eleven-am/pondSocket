@@ -91,7 +91,7 @@ In case there is no *on* function, the message will be sent without any action b
 #### On the browser
 
 ```js
-    import PondClientSocket from "pondsocket/client";
+    import {PondSocket} from "pondsocket/client";
 
 export const socket = new PondClientSocket('/api/socket', {});
 socket.connect();
