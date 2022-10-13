@@ -20,8 +20,8 @@ Multiple endpoints can be created but every endpoint is independent of the other
 ```js
   import {PondSocket} from "pondsocket";
 import parse from "url";
-  
-  const pond = new PondSocket();
+
+const pond = new PondSocket();
  
   const endpoint = pond.createEndpoint('/api/socket', (req, res, _endpoint) => {
        const { query } = parse(req.url || '');     
@@ -75,13 +75,69 @@ It can be anything from a boolean to an instance of a class. This data cannot be
                pingDate: new Date(),
                users: users.length
            }
-        }); 
+        });
 
-        // res.reject('curse words are not allowed on a child friendly channel') 
-        // channel.closeFromChannel(req.client.clientId);
-    })
+    // res.reject('curse words are not allowed on a child friendly channel') 
+    // channel.closeFromChannel(req.client.clientId);
+})
 ```
 
-When a message is sent on a channel by a user, an event is triggered. The *on* function can be used to listen for these events. If the function is specified, it is called when the message is received.
-You can choose to decline the message being sent, or you can allow the message to be sent as usual. You can also do all the normal assigns to the channel, or user.
+When a message is sent on a channel by a user, an event is triggered. The *on* function can be used to listen for these
+events. If the function is specified, it is called when the message is received.
+You can choose to decline the message being sent, or you can allow the message to be sent as usual. You can also do all
+the normal assigns to the channel, or user.
 In case there is no *on* function, the message will be sent without any action being taken.
+
+#### On the browser
+
+```js
+    import PondClientSocket from "pondsocket/client";
+
+export const socket = new PondClientSocket('/api/socket', {});
+socket.connect();
+```
+
+The browser compatible package can be imported from pondsocket/client.
+AN url string is provided to the class along with other url params, like token.
+
+Multiple classes can be created, but it is advised to use a single class throughout the application.
+You can just create multiple channels and maintain the single socket connection.
+
+```js
+    const channelTopic = 'channel:one';
+const options = {
+    username: 'eleven-am'
+}
+
+export const channel = socket.createChannel(channelTopic, options);
+channel.join();
+```
+
+When connected to the channel you can subscribe to the events from the channel.
+
+```js
+    const subscriptionPresence = channel.onPresenceUpdate(presence => {
+    // handle the presence changes of the channel
+});
+
+const subscriptionMessage = channel.onMessage((event, data) => {
+    // handle the message being received 
+});
+
+// When done with the channel remember to unsubscribe from these listeners
+subscriptionPresence.unsubscribe();
+subscriptionMessage.unsubscribe();
+```
+
+There are many other features available on the channel object. Since the application is completely typed,
+suggestions should be provided by your IDE.
+
+```js
+    channel.broadcast('hello', {
+    name: 'eleven-am',
+    message: 'I am the man, man'
+})
+
+// channel.broadcastFrom broadcasts a message to everyone but the client that emitted the message
+// channel.sendMessage sends a message to clients specified in the function
+```
