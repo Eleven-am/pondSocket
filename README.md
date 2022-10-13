@@ -22,8 +22,8 @@ Multiple endpoints can be created but every endpoint is independent of the other
 import parse from "url";
 
 const pond = new PondSocket();
- 
-  const endpoint = pond.createEndpoint('/api/socket', (req, res, _endpoint) => {
+
+const endpoint = pond.createEndpoint('/api/socket', (req, res, _endpoint) => {
        const { query } = parse(req.url || '');     
        const { token } = query;     
        if (!token)         
@@ -68,14 +68,14 @@ This could be used as *user is typing*, *user is away*, etc. The channelData is 
 It can be anything from a boolean to an instance of a class. This data cannot be accessed from another channel as it is private to the channel.
 
 ```js
-    channel.on('hello', (req, res, channel) => {      
-       const users = channel.getPresence();      
-       res.assign({
-           assign: {
-               pingDate: new Date(),
-               users: users.length
-           }
-        });
+    channel.on('hello', (req, res, channel) => {
+    const users = channel.getPresence();
+    res.assign({
+        assign: {
+            pingDate: new Date(),
+            users: users.length
+        }
+    });
 
     // res.reject('curse words are not allowed on a child friendly channel') 
     // channel.closeFromChannel(req.client.clientId);
