@@ -19,9 +19,10 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest --coverage",
+    "test": "jest",
     "build": "tsc",
-    "build:local": "tsc -p tsconfig.local.json"
+    "build:local": "tsc -p tsconfig.local.json",
+    "coverage": "jest --coverage"
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
