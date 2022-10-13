@@ -7,7 +7,7 @@ PondSocket is a fast, minimalist and bidirectional socket framework for NodeJS. 
 This is a Node.js module available through the npm registry.
 
 ```bash
-  npm install pondsocket
+  npm install @pond/socket
 ```
 
 PondSocket usage depends on the environment in which it is being used.
