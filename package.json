@@ -20,7 +20,8 @@
   },
   "scripts": {
     "test": "jest --coverage",
-    "build": "tsc"
+    "build": "tsc",
+    "build:local": "tsc -p tsconfig.local.json"
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
