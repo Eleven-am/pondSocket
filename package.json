@@ -1,6 +1,6 @@
 {
-  "name": "@pond/pondsoocket",
-  "version": "0.0.1",
+  "name": "@eleven-am/soocket",
+  "version": "0.1.2",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -24,7 +24,8 @@
     "setup": "npm install --force && npm run build",
     "build:local": "tsc -p tsconfig.local.json",
     "coverage": "jest --coverage",
-    "semantic-release": "semantic-release"
+    "semantic-release": "semantic-release",
+    "publish": "npm publish --access public"
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
