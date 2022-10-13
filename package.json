@@ -13,16 +13,31 @@
     "realtime",
     "realtime server"
   ],
-  "main": "bin/index.js",
-  "types": "types/index.d.ts",
+  "main": "bin/server.js",
+  "types": "types/server.d.ts",
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "test": "jest",
+    "commit": "git-cz",
     "setup": "npm install --force && npm run build",
     "build:local": "tsc -p tsconfig.json",
     "coverage": "jest --coverage"
+  },
+  "exports": {
+    ".": "./bin/server.js",
+    "./client": "./bin/client.js"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./types/server.d.ts"
+      ],
+      "client": [
+        "./types/client.d.ts"
+      ]
+    }
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
