@@ -20,7 +20,7 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "tsc",
+    "setup": "npm install --force && npm run build",
     "build:local": "tsc -p tsconfig.local.json",
     "coverage": "jest --coverage",
     "semantic-release": "semantic-release"
