@@ -18,22 +18,22 @@ When using PondSocket, an endpoint is created. The endpoint is the gateway by wh
 Multiple endpoints can be created but every endpoint is independent of the other, ie sockets on one endpoint cannot communicate with sockets on another endpoint.
 
 ```js
-  import {PondSocket} from "pondsocket";
+    import {PondSocket} from "pondsocket";
 import parse from "url";
 
 const pond = new PondSocket();
 
 const endpoint = pond.createEndpoint('/api/socket', (req, res, _endpoint) => {
-       const { query } = parse(req.url || '');     
-       const { token } = query;     
-       if (!token)         
-            return res.reject('No token provided');      
-       res.accept({
-            assign: {
-                token
-            }
-       });  
-  })
+    const {query} = parse(req.url || '');
+    const {token} = query;
+    if (!token)
+        return res.reject('No token provided');
+    res.accept({
+        assign: {
+            token
+        }
+    });
+})
 ```
 
 While sockets connect through the endpoint, communication between sockets cannot occur on the endpoint level. Sockets have to join a channel to communicate
