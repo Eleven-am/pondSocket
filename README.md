@@ -18,8 +18,8 @@ When using PondSocket, an endpoint is created. The endpoint is the gateway by wh
 Multiple endpoints can be created but every endpoint is independent of the other, ie sockets on one endpoint cannot communicate with sockets on another endpoint.
 
 ```js
-  import { PondSocket } from "@pond/socket";
-  import parse from "url";
+  import {PondSocket} from "pondsocket";
+import parse from "url";
   
   const pond = new PondSocket();
  
