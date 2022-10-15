@@ -42,7 +42,7 @@ var GenerateLiveServer = function (routes, server, options) {
     if (options === null || options === void 0 ? void 0 : options.staticPath) {
         var exists = (0, pondResponse_1.fileExist)("".concat(options.staticPath, "/index.html"));
         if (exists)
-            htmlPath = options.staticPath;
+            htmlPath = "".concat(options.staticPath, "/index.html");
         var staticMiddleWare_1 = (0, static_1.staticMiddleware)({
             root: options.staticPath,
             dotfiles: 'ignore',
