@@ -61,6 +61,7 @@ describe('PondServer', function () {
             on: jest.fn(),
         };
         var response = {
+            setHeader: jest.fn(),
             writeHead: jest.fn(),
             end: jest.fn()
         };

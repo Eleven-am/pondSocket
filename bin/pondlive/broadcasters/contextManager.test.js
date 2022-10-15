@@ -2,7 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var contextManager_1 = require("./contextManager");
 var emitters_1 = require("../emitters");
+var pondsocket_1 = require("../../pondsocket");
+var createChannel = function () {
+    var removeDoc = jest.fn();
+    var channel = new pondsocket_1.Channel('TEST', removeDoc);
+    return { channel: channel, removeDoc: removeDoc };
+};
 var createManager = function () {
+    var channel = createChannel().channel;
     var component = {
         onContextChange: jest.fn(),
     };
@@ -13,6 +20,7 @@ var createManager = function () {
     };
     var removeDoc = jest.fn();
     var socket = new emitters_1.LiveSocket('123', manager, removeDoc);
+    socket.upgradeToWebsocket(channel);
     return { socket: socket, manager: manager, removeDoc: removeDoc };
 };
 describe('ContextManager', function () {
@@ -63,10 +71,11 @@ describe('ContextManager', function () {
         };
         contextManager.subscribe(manager);
         expect(handler).not.toHaveBeenCalled();
+        var router = socket.createResponse().router;
         // Once the component manager is subscribed to the context manager
         // When a socket is mounted to the component manager,
         // The context manager will mount the socket to the context
-        contextManager.mount(socket, manager.componentId);
+        contextManager.mount(socket, manager.componentId, router);
         expect(contextManager['_database'].size).toBe(1);
         // The context manager will then call the component manager's handleContextChange method
         // with the initial context data
@@ -80,9 +89,10 @@ describe('ContextManager', function () {
         manager.component.onContextChange = function (data) {
             contextManager.handleContextChange(data, handler);
         };
+        var router = socket.createResponse().router;
         // The component manager is not subscribed to the context manager
         // so the context manager will not mount the socket to the context
-        contextManager2.mount(socket, manager.componentId);
+        contextManager2.mount(socket, manager.componentId, router);
         expect(contextManager2['_database'].size).toBe(0);
         // The context manager will not call the component manager's handleContextChange method
         expect(handler).not.toHaveBeenCalled();
@@ -93,6 +103,7 @@ describe('ContextManager', function () {
     it('should assign data to the context', function () {
         var contextManager = new contextManager_1.ContextManager({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
+        var router = socket.createResponse().router;
         var handler = jest.fn();
         manager.component.onContextChange = function (data) {
             contextManager.handleContextChange(data, handler);
@@ -101,7 +112,7 @@ describe('ContextManager', function () {
             manager.component.onContextChange(data);
         };
         contextManager.subscribe(manager);
-        contextManager.mount(socket, manager.componentId);
+        contextManager.mount(socket, manager.componentId, router);
         expect(handler).toHaveBeenCalled(); // initial data is used for initial context
         handler.mockClear();
         // The context manager will call the component manager's handleContextChange method
@@ -112,6 +123,7 @@ describe('ContextManager', function () {
     it('should return the current context data', function () {
         var contextManager = new contextManager_1.ContextManager({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
+        var router = socket.createResponse().router;
         manager.component.onContextChange = function (data) {
             contextManager.handleContextChange(data, function () { });
         };
@@ -119,7 +131,7 @@ describe('ContextManager', function () {
             manager.component.onContextChange(data);
         };
         contextManager.subscribe(manager);
-        contextManager.mount(socket, manager.componentId);
+        contextManager.mount(socket, manager.componentId, router);
         expect(contextManager.get(socket)).toEqual({});
         contextManager.assign(socket, { test: 'test' });
         expect(contextManager.get(socket)).toEqual({ test: 'test' });
@@ -129,6 +141,7 @@ describe('ContextManager', function () {
         var contextManager = new contextManager_1.ContextManager({});
         var _c = createManager(), socket = _c.socket, manager = _c.manager;
         var _d = createManager(), manager2 = _d.manager, socket2 = _d.socket;
+        var router = socket.createResponse().router;
         var handler = jest.fn();
         manager2.componentId = '456'; // assign a different id to the second manager
         manager.component.onContextChange = function (data) {
@@ -145,8 +158,8 @@ describe('ContextManager', function () {
         };
         contextManager.subscribe(manager);
         contextManager.subscribe(manager2);
-        contextManager.mount(socket, manager.componentId);
-        contextManager.mount(socket2, manager2.componentId);
+        contextManager.mount(socket, manager.componentId, router);
+        contextManager.mount(socket2, manager2.componentId, router);
         // Both sockets are mounted to the context under a single client id
         // Both component managers are listening for the context
         expect(contextManager['_database'].size).toBe(1);

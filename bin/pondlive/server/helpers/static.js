@@ -61,6 +61,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.staticMiddleware = void 0;
 var fs = __importStar(require("fs"));
+var pondResponse_1 = require("./pondResponse");
 function staticMiddleware(options) {
     var _this = this;
     return function (req, res, next) { return __awaiter(_this, void 0, void 0, function () {
@@ -70,30 +71,25 @@ function staticMiddleware(options) {
                 filePath = options.root + options.index;
             else
                 filePath = options.root + req.url;
+            if (!(0, pondResponse_1.fileExist)(filePath))
+                return [2 /*return*/, next()];
             if (req.url.startsWith('.'))
                 if (options.dotfiles === 'deny')
                     return [2 /*return*/, res.status(403).end()];
                 else if (options.dotfiles === 'ignore')
                     return [2 /*return*/, next()];
+            ext = filePath.split('.').pop() || '';
+            if (options.extensions && !options.extensions.includes(ext))
+                return [2 /*return*/, next()];
             if (options.maxAge)
                 res.setHeader('Cache-Control', "max-age=".concat(options.maxAge));
             if (options.immutable)
                 res.setHeader('Cache-Control', "immutable");
-            try {
-                if (options.etag)
-                    res.setHeader('ETag', fs.statSync(filePath).mtime.getTime().toString());
-                if (options.lastModified)
-                    res.setHeader('Last-Modified', fs.statSync(filePath).mtime.toUTCString());
-                ext = filePath.split('.').pop() || '';
-                if (options.extensions && !options.extensions.includes(ext))
-                    return [2 /*return*/, next()];
-                res.sendFile(filePath);
-            }
-            catch (e) {
-                if (options.redirect)
-                    return [2 /*return*/, res.redirect(req.url)];
-                return [2 /*return*/, next()];
-            }
+            if (options.etag)
+                res.setHeader('ETag', fs.statSync(filePath).mtime.getTime().toString());
+            if (options.lastModified)
+                res.setHeader('Last-Modified', fs.statSync(filePath).mtime.toUTCString());
+            res.sendFile(filePath);
             return [2 /*return*/];
         });
     }); };

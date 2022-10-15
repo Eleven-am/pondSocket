@@ -82,12 +82,13 @@ var ContextManager = /** @class */ (function () {
         this._managers = new base_1.SimpleBase();
         this._initialValue = initialData;
     }
-    ContextManager.prototype.mount = function (socket, componentId) {
+    ContextManager.prototype.mount = function (socket, componentId, router) {
+        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            var manager, doc, sub, ids;
+            var manager, doc, sub, ids, peakData;
             var _this = this;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            return __generator(this, function (_b) {
+                switch (_b.label) {
                     case 0:
                         manager = this._managers.get(componentId);
                         if (manager === null)
@@ -109,9 +110,13 @@ var ContextManager = /** @class */ (function () {
                             componentIds: ids,
                             data: doc.doc.data,
                         });
-                        return [4 /*yield*/, this._broadcastToComponentId(socket.clientId, componentId, doc.doc.data)];
+                        peakData = {
+                            contextId: this._name,
+                            data: Object.freeze(__assign({}, doc.doc.data))
+                        };
+                        return [4 /*yield*/, ((_a = manager.doc.component.onContextChange) === null || _a === void 0 ? void 0 : _a.call(socket.context, peakData, socket, router))];
                     case 1:
-                        _a.sent();
+                        _b.sent();
                         return [2 /*return*/];
                 }
             });

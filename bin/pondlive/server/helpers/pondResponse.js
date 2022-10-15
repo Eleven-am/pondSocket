@@ -38,8 +38,6 @@ var fileExist = function (filePath) {
 exports.fileExist = fileExist;
 var PondResponse = /** @class */ (function () {
     function PondResponse(response) {
-        this._responseSent = false;
-        this._statusCode = 200;
         this._response = response;
     }
     Object.defineProperty(PondResponse.prototype, "response", {
@@ -57,12 +55,9 @@ var PondResponse = /** @class */ (function () {
      * @param data - The data to send
      */
     PondResponse.prototype.json = function (data) {
-        if (this._responseSent)
+        if (this._response.headersSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
-        this._responseSent = true;
-        this._response.writeHead(this._statusCode, {
-            'Content-Type': 'application/json'
-        });
+        this.setHeader('Content-Type', 'application/json');
         this._response.end(JSON.stringify(data));
     };
     /**
@@ -70,12 +65,9 @@ var PondResponse = /** @class */ (function () {
      * @param data - The data to send
      */
     PondResponse.prototype.html = function (data) {
-        if (this._responseSent)
+        if (this._response.headersSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
-        this._responseSent = true;
-        this._response.writeHead(this._statusCode, {
-            'Content-Type': 'text/html'
-        });
+        this.setHeader('Content-Type', 'text/html');
         this._response.end(data);
     };
     /**
@@ -83,9 +75,8 @@ var PondResponse = /** @class */ (function () {
      * @param url - The url to redirect to
      */
     PondResponse.prototype.redirect = function (url) {
-        if (this._responseSent)
+        if (this._response.headersSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
-        this._responseSent = true;
         this._response.writeHead(302, {
             Location: url
         });
@@ -97,22 +88,26 @@ var PondResponse = /** @class */ (function () {
      * @param value - The value of the header
      */
     PondResponse.prototype.setHeader = function (key, value) {
+        if (this._response.headersSent)
+            throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
         this._response.setHeader(key, value);
         return this;
     };
     /**
      * @desc End the response
      */
-    PondResponse.prototype.end = function () {
-        this._responseSent = true;
-        this._response.end();
+    PondResponse.prototype.end = function (data) {
+        if (this._response.headersSent)
+            throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
+        this._response.end(data);
     };
     /**
      * @desc Pipe a stream to the response
      * @param stream - The stream to pipe
      */
     PondResponse.prototype.pipe = function (stream) {
-        this._responseSent = true;
+        if (this._response.headersSent)
+            throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
         stream.pipe(this._response);
     };
     /**
@@ -121,8 +116,10 @@ var PondResponse = /** @class */ (function () {
      * @param message - The status message
      */
     PondResponse.prototype.status = function (code, message) {
-        this._statusCode = code;
-        this._response.writeHead(code, message);
+        if (this._response.headersSent)
+            throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
+        this._response.statusCode = code;
+        this._response.statusMessage = message || 'OK';
         return this;
     };
     /**
@@ -130,9 +127,8 @@ var PondResponse = /** @class */ (function () {
      * @param filePath - The path to the file
      */
     PondResponse.prototype.sendFile = function (filePath) {
-        if (this._responseSent)
+        if (this._response.headersSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
-        this._responseSent = true;
         if (!(0, exports.fileExist)(filePath))
             throw new pondbase_1.PondError('File not found', 404, 'PondResponse');
         var extension = path_1.default.extname(filePath);

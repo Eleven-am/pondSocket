@@ -68,7 +68,7 @@ describe('authenticateRequest', function () {
         expect(req.data.clientId).toBeUndefined();
         expect(req.data.token).toBeUndefined();
         expect(next).not.toBeCalled();
-        expect(res.writeHead).toBeCalledWith(401, { 'Content-Type': 'application/json' });
+        expect(res.setHeader).toBeCalledWith(401, { 'Content-Type': 'application/json' });
         expect(res.end).toBeCalledWith(JSON.stringify({ message: 'Unauthorized' }));
     });
     it('should reject an expired cookie', function () {
@@ -80,7 +80,7 @@ describe('authenticateRequest', function () {
         expect(req.data.clientId).toBeUndefined();
         expect(req.data.token).toBeUndefined();
         expect(next).not.toBeCalled();
-        expect(res.writeHead).toBeCalledWith(401, { 'Content-Type': 'application/json' });
+        expect(res.setHeader).toBeCalledWith(401, { 'Content-Type': 'application/json' });
         expect(res.end).toBeCalledWith(JSON.stringify({ message: 'Unauthorized' }));
     });
     it('should accept a valid cookie', function () {

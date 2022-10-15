@@ -6,6 +6,7 @@ var createResponse = function (headers) {
         writeHeadFn: jest.fn(),
         setHeaderFn: jest.fn(),
         statusCode: 0,
+        statusMessage: '',
         pipe: jest.fn(),
         writeHead: function (code, headers) {
             res.statusCode = code;
@@ -37,7 +38,7 @@ describe('PondResponse', function () {
         var _a = createResponse({}), res = _a.res, response = _a.response;
         response.status(200, 'OK');
         expect(res.statusCode).toBe(200);
-        expect(res.headers).toBe('OK');
+        expect(res.statusMessage).toBe('OK');
     });
     it('should end the response', function () {
         var _a = createResponse({}), res = _a.res, response = _a.response;
@@ -59,14 +60,12 @@ describe('PondResponse', function () {
     it('should send json', function () {
         var _a = createResponse({}), res = _a.res, response = _a.response;
         response.json({ test: 'test' });
-        expect(res.statusCode).toBe(200);
         expect(res.headers['Content-Type']).toBe('application/json');
         expect(res.end).toHaveBeenCalledWith(JSON.stringify({ test: 'test' }));
     });
     it('should send html', function () {
         var _a = createResponse({}), res = _a.res, response = _a.response;
         response.html('<div></div>');
-        expect(res.statusCode).toBe(200);
         expect(res.headers['Content-Type']).toBe('text/html');
         expect(res.end).toHaveBeenCalledWith('<div></div>');
     });

@@ -189,7 +189,6 @@ var ComponentManager = /** @class */ (function () {
                             };
                         });
                         socket = document.doc.socket;
-                        this._providers.forEach(function (context) { return context.mount(socket, _this.componentId); });
                         mountContext = {
                             params: data.params, path: data.address, query: data.query
                         };
@@ -233,6 +232,7 @@ var ComponentManager = /** @class */ (function () {
                         finally { if (e_1) throw e_1.error; }
                         return [7 /*endfinally*/];
                     case 10:
+                        this._providers.forEach(function (context) { return context.mount(socket, _this.componentId, router); });
                         if (router.sentResponse)
                             return [2 /*return*/, null];
                         renderRoutes = function () { return _this._createRouter((innerHtml === null || innerHtml === void 0 ? void 0 : innerHtml.rendered) || (0, index_3.html)(templateObject_2 || (templateObject_2 = __makeTemplateObject([""], [""]))), _this.componentId, (innerHtml === null || innerHtml === void 0 ? void 0 : innerHtml.path) || ''); };
@@ -281,7 +281,7 @@ var ComponentManager = /** @class */ (function () {
                                 switch (_b.label) {
                                     case 0:
                                         socket.upgradeToWebsocket(channel);
-                                        return [4 /*yield*/, this._providers.forEach(function (context) { return context.mount(socket, _this.componentId); })];
+                                        return [4 /*yield*/, this._providers.forEach(function (context) { return context.mount(socket, _this.componentId, router); })];
                                     case 1:
                                         _b.sent();
                                         return [4 /*yield*/, ((_a = this.component.onRendered) === null || _a === void 0 ? void 0 : _a.call(socket.context, socket, router))];
@@ -515,6 +515,23 @@ var ComponentManager = /** @class */ (function () {
                     case 2:
                         e_3 = _a.sent();
                         throw e_3;
+                    case 3: return [2 /*return*/];
+                }
+            });
+        }); });
+        this._pond.on("unmount/".concat(this.componentId), function (req) { return __awaiter(_this, void 0, void 0, function () {
+            var e_4;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, this._handleUnmount(req.client.clientAssigns.clientId)];
+                    case 1:
+                        _a.sent();
+                        return [3 /*break*/, 3];
+                    case 2:
+                        e_4 = _a.sent();
+                        throw e_4;
                     case 3: return [2 /*return*/];
                 }
             });

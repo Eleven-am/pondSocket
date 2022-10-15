@@ -42,7 +42,8 @@ var PondError = /** @class */ (function () {
         this.errorMessage = errorMessage;
         this.errorCode = errorCode;
         this.data = data;
-        console.log("PondError", errorMessage, errorCode, data);
+        if (process.env.NODE_ENV === "development")
+            console.error(this);
     }
     return PondError;
 }());
