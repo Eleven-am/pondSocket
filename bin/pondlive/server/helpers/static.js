@@ -66,7 +66,6 @@ function staticMiddleware(options) {
     return function (req, res, next) { return __awaiter(_this, void 0, void 0, function () {
         var filePath, ext;
         return __generator(this, function (_a) {
-            filePath = '';
             if (req.url === '/' && options.index)
                 filePath = options.root + options.index;
             else

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PondResponse = void 0;
+exports.PondResponse = exports.fileExist = void 0;
 var fs_1 = __importDefault(require("fs"));
 var path_1 = __importDefault(require("path"));
 var pondbase_1 = require("../../../pondbase");
@@ -35,6 +35,7 @@ var fileExist = function (filePath) {
         return false;
     }
 };
+exports.fileExist = fileExist;
 var PondResponse = /** @class */ (function () {
     function PondResponse(response) {
         this._responseSent = false;
@@ -132,7 +133,7 @@ var PondResponse = /** @class */ (function () {
         if (this._responseSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondResponse');
         this._responseSent = true;
-        if (!fileExist(filePath))
+        if (!(0, exports.fileExist)(filePath))
             throw new pondbase_1.PondError('File not found', 404, 'PondResponse');
         var extension = path_1.default.extname(filePath);
         var contentType = getContentType(extension);

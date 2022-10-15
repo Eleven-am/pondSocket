@@ -11,6 +11,7 @@ var chainLambda_1 = require("./helpers/chainLambda");
 var authenticate_1 = require("./helpers/authenticate");
 var static_1 = require("./helpers/static");
 var componentManager_1 = require("../component/componentManager");
+var pondResponse_1 = require("./helpers/pondResponse");
 /**
  * @desc Creates a pond live server
  * @param routes - The routes to be used by the server
@@ -27,6 +28,7 @@ var GenerateLiveServer = function (routes, server, options) {
     var pondId = base.nanoId();
     var cookieName = (options === null || options === void 0 ? void 0 : options.cookie) || 'pondLive';
     var pondPath = (options === null || options === void 0 ? void 0 : options.pondPath) || '';
+    var htmlPath = undefined;
     var staticPath = path_1.default.join(__dirname, '../client');
     var staticMiddleWare = (0, static_1.staticMiddleware)({
         root: staticPath,
@@ -37,6 +39,21 @@ var GenerateLiveServer = function (routes, server, options) {
         lastModified: true,
         maxAge: 3600000,
     });
+    if (options === null || options === void 0 ? void 0 : options.staticPath) {
+        var exists = (0, pondResponse_1.fileExist)("".concat(options.staticPath, "/index.html"));
+        if (exists)
+            htmlPath = options.staticPath;
+        var staticMiddleWare_1 = (0, static_1.staticMiddleware)({
+            root: options.staticPath,
+            dotfiles: 'ignore',
+            etag: true,
+            extensions: ['html', 'js', 'css', 'json', 'png', 'jpg'],
+            immutable: true,
+            lastModified: true,
+            maxAge: 3600000,
+        });
+        handler.use(staticMiddleWare_1);
+    }
     var authenticator = (0, authenticate_1.AuthorizeRequest)(secret, cookieName, options === null || options === void 0 ? void 0 : options.authenticator);
     var socketAuthenticator = (0, authenticate_1.AuthorizeUpgrade)(secret, cookieName, options === null || options === void 0 ? void 0 : options.authenticator);
     handler.use(authenticator);
@@ -52,7 +69,7 @@ var GenerateLiveServer = function (routes, server, options) {
     });
     var managerProps = {
         pond: channel,
-        htmlPath: options === null || options === void 0 ? void 0 : options.htmlPath,
+        htmlPath: htmlPath,
         chain: handler,
         secret: secret,
         parentId: pondId,

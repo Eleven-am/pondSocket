@@ -78,7 +78,7 @@ var PondServer = /** @class */ (function () {
         var pondLiveMiddleware = (0, genServer_1.GenerateLiveServer)(routes, this._server, {
             secret: options.secret,
             cookie: options.cookie,
-            htmlPath: options.index,
+            staticPath: options.staticPath,
             providers: options.providers
         }).pondLiveMiddleware;
         this.useRaw(pondLiveMiddleware);
