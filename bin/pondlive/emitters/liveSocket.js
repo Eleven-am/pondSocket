@@ -60,12 +60,14 @@ var LiveSocket = /** @class */ (function () {
         this._channel = null;
         this._isWebsocket = false;
         this._remove = remove;
+        this._timer = null;
     }
     /**
      * @desc Assigns a value to the live context.
      * @param assign - The data to assign.
      */
     LiveSocket.prototype.assign = function (assign) {
+        this._clearTimer();
         this._liveContext = Object.assign(this._liveContext, assign);
     };
     /**
@@ -74,6 +76,7 @@ var LiveSocket = /** @class */ (function () {
      * @param data - The data to emit.
      */
     LiveSocket.prototype.emit = function (event, data) {
+        this._clearTimer();
         if (this._channel)
             this._channel.broadcast('emit', { event: event, data: data });
     };
@@ -82,6 +85,7 @@ var LiveSocket = /** @class */ (function () {
          * @desc The live context.
          */
         get: function () {
+            this._clearTimer();
             var result = __assign({}, this._liveContext);
             return Object.freeze(result);
         },
@@ -92,14 +96,18 @@ var LiveSocket = /** @class */ (function () {
      * @desc Destroys the live socket.
      */
     LiveSocket.prototype.destroy = function () {
-        this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });
-        this._subscriptions.length = 0;
-        this._remove();
+        var _this = this;
+        this._timer = setTimeout(function () {
+            _this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });
+            _this._subscriptions.length = 0;
+            _this._remove();
+        }, 5000);
     };
     /**
      * @desc Creates a socket response object.
      */
     LiveSocket.prototype.createResponse = function () {
+        this._clearTimer();
         var response = this._createPondResponse();
         var router = new liveRouter_1.LiveRouter(response);
         return { response: response, router: router };
@@ -109,6 +117,7 @@ var LiveSocket = /** @class */ (function () {
      * @param channel - The websocket channel.
      */
     LiveSocket.prototype.upgradeToWebsocket = function (channel) {
+        this._clearTimer();
         this.downgrade();
         this._isWebsocket = true;
         this._channel = channel;
@@ -117,6 +126,7 @@ var LiveSocket = /** @class */ (function () {
      * @desc Downgrades the live socket to a http request.
      */
     LiveSocket.prototype.downgrade = function () {
+        this._clearTimer();
         this._isWebsocket = false;
         this._channel = null;
         this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });
@@ -132,6 +142,7 @@ var LiveSocket = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        this._clearTimer();
                         response = this._createPondResponse();
                         router = new liveRouter_1.LiveRouter(response);
                         return [4 /*yield*/, this._manager.handleInfo(info, this, router, response)];
@@ -157,6 +168,7 @@ var LiveSocket = /** @class */ (function () {
      * @param sub - The subscription.
      */
     LiveSocket.prototype.addSubscription = function (sub) {
+        this._clearTimer();
         this._subscriptions.push({ sub: sub });
     };
     /**
@@ -179,6 +191,14 @@ var LiveSocket = /** @class */ (function () {
             return;
         };
         return new pondsocket_1.PondResponse(this._channel, assigns, resolver);
+    };
+    /**
+     * @desc Clears the timer.
+     * @private
+     */
+    LiveSocket.prototype._clearTimer = function () {
+        if (this._timer)
+            clearTimeout(this._timer);
     };
     return LiveSocket;
 }());

@@ -100,7 +100,6 @@ var ContextManager = /** @class */ (function () {
                                 timer: null
                             };
                         });
-                        doc.doc.timer && clearTimeout(doc.doc.timer);
                         sub = this._generateUnSubscribe(socket, componentId);
                         socket.addSubscription(sub);
                         ids = __spreadArray([], __read(doc.doc.componentIds), false).filter(function (id) { return id !== componentId; });
@@ -109,7 +108,6 @@ var ContextManager = /** @class */ (function () {
                             clientId: doc.doc.clientId,
                             componentIds: ids,
                             data: doc.doc.data,
-                            timer: null
                         });
                         return [4 /*yield*/, this._broadcastToComponentId(socket.clientId, componentId, doc.doc.data)];
                     case 1:
@@ -172,12 +170,8 @@ var ContextManager = /** @class */ (function () {
                 var doc = _this._getDoc(socket.clientId);
                 if (doc) {
                     var ids = __spreadArray([], __read(doc.doc.componentIds), false).filter(function (id) { return id !== componentId; });
-                    if (ids.length === 0) {
-                        var timer = setTimeout(function () {
-                            doc.removeDoc();
-                        }, 10000);
-                        doc.updateDoc(__assign(__assign({}, doc.doc), { timer: timer }));
-                    }
+                    if (ids.length === 0)
+                        doc.removeDoc();
                     else {
                         doc.updateDoc(__assign(__assign({}, doc.doc), { componentIds: ids }));
                     }
@@ -207,13 +201,7 @@ var ContextManager = /** @class */ (function () {
         });
     };
     ContextManager.prototype._getDoc = function (clientId) {
-        var doc = this._database.get(clientId);
-        if (doc) {
-            doc.doc.timer && clearTimeout(doc.doc.timer);
-            doc.updateDoc(__assign(__assign({}, doc.doc), { timer: null }));
-            return doc;
-        }
-        return null;
+        return this._database.get(clientId) || null;
     };
     return ContextManager;
 }());

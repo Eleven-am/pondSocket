@@ -142,7 +142,6 @@ var ComponentManager = /** @class */ (function () {
                         document = this._sockets.get(socket.clientId);
                         if (!document)
                             return [2 /*return*/, socket.destroy()];
-                        this._clearShutDown(document);
                         return [4 /*yield*/, ((_a = this.component.onInfo) === null || _a === void 0 ? void 0 : _a.call(socket.context, info, socket, router))];
                     case 1:
                         _b.sent();
@@ -164,7 +163,6 @@ var ComponentManager = /** @class */ (function () {
                         document = this._sockets.get(clientId);
                         if (!document)
                             return [2 /*return*/, console.error('No document found for client', clientId)];
-                        this._clearShutDown(document);
                         if (!document.doc.socket.isWebsocket)
                             return [2 /*return*/];
                         _b = document.doc.socket.createResponse(), router = _b.router, response = _b.response;
@@ -192,7 +190,6 @@ var ComponentManager = /** @class */ (function () {
                                 socket: new index_1.LiveSocket(clientId, _this, doc.removeDoc.bind(doc)), rendered: (0, index_3.html)(templateObject_1 || (templateObject_1 = __makeTemplateObject([""], [""]))), timer: null,
                             };
                         });
-                        this._clearShutDown(document);
                         socket = document.doc.socket;
                         this._providers.forEach(function (context) { return context.mount(socket, _this.componentId); });
                         mountContext = {
@@ -316,7 +313,7 @@ var ComponentManager = /** @class */ (function () {
                         return [4 /*yield*/, ((_a = this.component.onUnmount) === null || _a === void 0 ? void 0 : _a.call(socket.doc.socket.context, socket.doc.socket))];
                     case 1:
                         _b.sent();
-                        this._shutDown(socket);
+                        socket.doc.socket.destroy();
                         return [2 /*return*/];
                 }
             });
@@ -342,7 +339,6 @@ var ComponentManager = /** @class */ (function () {
                         document = this._sockets.get(clientId);
                         if (!document)
                             throw new pondbase_1.PondError('Client not found', 404, clientId);
-                        this._clearShutDown(document);
                         return [4 /*yield*/, callback(document.doc.socket)];
                     case 1:
                         _a.sent();
@@ -398,7 +394,7 @@ var ComponentManager = /** @class */ (function () {
                 rendered = this.component.render.call(document.doc.socket.context, renderContext, styleObject.classes);
                 finalHtml = (0, index_3.html)(templateObject_5 || (templateObject_5 = __makeTemplateObject(["", "", ""], ["", "", ""])), styleObject.string, rendered);
                 document.updateDoc({
-                    socket: document.doc.socket, rendered: finalHtml, timer: document.doc.timer
+                    socket: document.doc.socket, rendered: finalHtml
                 });
                 return [2 /*return*/, finalHtml];
             });
@@ -529,25 +525,6 @@ var ComponentManager = /** @class */ (function () {
     ComponentManager.prototype._initialiseManager = function () {
         this._initialiseHTTPManager();
         this._initialiseSocketManager();
-    };
-    ComponentManager.prototype._shutDown = function (context) {
-        if (context.doc.timer)
-            clearTimeout(context.doc.timer);
-        var timer = setTimeout(function () {
-            context.doc.socket.destroy();
-        }, 1000);
-        context.updateDoc({
-            socket: context.doc.socket, rendered: context.doc.rendered,
-            timer: timer
-        });
-    };
-    ComponentManager.prototype._clearShutDown = function (context) {
-        if (context.doc.timer) {
-            clearTimeout(context.doc.timer);
-            context.updateDoc({
-                socket: context.doc.socket, rendered: context.doc.rendered, timer: null
-            });
-        }
     };
     ComponentManager.prototype._createRouter = function (innerRoute, parentId, componentId) {
         if (parentId === void 0) { parentId = this._parentId; }
