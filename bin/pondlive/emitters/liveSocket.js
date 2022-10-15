@@ -61,6 +61,7 @@ var LiveSocket = /** @class */ (function () {
         this._isWebsocket = false;
         this._remove = remove;
         this._timer = null;
+        this.componentId = manager.componentId;
     }
     /**
      * @desc Assigns a value to the live context.
@@ -119,19 +120,8 @@ var LiveSocket = /** @class */ (function () {
      */
     LiveSocket.prototype.upgradeToWebsocket = function (channel) {
         this._clearTimer();
-        this.downgrade();
         this._isWebsocket = true;
         this._channel = channel;
-    };
-    /**
-     * @desc Downgrades the live socket to a http request.
-     */
-    LiveSocket.prototype.downgrade = function () {
-        this._clearTimer();
-        this._isWebsocket = false;
-        this._channel = null;
-        this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });
-        this._subscriptions.length = 0;
     };
     /**
      * @desc Handles a message from a subscriber.
@@ -144,11 +134,45 @@ var LiveSocket = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         this._clearTimer();
+                        if (!this._isWebsocket)
+                            return [2 /*return*/];
                         response = this._createPondResponse();
                         router = new liveRouter_1.LiveRouter(response);
                         return [4 /*yield*/, this._manager.handleInfo(info, this, router, response)];
                     case 1:
                         _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    LiveSocket.prototype.onContextChange = function (context) {
+        return __awaiter(this, void 0, void 0, function () {
+            var response, router;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        this._clearTimer();
+                        if (!this._isWebsocket)
+                            return [2 /*return*/];
+                        response = this._createPondResponse();
+                        router = new liveRouter_1.LiveRouter(response);
+                        return [4 /*yield*/, this._manager.handleContextChange(context, this, router, response)];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    LiveSocket.prototype.mountContext = function (context, router) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0: return [4 /*yield*/, ((_a = this._manager.component.onContextChange) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, context, this, router))];
+                    case 1:
+                        _b.sent();
                         return [2 /*return*/];
                 }
             });

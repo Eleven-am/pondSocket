@@ -60,9 +60,10 @@ describe('LiveSocket', function () {
     });
     it('should destroy socket', function () {
         var _a = createSocket(), socket = _a.socket, removeDoc = _a.removeDoc;
+        jest.useFakeTimers();
         socket.destroy(); // this will remove the socket from the database
-        // takes 5 seconds to be removed from the database
-        expect(removeDoc).not.toHaveBeenCalled();
+        jest.runAllTimers();
+        expect(removeDoc).toHaveBeenCalled();
     });
     it('should handle info upgrade to websocket', function () {
         var socket = createSocket().socket;
@@ -71,15 +72,7 @@ describe('LiveSocket', function () {
         socket.upgradeToWebsocket(channel);
         expect(socket.isWebsocket).toBe(true);
     });
-    it('should handle info downgrade', function () {
-        var socket = createSocket().socket;
-        var channel = createChannel().channel;
-        socket.upgradeToWebsocket(channel);
-        expect(socket.isWebsocket).toBe(true);
-        socket.downgrade();
-        expect(socket.isWebsocket).toBe(false);
-    });
-    it('should call the managers handle context change when it recieves a message', function () { return __awaiter(void 0, void 0, void 0, function () {
+    it('should call the managers handle context change when it receives a message', function () { return __awaiter(void 0, void 0, void 0, function () {
         var _a, socket, manager, channel;
         return __generator(this, function (_b) {
             switch (_b.label) {
@@ -126,6 +119,7 @@ describe('LiveSocket', function () {
     it('should be capable of taking in subscriptions', function () {
         var _a = createSocket(), socket = _a.socket, removeDoc = _a.removeDoc;
         var channel = createChannel().channel;
+        jest.useFakeTimers();
         var subscription = {
             unsubscribe: jest.fn(),
         };
@@ -140,6 +134,7 @@ describe('LiveSocket', function () {
         expect(subscription.unsubscribe).not.toHaveBeenCalled();
         // When the socket is destroyed, it unsubscribes from all of its subscriptions
         socket.destroy();
+        jest.runAllTimers();
         expect(subscription.unsubscribe).toHaveBeenCalled();
         // The removeDoc method is also called on the socket
         // this method is used to remove the socket from the manager
@@ -148,6 +143,7 @@ describe('LiveSocket', function () {
     it('should be able to downgrade', function () {
         var socket = createSocket().socket;
         var channel = createChannel().channel;
+        jest.useFakeTimers();
         socket.upgradeToWebsocket(channel);
         // The downgrade method unsubscribes from all of the subscriptions
         // it does not remove the socket from the manager
@@ -160,7 +156,8 @@ describe('LiveSocket', function () {
         socket.addSubscription(subscription);
         expect(socket['_subscriptions']).toHaveLength(1);
         expect(subscription.unsubscribe).not.toHaveBeenCalled();
-        socket.downgrade();
+        socket.destroy(); // this will remove the socket from the database
+        jest.runAllTimers();
         expect(subscription.unsubscribe).toHaveBeenCalled();
         expect(socket['_subscriptions']).toHaveLength(0);
     });

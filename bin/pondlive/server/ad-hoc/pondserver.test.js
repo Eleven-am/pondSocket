@@ -71,7 +71,7 @@ describe('PondServer', function () {
         });
         server.emit('request', request, response);
         expect(mock).toBeCalledTimes(1);
-        expect(response.writeHead).toBeCalledWith(200, { 'Content-Type': 'application/json' });
+        expect(response.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(response.end).toBeCalledWith(JSON.stringify({ message: 'Hello World' }));
         request.on.mockClear();
         response.writeHead.mockClear();
@@ -92,7 +92,7 @@ describe('PondServer', function () {
         request.method = 'POST';
         server.emit('request', request, response);
         expect(mock).toBeCalledTimes(1);
-        expect(response.writeHead).toBeCalledWith(200, { 'Content-Type': 'application/json' });
+        expect(response.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(response.end).toBeCalledWith(JSON.stringify({ message: 'Hello World' }));
         request.on.mockClear();
         response.writeHead.mockClear();
@@ -113,7 +113,7 @@ describe('PondServer', function () {
         request.method = 'PUT';
         server.emit('request', request, response);
         expect(mock).toBeCalledTimes(1);
-        expect(response.writeHead).toBeCalledWith(200, { 'Content-Type': 'application/json' });
+        expect(response.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(response.end).toBeCalledWith(JSON.stringify({ message: 'Hello World' }));
         request.on.mockClear();
         response.writeHead.mockClear();
@@ -138,7 +138,7 @@ describe('PondServer', function () {
         request.method = 'PATCH';
         server.emit('request', request, response);
         expect(mock).toBeCalledTimes(1);
-        expect(response.writeHead).toBeCalledWith(200, { 'Content-Type': 'application/json' });
+        expect(response.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(response.end).toBeCalledWith(JSON.stringify({ message: 'Hello World' }));
         request.on.mockClear();
         response.writeHead.mockClear();
@@ -147,7 +147,7 @@ describe('PondServer', function () {
         request.method = 'DELETE';
         server.emit('request', request, response);
         expect(mock).toBeCalledTimes(1);
-        expect(response.writeHead).toBeCalledWith(200, { 'Content-Type': 'application/json' });
+        expect(response.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(response.end).toBeCalledWith(JSON.stringify({ message: 'Hello World' }));
         request.on.mockClear();
         response.writeHead.mockClear();
@@ -156,7 +156,7 @@ describe('PondServer', function () {
         request.method = 'PUT';
         server.emit('request', request, response);
         expect(mock).toBeCalledTimes(1);
-        expect(response.writeHead).toBeCalledWith(200, { 'Content-Type': 'application/json' });
+        expect(response.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(response.end).toBeCalledWith(JSON.stringify({ message: 'Hello World' }));
         request.on.mockClear();
         response.writeHead.mockClear();
@@ -165,7 +165,7 @@ describe('PondServer', function () {
         request.method = 'HEAD';
         server.emit('request', request, response);
         expect(mock).toBeCalledTimes(1);
-        expect(response.writeHead).toBeCalledWith(200, { 'Content-Type': 'application/json' });
+        expect(response.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(response.end).toBeCalledWith(JSON.stringify({ message: 'Hello World' }));
         request.on.mockClear();
         response.writeHead.mockClear();

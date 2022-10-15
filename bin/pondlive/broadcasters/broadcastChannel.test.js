@@ -32,6 +32,7 @@ describe('Broadcaster', function () {
     it('should be able to add a client', function () {
         var socket = createSocket().socket;
         var channel = createChannel().channel;
+        jest.useFakeTimers();
         socket.upgradeToWebsocket(channel);
         var broadcaster = new broadcastChannel_1.BroadcastChannel({});
         expect(broadcaster['_database'].size).toBe(0);
@@ -43,14 +44,15 @@ describe('Broadcaster', function () {
         // Since the socket is subscribed to the channel, it will be added to the database
         expect(broadcaster['_database'].size).toBe(1);
         // When a socket is downgraded, it will be removed from the database
-        socket.downgrade();
+        socket.destroy();
+        jest.runAllTimers();
         expect(broadcaster['_database'].size).toBe(0);
         // When a socket is destroyed, it will be removed from the database
         broadcaster.subscribe(socket);
         expect(broadcaster['_database'].size).toBe(1);
-        socket.destroy(); // this will remove the socket from the database
-        // But the socket takes 5 seconds to be removed from the database
-        expect(broadcaster['_database'].size).toBe(1);
+        socket.destroy();
+        jest.runAllTimers();
+        expect(broadcaster['_database'].size).toBe(0);
     });
     it('should be able to emit an event to all clients', function () {
         var _a = createSocket(), socket = _a.socket, manager = _a.manager;

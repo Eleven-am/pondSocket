@@ -68,7 +68,7 @@ describe('authenticateRequest', function () {
         expect(req.data.clientId).toBeUndefined();
         expect(req.data.token).toBeUndefined();
         expect(next).not.toBeCalled();
-        expect(res.setHeader).toBeCalledWith(401, { 'Content-Type': 'application/json' });
+        expect(res.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(res.end).toBeCalledWith(JSON.stringify({ message: 'Unauthorized' }));
     });
     it('should reject an expired cookie', function () {
@@ -80,7 +80,7 @@ describe('authenticateRequest', function () {
         expect(req.data.clientId).toBeUndefined();
         expect(req.data.token).toBeUndefined();
         expect(next).not.toBeCalled();
-        expect(res.setHeader).toBeCalledWith(401, { 'Content-Type': 'application/json' });
+        expect(res.setHeader).toBeCalledWith('Content-Type', 'application/json');
         expect(res.end).toBeCalledWith(JSON.stringify({ message: 'Unauthorized' }));
     });
     it('should accept a valid cookie', function () {
@@ -113,7 +113,6 @@ describe('authenticateRequest', function () {
         expect(req.data.clientId).toBeUndefined();
         expect(req.data.token).toBeUndefined();
         expect(next).not.toBeCalled();
-        expect(res.writeHead).toBeCalled();
         expect(res.end).toBeCalled();
         expect(res.setHeader).toBeCalled();
         var authenticateRequest2 = (0, authenticate_1.AuthorizeRequest)('secret', 'cookie', function () { return ({ clientId: '123', token: '456' }); });

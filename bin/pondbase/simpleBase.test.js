@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var simpleBase_1 = require("./simpleBase");
+var enums_1 = require("./enums");
 describe('SimpleBase', function () {
     it('should create a new database', function () {
         var db = new simpleBase_1.SimpleBase();
@@ -105,5 +106,69 @@ describe('SimpleBase', function () {
         expect(joinedDocs[0]).toEqual({ test: 1, value: 1 });
         expect(joinedDocs[1]).toEqual({ test: 2, value: 2 });
         expect(joinedDocs[2]).toEqual({ test: 3, value: 3 });
+    });
+    it('should allow subscriptions to the pond that return a function to unsubscribe', function () {
+        var pond = new simpleBase_1.SimpleBase();
+        var mock = jest.fn();
+        var sub = pond.subscribe(mock);
+        pond.set('bar', 'RFJPOERFJEPROJP');
+        expect(mock).toBeCalled();
+        sub.unsubscribe();
+        pond.set('baz', 'RFJPOERFJEPROJP');
+        expect(mock).toBeCalledTimes(1);
+    });
+    it('should allow subscriptions to the pond that return a function to unsubscribe 2', function (done) {
+        var pond = new simpleBase_1.SimpleBase();
+        pond.set('eufhuwoefhowiufh', 'bar');
+        pond.set('eufhuwohowiufh', 'chips');
+        function subscriber(data, data2, action) {
+            try {
+                expect(data).toEqual(["bar", "chips", "dog"]);
+                expect(data2).toEqual('dog');
+                expect(action).toEqual(enums_1.PondBaseActions.ADD_TO_POND);
+                done();
+            }
+            catch (error) {
+                done(error);
+            }
+        }
+        pond.subscribe(subscriber);
+        pond.set('eufhhowiufh', 'dog');
+    });
+    it('should allow subscriptions to the pond that return a function to unsubscribe 3', function (done) {
+        var pond = new simpleBase_1.SimpleBase();
+        var baseUnset = pond.set('1', 'bar');
+        pond.set('2', 'chips');
+        function subscriber(data, data2, action) {
+            try {
+                expect(data).toEqual(["chips"]);
+                expect(data2).toEqual(null);
+                expect(action).toEqual(enums_1.PondBaseActions.REMOVE_FROM_POND);
+                done();
+            }
+            catch (error) {
+                done(error);
+            }
+        }
+        pond.subscribe(subscriber);
+        baseUnset.removeDoc();
+    });
+    it('should allow subscriptions to the pond that return a function to unsubscribe 4', function (done) {
+        var pond = new simpleBase_1.SimpleBase();
+        pond.set('ww', 'bar');
+        var val = pond.set('w2w', 'chips');
+        function subscriber(data, data2, action) {
+            try {
+                expect(data).toEqual(["bar", "dog"]);
+                expect(data2).toEqual('dog');
+                expect(action).toEqual(enums_1.PondBaseActions.UPDATE_IN_POND);
+                done();
+            }
+            catch (error) {
+                done(error);
+            }
+        }
+        pond.subscribe(subscriber);
+        val.updateDoc('dog');
     });
 });

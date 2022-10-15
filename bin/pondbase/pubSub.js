@@ -103,6 +103,17 @@ var Subject = /** @class */ (function (_super) {
         handler(this._value);
         return _super.prototype.subscribe.call(this, handler);
     };
+    Object.defineProperty(Subject.prototype, "observers", {
+        /**
+         * @desc Get the list of observers
+         * @returns The list of observers
+         */
+        get: function () {
+            return this._subscribers;
+        },
+        enumerable: false,
+        configurable: true
+    });
     /**
      * @desc Publish to the subject
      */

@@ -310,4 +310,18 @@ describe('EventSubject', function () {
         subject.publish('test', 'Hello Again');
         expect(subscriber).not.toHaveBeenCalledWith('Hello Again');
     });
+    it('should be able to add an oncomplete callback', function () {
+        var subject = new pubSub_1.EventPubSub();
+        var subscriber = jest.fn();
+        var subscriber2 = jest.fn();
+        subject.onComplete(subscriber2);
+        subject.subscribe('test', subscriber);
+        subject.publish('test', 'Hello');
+        expect(subscriber).toHaveBeenCalledWith('Hello');
+        subscriber.mockClear();
+        subject.complete();
+        expect(subscriber2).toHaveBeenCalled();
+        subject.publish('test', 'Hello Again');
+        expect(subscriber).not.toHaveBeenCalledWith('Hello Again');
+    });
 });

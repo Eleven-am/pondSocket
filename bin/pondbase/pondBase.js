@@ -32,11 +32,11 @@ var pubSub_1 = require("./pubSub");
 var enums_1 = require("./enums");
 var basePromise_1 = require("./basePromise");
 var PondDocument = /** @class */ (function () {
-    function PondDocument(id, doc, removeDoc, updateDoc) {
-        this._id = id;
-        this._doc = doc;
+    function PondDocument(id, removeDoc, updateDoc, getDoc) {
         this._removeDoc = removeDoc;
         this._updateDoc = updateDoc;
+        this._getDoc = getDoc;
+        this._id = id;
     }
     Object.defineProperty(PondDocument.prototype, "id", {
         get: function () {
@@ -47,7 +47,7 @@ var PondDocument = /** @class */ (function () {
     });
     Object.defineProperty(PondDocument.prototype, "doc", {
         get: function () {
-            return this._doc;
+            return this._getDoc();
         },
         enumerable: false,
         configurable: true
@@ -56,15 +56,16 @@ var PondDocument = /** @class */ (function () {
      * @desc Removes the document from the collection
      */
     PondDocument.prototype.removeDoc = function () {
+        var doc = this._getDoc();
         this._removeDoc();
-        return this._doc;
+        return doc;
     };
     /**
      * @desc Updates the document in the collection
      * @param value - the new value of the document
      */
     PondDocument.prototype.updateDoc = function (value) {
-        this._doc = this._updateDoc(value).doc;
+        this._updateDoc(value);
     };
     return PondDocument;
 }());
@@ -102,7 +103,7 @@ var PondBase = /** @class */ (function () {
     PondBase.prototype.get = function (key) {
         var doc = this._db[key];
         if (doc)
-            return this._createPondDocument(key, doc);
+            return this._createPondDocument(key);
         return null;
     };
     /**
@@ -113,7 +114,7 @@ var PondBase = /** @class */ (function () {
         var key = this._nanoid();
         this._db[key] = value;
         this._broadcast.publish({ oldValue: null, currentValue: value });
-        return this._createPondDocument(key, value);
+        return this._createPondDocument(key);
     };
     /**
      * @desc Update a document by key
@@ -124,7 +125,7 @@ var PondBase = /** @class */ (function () {
         if (this._db[key]) {
             this._db[key] = value;
             this._broadcast.publish({ oldValue: this._db[key], currentValue: value });
-            return this._createPondDocument(key, value);
+            return this._createPondDocument(key);
         }
         else
             throw new basePromise_1.PondError("Key ".concat(key, " does not exist in the pond"), 404, key);
@@ -134,7 +135,7 @@ var PondBase = /** @class */ (function () {
      * @param creator - The creator function of the pond document
      */
     PondBase.prototype.createDocument = function (creator) {
-        var scaffold = this._createPondDocument(this._nanoid(), undefined);
+        var scaffold = this._createPondDocument(this._nanoid());
         var doc = creator(scaffold);
         this._db[scaffold.id] = doc;
         scaffold.updateDoc(doc);
@@ -187,7 +188,7 @@ var PondBase = /** @class */ (function () {
         for (var key in this._db) {
             var doc = this._db[key];
             if (query(doc))
-                result.push(this._createPondDocument(key, doc));
+                result.push(this._createPondDocument(key));
         }
         return result;
     };
@@ -199,7 +200,7 @@ var PondBase = /** @class */ (function () {
         var result = [];
         for (var key in this._db) {
             if (query(key))
-                result.push(this._createPondDocument(key, this._db[key]));
+                result.push(this._createPondDocument(key));
         }
         return result;
     };
@@ -232,7 +233,7 @@ var PondBase = /** @class */ (function () {
         for (var key in this._db) {
             var doc = this._db[key];
             if (query(doc))
-                return this._createPondDocument(key, doc);
+                return this._createPondDocument(key);
         }
         return null;
     };
@@ -270,12 +271,8 @@ var PondBase = /** @class */ (function () {
      * @desc Get all the documents in an array
      */
     PondBase.prototype.toArray = function () {
-        var result = [];
-        for (var key in this._db) {
-            var doc = this._db[key];
-            result.push(this._createPondDocument(key, doc));
-        }
-        return result;
+        var _this = this;
+        return Object.keys(this._db).map(function (key) { return _this._createPondDocument(key); });
     };
     /**
      * @desc Delete a document by key
@@ -285,15 +282,22 @@ var PondBase = /** @class */ (function () {
         this._broadcast.publish({ oldValue: this._db[key], currentValue: null });
     };
     /**
+     * @desc Retrieve a document from the database
+     * @param key - The key of the document
+     */
+    PondBase.prototype._getDocument = function (key) {
+        return this._db[key] || null;
+    };
+    /**
      * @desc Create a pond document
      * @param id - The id of the document
-     * @param doc - The document
      * @private
      */
-    PondBase.prototype._createPondDocument = function (id, doc) {
+    PondBase.prototype._createPondDocument = function (id) {
         var removeDoc = this._delete.bind(this, id);
         var updateDoc = this.update.bind(this, id);
-        return new PondDocument(id, doc, removeDoc, updateDoc);
+        var getDoc = this._getDocument.bind(this, id);
+        return new PondDocument(id, removeDoc, updateDoc, getDoc);
     };
     return PondBase;
 }());

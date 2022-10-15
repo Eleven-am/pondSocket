@@ -40,9 +40,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SimpleBase = void 0;
 var pondBase_1 = require("./pondBase");
+var pubSub_1 = require("./pubSub");
+var enums_1 = require("./enums");
 var SimpleBase = /** @class */ (function () {
     function SimpleBase() {
         this._db = {};
+        this._broadcast = new pubSub_1.Broadcast();
     }
     Object.defineProperty(SimpleBase.prototype, "size", {
         /**
@@ -61,7 +64,7 @@ var SimpleBase = /** @class */ (function () {
     SimpleBase.prototype.get = function (key) {
         var doc = this._db[key];
         if (doc)
-            return this._createPondDocument(key, doc);
+            return this._createPondDocument(key);
         return null;
     };
     /**
@@ -70,15 +73,22 @@ var SimpleBase = /** @class */ (function () {
      * @param value - The value of the document
      */
     SimpleBase.prototype.set = function (key, value) {
+        var oldValue = this._db[key] || null;
         this._db[key] = value;
-        return this._createPondDocument(key, value);
+        this._broadcast.publish({ oldValue: oldValue, currentValue: value });
+        return this._createPondDocument(key);
     };
+    /**
+     * @desc Upsert a document to the database
+     * @param key - The key of the document
+     * @param creator - The creator function
+     */
     SimpleBase.prototype.getOrCreate = function (key, creator) {
         var doc = this.get(key);
         if (doc)
             return doc;
         else {
-            return this.set(key, creator(this._createPondDocument(key, {})));
+            return this.set(key, creator(this._createPondDocument(key)));
         }
     };
     /**
@@ -118,6 +128,12 @@ var SimpleBase = /** @class */ (function () {
             }
         });
     };
+    /**
+     * @desc Performs a join between two ponds
+     * @param secondPond - The second pond
+     * @param key - The key to join on
+     * @param secondKey - The key from the second pond to join on
+     */
     SimpleBase.prototype.join = function (secondPond, key, secondKey) {
         var result = [];
         var secondBade = secondPond._db;
@@ -139,7 +155,7 @@ var SimpleBase = /** @class */ (function () {
         for (var key in this._db) {
             var doc = this._db[key];
             if (query(doc))
-                result.push(this._createPondDocument(key, doc));
+                result.push(this._createPondDocument(key));
         }
         return result;
     };
@@ -164,7 +180,7 @@ var SimpleBase = /** @class */ (function () {
         for (var key in this._db) {
             var doc = this._db[key];
             if (query(doc))
-                return this._createPondDocument(key, doc);
+                return this._createPondDocument(key);
         }
         return null;
     };
@@ -184,32 +200,52 @@ var SimpleBase = /** @class */ (function () {
         keys.forEach(function (key) { return _this._delete(key); });
     };
     /**
+     * @desc Subscribe to change on all documents
+     * @param handler - The handler function of the event
+     */
+    SimpleBase.prototype.subscribe = function (handler) {
+        var _this = this;
+        return this._broadcast.subscribe(function (data) {
+            var change = enums_1.PondBaseActions.UPDATE_IN_POND;
+            if (data.oldValue === null)
+                change = enums_1.PondBaseActions.ADD_TO_POND;
+            else if (data.currentValue === null)
+                change = enums_1.PondBaseActions.REMOVE_FROM_POND;
+            handler(Object.values(_this._db), data.currentValue, change);
+        });
+    };
+    /**
      * @desc Get all the documents in an array
      */
     SimpleBase.prototype.toArray = function () {
-        var result = [];
-        for (var key in this._db) {
-            var doc = this._db[key];
-            result.push(this._createPondDocument(key, doc));
-        }
-        return result;
+        var _this = this;
+        return Object.keys(this._db).map(function (key) { return _this._createPondDocument(key); });
     };
     /**
      * @desc Delete a document by key
      */
     SimpleBase.prototype._delete = function (key) {
+        var oldValue = this._db[key];
         delete this._db[key];
+        this._broadcast.publish({ oldValue: oldValue, currentValue: null });
+    };
+    /**
+     * @desc Retrieve a document from the database
+     * @param key - The key of the document
+     */
+    SimpleBase.prototype._getDocument = function (key) {
+        return this._db[key] || null;
     };
     /**
      * @desc Create a pond document
      * @param id - The id of the document
-     * @param doc - The document
      * @private
      */
-    SimpleBase.prototype._createPondDocument = function (id, doc) {
+    SimpleBase.prototype._createPondDocument = function (id) {
         var removeDoc = this._delete.bind(this, id);
         var updateDoc = this.set.bind(this, id);
-        return new pondBase_1.PondDocument(id, doc, removeDoc, updateDoc);
+        var getDoc = this._getDocument.bind(this, id);
+        return new pondBase_1.PondDocument(id, removeDoc, updateDoc, getDoc);
     };
     return SimpleBase;
 }());

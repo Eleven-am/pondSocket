@@ -1,4 +1,20 @@
 "use strict";
+var __read = (this && this.__read) || function (o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        }
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var contextManager_1 = require("./contextManager");
 var emitters_1 = require("../emitters");
@@ -25,14 +41,14 @@ var createManager = function () {
 };
 describe('ContextManager', function () {
     it('should create a new context', function () {
-        var contextManager = new contextManager_1.ContextManager({});
+        var contextManager = new contextManager_1.ContextDistributor({});
         expect(contextManager).toBeDefined();
     });
     it('should assign a component to a context', function () {
         // during initialization, the context manager will attempt to subscribe
         // component managers to itself
-        var contextManager = new contextManager_1.ContextManager({});
-        var secondManager = new contextManager_1.ContextManager({});
+        var contextManager = new contextManager_1.ContextDistributor({});
+        var secondManager = new contextManager_1.ContextDistributor({});
         expect(contextManager['_managers'].size).toBe(0);
         expect(secondManager['_managers'].size).toBe(0);
         var entered = jest.fn();
@@ -62,7 +78,7 @@ describe('ContextManager', function () {
         expect(secondManager['_managers'].size).toBe(0);
     });
     it('should mount a socket to a context if the component is listening for the context', function () {
-        var contextManager = new contextManager_1.ContextManager({});
+        var contextManager = new contextManager_1.ContextDistributor({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
         var handler = jest.fn();
         manager.handleContextChange = handler;
@@ -71,28 +87,26 @@ describe('ContextManager', function () {
         };
         contextManager.subscribe(manager);
         expect(handler).not.toHaveBeenCalled();
-        var router = socket.createResponse().router;
         // Once the component manager is subscribed to the context manager
         // When a socket is mounted to the component manager,
         // The context manager will mount the socket to the context
-        contextManager.mount(socket, manager.componentId, router);
+        contextManager.mount(socket);
         expect(contextManager['_database'].size).toBe(1);
         // The context manager will then call the component manager's handleContextChange method
         // with the initial context data
-        expect(handler).toHaveBeenCalledWith({ contextId: contextManager['_name'], data: {} }, socket.clientId);
+        expect(handler).toHaveBeenCalled();
     });
     it('should not mount a socket to a context if the component is not listening for the context', function () {
-        var contextManager = new contextManager_1.ContextManager({});
-        var contextManager2 = new contextManager_1.ContextManager({});
+        var contextManager = new contextManager_1.ContextDistributor({});
+        var contextManager2 = new contextManager_1.ContextDistributor({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
         var handler = jest.fn();
         manager.component.onContextChange = function (data) {
             contextManager.handleContextChange(data, handler);
         };
-        var router = socket.createResponse().router;
         // The component manager is not subscribed to the context manager
         // so the context manager will not mount the socket to the context
-        contextManager2.mount(socket, manager.componentId, router);
+        contextManager.mount(socket);
         expect(contextManager2['_database'].size).toBe(0);
         // The context manager will not call the component manager's handleContextChange method
         expect(handler).not.toHaveBeenCalled();
@@ -101,9 +115,8 @@ describe('ContextManager', function () {
         expect(contextManager2['_database'].size).toBe(0);
     });
     it('should assign data to the context', function () {
-        var contextManager = new contextManager_1.ContextManager({});
+        var contextManager = new contextManager_1.ContextDistributor({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
-        var router = socket.createResponse().router;
         var handler = jest.fn();
         manager.component.onContextChange = function (data) {
             contextManager.handleContextChange(data, handler);
@@ -112,7 +125,7 @@ describe('ContextManager', function () {
             manager.component.onContextChange(data);
         };
         contextManager.subscribe(manager);
-        contextManager.mount(socket, manager.componentId, router);
+        contextManager.mount(socket);
         expect(handler).toHaveBeenCalled(); // initial data is used for initial context
         handler.mockClear();
         // The context manager will call the component manager's handleContextChange method
@@ -121,9 +134,8 @@ describe('ContextManager', function () {
         expect(handler).toHaveBeenCalledWith({ test: 'test' });
     });
     it('should return the current context data', function () {
-        var contextManager = new contextManager_1.ContextManager({});
+        var contextManager = new contextManager_1.ContextDistributor({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
-        var router = socket.createResponse().router;
         manager.component.onContextChange = function (data) {
             contextManager.handleContextChange(data, function () { });
         };
@@ -131,17 +143,16 @@ describe('ContextManager', function () {
             manager.component.onContextChange(data);
         };
         contextManager.subscribe(manager);
-        contextManager.mount(socket, manager.componentId, router);
+        contextManager.mount(socket);
         expect(contextManager.get(socket)).toEqual({});
         contextManager.assign(socket, { test: 'test' });
         expect(contextManager.get(socket)).toEqual({ test: 'test' });
     });
     it('should remove a socket from the context', function () {
         var _a, _b;
-        var contextManager = new contextManager_1.ContextManager({});
+        var contextManager = new contextManager_1.ContextDistributor({});
         var _c = createManager(), socket = _c.socket, manager = _c.manager;
         var _d = createManager(), manager2 = _d.manager, socket2 = _d.socket;
-        var router = socket.createResponse().router;
         var handler = jest.fn();
         manager2.componentId = '456'; // assign a different id to the second manager
         manager.component.onContextChange = function (data) {
@@ -158,8 +169,10 @@ describe('ContextManager', function () {
         };
         contextManager.subscribe(manager);
         contextManager.subscribe(manager2);
-        contextManager.mount(socket, manager.componentId, router);
-        contextManager.mount(socket2, manager2.componentId, router);
+        contextManager.mount(socket);
+        contextManager.mount(socket2);
+        // use jest fake timers to test the setTimeout
+        jest.useFakeTimers();
         // Both sockets are mounted to the context under a single client id
         // Both component managers are listening for the context
         expect(contextManager['_database'].size).toBe(1);
@@ -171,16 +184,41 @@ describe('ContextManager', function () {
         expect(handler).toHaveBeenCalledTimes(2);
         expect(contextManager.get(socket)).toEqual({ test: 'test' });
         expect(contextManager.get(socket2)).toEqual({ test: 'test' });
-        expect((_a = contextManager['_database'].get(socket.clientId)) === null || _a === void 0 ? void 0 : _a.doc.componentIds).toHaveLength(2);
+        expect((_a = contextManager['_database'].get(socket.clientId)) === null || _a === void 0 ? void 0 : _a.doc['_subscribers'].size).toBe(2);
         handler.mockClear();
         // when a socket is destroyed, the context manager will remove the socket from the context
         socket.destroy();
+        jest.runAllTimers();
         expect(contextManager['_database'].size).toBe(1);
-        expect((_b = contextManager['_database'].get(socket2.clientId)) === null || _b === void 0 ? void 0 : _b.doc.componentIds).toHaveLength(1);
+        expect((_b = contextManager['_database'].get(socket2.clientId)) === null || _b === void 0 ? void 0 : _b.doc['_subscribers'].size).toBe(1);
         // when the second socket is destroyed, the context manager will remove the client id from the context
         socket2.destroy();
         // The context manager gives the context 10 seconds to be used again before removing it
         // This is to prevent the context from being removed and recreated if the component is quickly mounted and unmounted
-        expect(contextManager['_database'].size).toBe(1); // should be 0, but the context is not removed yet
+        jest.runAllTimers();
+        expect(contextManager['_database'].size).toBe(0);
+    });
+    it('should be able to always get the updated context data', function () {
+        var contextManager = new contextManager_1.ContextDistributor({});
+        var _a = createManager(), socket = _a.socket, manager = _a.manager;
+        manager.component.onContextChange = function (data) {
+            contextManager.handleContextChange(data, function () { });
+        };
+        manager.handleContextChange = function (data) {
+            manager.component.onContextChange(data);
+        };
+        contextManager.subscribe(manager);
+        var getter = contextManager.mount(socket);
+        expect(getter === null || getter === void 0 ? void 0 : getter.get().data).toEqual({});
+        contextManager.assign(socket, { test: 'test' });
+        expect(getter === null || getter === void 0 ? void 0 : getter.get().data).toEqual({ test: 'test' });
+    });
+    it('should be created using a create context function', function () {
+        var _a = __read((0, contextManager_1.createContext)({}), 2), consumer = _a[0], provider = _a[1];
+        expect(consumer.get).toBeDefined();
+        expect(consumer.assign).toBeDefined();
+        expect(provider.subscribe).toBeDefined();
+        expect(provider.mount).toBeDefined();
+        expect(consumer.handleContextChange).toBeDefined();
     });
 });

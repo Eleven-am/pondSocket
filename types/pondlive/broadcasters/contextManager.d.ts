@@ -1,22 +1,6 @@
 import {LiveSocket} from "../emitters";
-import {ComponentManager} from "../component/componentManager";
 
 export class PeakData<DataType = any> {}
-
-export declare class ContextManager<ContextType extends Object> {
-
-    constructor(initialData: ContextType);
-
-    mount(socket: LiveSocket<any>, componentId: string): Promise<void>;
-
-    subscribe(manager: ComponentManager): void;
-
-    assign(socket: LiveSocket<any>, assigns: Partial<ContextType>): Promise<void>;
-
-    get(socket: LiveSocket<any>): ContextType;
-
-    handleContextChange(context: PeakData<ContextType>, handler: (data: Readonly<ContextType>) => void): void;
-}
 
 export declare class ContextConsumer<ContextType> {
     /**
@@ -42,6 +26,6 @@ export declare class ContextConsumer<ContextType> {
 
 export declare class ContextProvider {}
 
-export declare type GlobalContext<ContextData> = [ContextConsumer<ContextData>, ContextProvider];
+export declare type ContextDistributorType<ContextData> = [ContextConsumer<ContextData>, ContextProvider];
 
-export declare function createContext<ContextData extends Object>(initialData: ContextData): GlobalContext<ContextData>;
+export declare function createContext<ContextData extends Object>(initialData: ContextData): ContextDistributorType<ContextData>;
