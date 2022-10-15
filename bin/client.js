@@ -14,6 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.PondClient = void 0;
 __exportStar(require("./pondclient"), exports);
 var pondclient_1 = require("./pondclient");
-exports.default = pondclient_1.PondClientSocket;
+Object.defineProperty(exports, "PondClient", { enumerable: true, get: function () { return pondclient_1.PondClientSocket; } });

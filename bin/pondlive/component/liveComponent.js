@@ -26,8 +26,8 @@ var ComponentClass = /** @class */ (function () {
 exports.ComponentClass = ComponentClass;
 function LiveFactory(context) {
     return /** @class */ (function (_super) {
-        __extends(Impl, _super);
-        function Impl() {
+        __extends(LiveComponentClass, _super);
+        function LiveComponentClass() {
             var _this = _super !== null && _super.apply(this, arguments) || this;
             _this.routes = context.routes || [];
             _this.providers = context.providers || [];
@@ -41,7 +41,7 @@ function LiveFactory(context) {
             _this.manageStyles = context.manageStyles;
             return _this;
         }
-        return Impl;
+        return LiveComponentClass;
     }(ComponentClass));
 }
 exports.LiveFactory = LiveFactory;

@@ -73,13 +73,13 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createContext = exports.ContextManager = void 0;
-var liveSocket_1 = require("../component/liveSocket");
-var pondbase_1 = require("../../pondbase");
+var base_1 = require("../../base");
+var emitters_1 = require("../emitters");
 var ContextManager = /** @class */ (function () {
     function ContextManager(initialData) {
-        this._database = new pondbase_1.SimpleBase();
+        this._database = new base_1.SimpleBase();
         this._name = Math.random().toString(36).substring(2, 15);
-        this._managers = new pondbase_1.SimpleBase();
+        this._managers = new base_1.SimpleBase();
         this._initialValue = initialData;
     }
     ContextManager.prototype.mount = function (socket, componentId) {
@@ -122,13 +122,8 @@ var ContextManager = /** @class */ (function () {
     ContextManager.prototype.subscribe = function (manager) {
         var _this = this;
         var _a;
-        var liveSocket = new liveSocket_1.LiveSocket('context', manager, function () { });
-        var router = {
-            navigateTo: function () { },
-            replace: function () { },
-            pageTitle: '',
-            flashMessage: '',
-        };
+        var liveSocket = new emitters_1.LiveSocket('context', manager, function () { });
+        var router = {};
         var verify = {
             contextId: this._name,
             data: this._initialValue,

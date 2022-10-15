@@ -5,6 +5,7 @@ declare type ExtractSameValueType<A, B, C extends keyof A> = {
 }[keyof B];
 
 export declare class SimpleBase<Type extends object> {
+    constructor();
 
     /**
      * @desc Get the number of documents
@@ -37,12 +38,6 @@ export declare class SimpleBase<Type extends object> {
      */
     generate(): Generator<Type>;
 
-    /**
-     * @desc Joins a pond with another pond
-     * @param secondPond - The pond to join with
-     * @param key - The key to join on
-     * @param secondKey - The key to join on in the second pond
-     */
     join<A extends keyof Type, SecondType extends Object, B extends ExtractSameValueType<Type, SecondType, A>>(secondPond: SimpleBase<SecondType>, key: A, secondKey: B): (Type & SecondType)[];
 
     /**
@@ -50,18 +45,6 @@ export declare class SimpleBase<Type extends object> {
      * @param query - The query function
      */
     query(query: (doc: Type) => boolean): PondDocument<Type>[];
-
-    /**
-     * @desc Query documents by a query function on the document's key
-     * @param query - The query function
-     */
-    queryById(query: (id: string) => boolean): PondDocument<Type>[];
-
-    /**
-     * @desc Query documents by a list of keys
-     * @param keys - The keys of the documents
-     */
-    queryByKeys(keys: string[]): PondDocument<Type>[];
 
     /**
      * @desc Reduces the pond to a single value
@@ -93,3 +76,4 @@ export declare class SimpleBase<Type extends object> {
     toArray(): PondDocument<Type>[];
 }
 
+export {};

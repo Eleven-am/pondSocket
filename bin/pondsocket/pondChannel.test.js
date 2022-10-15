@@ -90,7 +90,7 @@ describe('PondChannel', function () {
                     expect(doc).toBeInstanceOf(pondbase_1.PondDocument);
                     expect(pondChannel.getChannelInfo('/test')).toEqual(doc.doc.info);
                     channel.broadcast('message', { data: 'test' });
-                    expect(messageReceived).toBeNull(); // when you add a channel externally, it is not subscribed to bvy the pond channel
+                    expect(messageReceived).toBeNull(); // when you add a channel externally, it is not subscribed to by the pond channel
                     doc.removeDoc();
                     expect(function () { return pondChannel.getChannelInfo('/test'); }).toThrowError(pondbase_1.PondError); // channel is removed from the pond channel and can not be found
                     return [4 /*yield*/, expect(pondChannel.addUser({

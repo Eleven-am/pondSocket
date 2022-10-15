@@ -144,26 +144,6 @@ var SimpleBase = /** @class */ (function () {
         return result;
     };
     /**
-     * @desc Query documents by a query function on the document's key
-     * @param query - The query function
-     */
-    SimpleBase.prototype.queryById = function (query) {
-        var result = [];
-        for (var key in this._db) {
-            if (query(key))
-                result.push(this._createPondDocument(key, this._db[key]));
-        }
-        return result;
-    };
-    /**
-     * @desc Query documents by a list of keys
-     * @param keys - The keys of the documents
-     */
-    SimpleBase.prototype.queryByKeys = function (keys) {
-        var _this = this;
-        return keys.map(function (key) { return _this.get(key); }).filter(function (doc) { return doc !== null; });
-    };
-    /**
      * @desc Reduces the pond to a single value
      * @param reducer - The reducer function
      * @param initialValue - The initial value of the reducer

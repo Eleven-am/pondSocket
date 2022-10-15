@@ -1,5 +1,5 @@
 import { RejectPromise } from "./types";
-export declare class PondError<T> extends Error implements RejectPromise<T> {
+export declare class PondError<T> implements RejectPromise<T> {
     errorMessage: string;
     errorCode: number;
     data: T;

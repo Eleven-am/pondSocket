@@ -1,8 +1,6 @@
-import {LiveSocket} from "./liveSocket";
-import {CSSGenerator, CSSOutput, HtmlSafeString} from "../../pondserver";
-import {LiveRouter} from "./liveRouter";
-import {ContextProvider, PeakData} from "../broadcasters/contextManager";
-import {BroadcastEvent} from "../broadcasters/broadcaster";
+import {LiveRouter, LiveSocket} from "../emitters";
+import {CSSGenerator, CSSOutput, HtmlSafeString} from "../parser";
+import {BroadcastEvent, ContextProvider, PeakData} from "../broadcasters";
 
 export declare type LiveComponent<LiveContext extends Object = any> = {
     new(...args: any[]): ComponentClass<LiveContext>;

@@ -491,8 +491,8 @@ describe('Channel', function () {
         channel.addUser(user2);
         expect(channel.info.presence.length).toBe(2);
         expect(receivedMessages.length).toBe(2); //  1 join message for each user
-        // the sockets themselves are not subscribed to this pubSub as it is possible for an external actor to interrupt the broadcast
-        // seeing as this is vital information, we need to make sure that all users gets the message even though external subscribers can interrupt the broadcast
+        // the sockets themselves are not subscribed to this pubSub as it is possible for an external actor to interrupt a broadcast
+        // seeing as this is vital information, we need to make sure that all users gets the message even though external subscribers can interrupt a broadcast
         // the users are thus subscribed to the pubSub directly and not through the channel's subscribe method
         receivedMessages = [];
         expect(function () { return channel.broadcast('testEvent', { test: 'test' }, 'test1'); }).toThrow(pondbase_1.PondError);

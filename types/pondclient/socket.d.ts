@@ -27,6 +27,12 @@ export declare class PondClientSocket {
     createChannel(channel: string, params?: ChannelParams): Channel;
 
     /**
+     * @desc An event that is triggered when the socket receives a message.
+     * @param callback - The callback to be called when the event is triggered.
+     */
+    onMessage(callback: (event: string, message: any) => void): void;
+
+    /**
      * @desc Disconnects the socket from the server.
      */
     disconnect(): void;
