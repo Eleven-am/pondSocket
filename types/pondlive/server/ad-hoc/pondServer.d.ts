@@ -12,7 +12,7 @@ import {CORSOptions} from "../helpers/pondResponse";
 export interface PondLiveServerOptions {
     secret?: string;
     cookie?: string;
-    index?: string;
+    staticPath?: string;
     providers?: ContextProvider[];
 }
 

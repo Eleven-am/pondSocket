@@ -4,12 +4,13 @@ import { ContextProvider } from "../broadcasters";
 import { MiddleWareFunction } from "./helpers/chainLambda";
 import { Authorizer } from "./helpers/authenticate";
 import { Route } from "../component/liveComponent";
+
 export interface ServerProps {
     secret?: string;
     cookie?: string;
     pondPath?: string;
     pondSocket?: PondSocket;
-    htmlPath?: string;
+    staticPath?: string;
     providers?: ContextProvider[];
     authenticator?: Authorizer;
 }
