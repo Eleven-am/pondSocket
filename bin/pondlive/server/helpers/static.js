@@ -86,7 +86,7 @@ function staticMiddleware(options) {
                 if (options.lastModified)
                     res.setHeader('Last-Modified', fs.statSync(filePath).mtime.toUTCString());
                 ext = filePath.split('.').pop() || '';
-                if (!options.extensions || !options.extensions.includes(ext))
+                if (options.extensions && !options.extensions.includes(ext))
                     return [2 /*return*/, next()];
                 res.sendFile(filePath);
             }
