@@ -80,14 +80,21 @@ function staticMiddleware(options) {
                 res.setHeader('Cache-Control', "max-age=".concat(options.maxAge));
             if (options.immutable)
                 res.setHeader('Cache-Control', "immutable");
-            if (options.etag)
-                res.setHeader('ETag', fs.statSync(filePath).mtime.getTime().toString());
-            if (options.lastModified)
-                res.setHeader('Last-Modified', fs.statSync(filePath).mtime.toUTCString());
-            ext = filePath.split('.').pop() || '';
-            if (!options.extensions || !options.extensions.includes(ext))
+            try {
+                if (options.etag)
+                    res.setHeader('ETag', fs.statSync(filePath).mtime.getTime().toString());
+                if (options.lastModified)
+                    res.setHeader('Last-Modified', fs.statSync(filePath).mtime.toUTCString());
+                ext = filePath.split('.').pop() || '';
+                if (!options.extensions || !options.extensions.includes(ext))
+                    return [2 /*return*/, next()];
+                res.sendFile(filePath);
+            }
+            catch (e) {
+                if (options.redirect)
+                    return [2 /*return*/, res.redirect(req.url)];
                 return [2 /*return*/, next()];
-            res.sendFile(filePath);
+            }
             return [2 /*return*/];
         });
     }); };
