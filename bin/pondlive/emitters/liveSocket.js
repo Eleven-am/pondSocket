@@ -97,6 +97,7 @@ var LiveSocket = /** @class */ (function () {
      */
     LiveSocket.prototype.destroy = function () {
         var _this = this;
+        this._clearTimer();
         this._timer = setTimeout(function () {
             _this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });
             _this._subscriptions.length = 0;

@@ -162,9 +162,7 @@ var ComponentManager = /** @class */ (function () {
                     case 0:
                         document = this._sockets.get(clientId);
                         if (!document)
-                            return [2 /*return*/, console.error('No document found for client', clientId)];
-                        if (!document.doc.socket.isWebsocket)
-                            return [2 /*return*/];
+                            throw new pondbase_1.PondError('Client not found', 404, clientId);
                         _b = document.doc.socket.createResponse(), router = _b.router, response = _b.response;
                         return [4 /*yield*/, ((_a = this.component.onContextChange) === null || _a === void 0 ? void 0 : _a.call(document.doc.socket.context, context, document.doc.socket, router))];
                     case 1:
@@ -309,7 +307,7 @@ var ComponentManager = /** @class */ (function () {
                     case 0:
                         socket = this._sockets.get(clientId);
                         if (!socket)
-                            return [2 /*return*/, console.error('No socket found for client', clientId)];
+                            throw new pondbase_1.PondError('Client not found', 404, clientId);
                         return [4 /*yield*/, ((_a = this.component.onUnmount) === null || _a === void 0 ? void 0 : _a.call(socket.doc.socket.context, socket.doc.socket))];
                     case 1:
                         _b.sent();
