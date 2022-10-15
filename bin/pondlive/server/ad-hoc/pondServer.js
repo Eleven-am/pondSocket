@@ -18,6 +18,8 @@ var server_1 = require("../../../server");
 var genServer_1 = require("../genServer");
 var static_1 = require("../helpers/static");
 var verbHandler_1 = require("./verbHandler");
+var pondResponse_1 = require("../helpers/pondResponse");
+var pondRequest_1 = require("../helpers/pondRequest");
 var PondServer = /** @class */ (function () {
     function PondServer(server) {
         this._server = server || new http_1.Server();
@@ -88,7 +90,11 @@ var PondServer = /** @class */ (function () {
      */
     PondServer.prototype.useStatic = function (path, options) {
         var middleware = (0, static_1.staticMiddleware)(__assign(__assign({}, options), { root: path }));
-        this.use(middleware);
+        this.useRaw(function (req, res, next) {
+            var request = new pondRequest_1.PondRequest(req);
+            var response = new pondResponse_1.PondResponse(res);
+            middleware(request, response, next);
+        });
     };
     /**
      * @desc Adds a new GET endpoint to the server

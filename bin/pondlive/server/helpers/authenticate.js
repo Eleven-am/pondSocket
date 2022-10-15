@@ -15,14 +15,13 @@ var pondAuthorizer = function (secret, cookie) {
             token = new base_1.BaseClass().encrypt(secret, { time: clientId });
             return { clientId: clientId, token: token, setToken: true };
         }
-        if (Date.now() - parseInt(clientId) > 1000 * 60 * 60 * 2) {
+        if (Date.now() - parseInt(clientId) > 1000 * 60 * 60 * 2)
             return {
                 clientId: null,
                 token: null,
                 valid: false,
                 clearToken: true,
             };
-        }
         return { clientId: clientId, token: token };
     };
 };
@@ -41,7 +40,7 @@ var AuthorizeRequest = function (secret, cookie, authorizer) {
                 maxAge: 1000 * 60 * 60 * 2,
                 httpOnly: true,
                 sameSite: 'strict',
-                secure: true,
+                secure: process.env.NODE_ENV === 'production',
             });
         }
         if (!clientId) {
@@ -63,9 +62,7 @@ var AuthorizeUpgrade = function (secret, cookie, authorizer) {
         if (!clientId)
             return response.reject('Unauthorized', 401);
         var newToken = {
-            token: base.uuid(),
-            clientId: clientId,
-            timestamp: Date.now()
+            token: base.uuid(), clientId: clientId, timestamp: Date.now()
         };
         var csrfToken = base.encrypt(secret, newToken);
         var nanoId = base.nanoId();
