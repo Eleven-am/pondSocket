@@ -138,7 +138,7 @@ var PondResponse = /** @class */ (function () {
         readStream.on('error', function (err) {
             throw new pondbase_1.PondError(err, 500, 'PondResponse');
         });
-        this.pipe(readStream);
+        return this.pipe(readStream);
     };
     /**
      * @desc Applies CORS headers to the response based on the provided options
@@ -165,6 +165,7 @@ var PondResponse = /** @class */ (function () {
             this.setHeader('Access-Control-Allow-Credentials', 'true');
         if (options.maxAge)
             this.setHeader('Access-Control-Max-Age', options.maxAge.toString());
+        return this;
     };
     /**
      * @desc Set a cookie
@@ -190,14 +191,14 @@ var PondResponse = /** @class */ (function () {
             if (options.sameSite)
                 cookie += "; SameSite=".concat(options.sameSite);
         }
-        this.setHeader('Set-Cookie', cookie);
+        return this.setHeader('Set-Cookie', cookie);
     };
     /**
      * @desc Clear a cookie
      * @param name - The name of the cookie
      */
     PondResponse.prototype.clearCookie = function (name) {
-        this.setCookie(name, '', {
+        return this.setCookie(name, '', {
             maxAge: 0
         });
     };
