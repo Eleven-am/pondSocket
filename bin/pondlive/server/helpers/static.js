@@ -58,15 +58,24 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.staticMiddleware = void 0;
 var fs = __importStar(require("fs"));
 var pondResponse_1 = require("./pondResponse");
+var path_1 = __importDefault(require("path"));
+/**
+ * @desc Creates a static middleware
+ * @param options - The options to be used by the middleware
+ */
 function staticMiddleware(options) {
     var _this = this;
     return function (req, res, next) { return __awaiter(_this, void 0, void 0, function () {
         var filePath, ext;
         return __generator(this, function (_a) {
+            ext = path_1.default.extname(req.url).replace('.', '');
             if (req.url === '/' && options.index)
                 filePath = options.root + options.index;
             else
@@ -78,7 +87,6 @@ function staticMiddleware(options) {
                     return [2 /*return*/, res.status(403).end()];
                 else if (options.dotfiles === 'ignore')
                     return [2 /*return*/, next()];
-            ext = filePath.split('.').pop() || '';
             if (options.extensions && !options.extensions.includes(ext))
                 return [2 /*return*/, next()];
             if (options.maxAge)

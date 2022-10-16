@@ -19,9 +19,13 @@ var chainLambda = function (middlewares) {
             else
                 next();
         };
-        nextMiddleware();
+        request.parseBody(nextMiddleware);
     };
 };
+/**
+ * @desc A middleware handler that takes in multiple PondMiddleware and returns a MiddleWareFunction
+ * @constructor
+ */
 var MiddlewareHandler = function () {
     var middlewares = [];
     return {

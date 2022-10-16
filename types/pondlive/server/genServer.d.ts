@@ -14,15 +14,18 @@ export interface ServerProps {
     providers?: ContextProvider[];
     authenticator?: Authorizer;
 }
+
 export interface CsrfTokenObject {
     token: string;
     clientId: string;
     timestamp: number;
 }
+
 export interface GenerateLiveServerReturnType {
     pondSocket: PondSocket;
     pondLiveMiddleware: MiddleWareFunction;
 }
+
 /**
  * @desc Creates a pond live server
  * @param routes - The routes to be used by the server

@@ -122,6 +122,7 @@ var ComponentManager = /** @class */ (function () {
         this._chain = props.chain;
         this._sockets = new pondbase_1.SimpleBase();
         this._initialiseManager();
+        this._setUpUploadHandler(props.uploadPubSub);
         this._htmlPath = props.htmlPath;
         this._secret = props.secret;
         var contexts = __spreadArray(__spreadArray([], __read(component.providers), false), __read(props.providers), false);
@@ -132,6 +133,7 @@ var ComponentManager = /** @class */ (function () {
             pond: _this._pond,
             chain: _this._chain,
             htmlPath: props.htmlPath,
+            uploadPubSub: props.uploadPubSub,
             providers: contexts,
             secret: props.secret
         }); });
@@ -152,6 +154,32 @@ var ComponentManager = /** @class */ (function () {
                         return [4 /*yield*/, this._pushToClient(router, document, 'updated', res)];
                     case 2:
                         _b.sent();
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    ComponentManager.prototype._handleUpload = function (uploadMessage, clientId, event) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function () {
+            var document, _b, router, response, uploadEvent;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        document = this._sockets.get(clientId);
+                        if (!document || !document.doc.socket.isWebsocket) {
+                            uploadMessage.files.forEach(function (file) { return file.destroy(); });
+                            throw new pondbase_1.PondError('Client not found', 404, clientId);
+                        }
+                        _b = document.doc.socket.createResponse(), router = _b.router, response = _b.response;
+                        uploadEvent = {
+                            type: event,
+                            files: uploadMessage.files,
+                        };
+                        (_a = this.component.onUpload) === null || _a === void 0 ? void 0 : _a.call(document.doc.socket.context, uploadEvent, document.doc.socket, router);
+                        return [4 /*yield*/, this._pushToClient(router, document, 'updated', response)];
+                    case 1:
+                        _c.sent();
                         return [2 /*return*/];
                 }
             });
@@ -310,7 +338,7 @@ var ComponentManager = /** @class */ (function () {
                     case 0:
                         socket = this._sockets.get(clientId);
                         if (!socket)
-                            throw new pondbase_1.PondError('Client not found', 404, clientId);
+                            return [2 /*return*/];
                         return [4 /*yield*/, ((_a = this.component.onUnmount) === null || _a === void 0 ? void 0 : _a.call(socket.doc.socket.context, socket.doc.socket))];
                     case 1:
                         _b.sent();
@@ -506,10 +534,35 @@ var ComponentManager = /** @class */ (function () {
                 }
             });
         }); });
+        this._pond.on("pondUploadToken/".concat(this.componentId), function (req, res) { return __awaiter(_this, void 0, void 0, function () {
+            var csrfObject, csrfToken;
+            return __generator(this, function (_a) {
+                if (this.component.onUpload) {
+                    csrfObject = {
+                        token: req.client.clientAssigns.csrfToken,
+                        clientId: req.client.clientAssigns.clientId,
+                        timestamp: Date.now()
+                    };
+                    csrfToken = this._base.encrypt(req.client.clientAssigns.clientId, csrfObject);
+                    res.send('pondUploadToken', { token: csrfToken });
+                }
+                else
+                    res.reject('No upload handler found');
+                return [2 /*return*/];
+            });
+        }); });
     };
     ComponentManager.prototype._initialiseManager = function () {
         this._initialiseHTTPManager();
         this._initialiseSocketManager();
+    };
+    ComponentManager.prototype._setUpUploadHandler = function (pubsub) {
+        var _this = this;
+        if (this.component.onUpload)
+            pubsub.subscribe(function (data) {
+                if (data.componentId === _this.componentId)
+                    _this._handleUpload(data.message, data.clientId, data.event);
+            });
     };
     ComponentManager.prototype._createRouter = function (innerRoute, parentId, componentId) {
         if (parentId === void 0) { parentId = this._parentId; }

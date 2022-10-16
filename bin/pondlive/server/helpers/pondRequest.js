@@ -28,13 +28,15 @@ var __read = (this && this.__read) || function (o, n) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PondRequest = void 0;
+var authenticate_1 = require("./authenticate");
 var PondRequest = /** @class */ (function () {
     function PondRequest(request) {
         this._request = request;
         this._data = {};
         this._query = {};
-        this._parseBody();
+        this._cookies = {};
         this._parseQuery();
+        this._parseCookies();
     }
     Object.defineProperty(PondRequest.prototype, "body", {
         /**
@@ -92,6 +94,16 @@ var PondRequest = /** @class */ (function () {
         enumerable: false,
         configurable: true
     });
+    Object.defineProperty(PondRequest.prototype, "query", {
+        /**
+         * @desc Get's the query of the request
+         */
+        get: function () {
+            return this._query;
+        },
+        enumerable: false,
+        configurable: true
+    });
     /**
      * @desc Get a header from the request
      * @param name - The name of the header
@@ -104,40 +116,13 @@ var PondRequest = /** @class */ (function () {
      * @param cookieName - The name of the cookie
      */
     PondRequest.prototype.getCookie = function (cookieName) {
-        var e_1, _a;
-        var cookie = this.getHeader('cookie');
-        if (cookie) {
-            var cookies = cookie.split(';');
-            try {
-                for (var cookies_1 = __values(cookies), cookies_1_1 = cookies_1.next(); !cookies_1_1.done; cookies_1_1 = cookies_1.next()) {
-                    var c = cookies_1_1.value;
-                    var _b = __read(c.split('='), 2), name_1 = _b[0], value = _b[1];
-                    if (name_1.trim() === cookieName)
-                        return decodeURIComponent(value);
-                }
-            }
-            catch (e_1_1) { e_1 = { error: e_1_1 }; }
-            finally {
-                try {
-                    if (cookies_1_1 && !cookies_1_1.done && (_a = cookies_1.return)) _a.call(cookies_1);
-                }
-                finally { if (e_1) throw e_1.error; }
-            }
-        }
-        return null;
+        return this._cookies[cookieName] || null;
     };
-    Object.defineProperty(PondRequest.prototype, "query", {
-        get: function () {
-            return this._query;
-        },
-        enumerable: false,
-        configurable: true
-    });
     /**
      * @desc Parse the body of the request
-     * @private
+     * @param next - The next function
      */
-    PondRequest.prototype._parseBody = function () {
+    PondRequest.prototype.parseBody = function (next) {
         var _this = this;
         var body = '';
         this._request.on('data', function (chunk) {
@@ -149,14 +134,19 @@ var PondRequest = /** @class */ (function () {
             if (contentType === 'application/json' && _this._body) {
                 try {
                     _this._body = JSON.parse(_this._body);
+                    next();
                 }
                 catch (e) {
                     console.error(e);
+                    next();
                 }
             }
+            else
+                next();
         });
         this._request.on('error', function () {
             _this._body = null;
+            next();
         });
     };
     /**
@@ -164,7 +154,7 @@ var PondRequest = /** @class */ (function () {
      * @private
      */
     PondRequest.prototype._parseQuery = function () {
-        var e_2, _a;
+        var e_1, _a;
         var query = this.url.split('?')[1];
         if (query) {
             var queries = query.split('&');
@@ -175,14 +165,20 @@ var PondRequest = /** @class */ (function () {
                     this._query[key] = value;
                 }
             }
-            catch (e_2_1) { e_2 = { error: e_2_1 }; }
+            catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
                     if (queries_1_1 && !queries_1_1.done && (_a = queries_1.return)) _a.call(queries_1);
                 }
-                finally { if (e_2) throw e_2.error; }
+                finally { if (e_1) throw e_1.error; }
             }
         }
+    };
+    /**
+     * @desc Get the cookies of the request
+     */
+    PondRequest.prototype._parseCookies = function () {
+        this._cookies = (0, authenticate_1.parseCookies)(this._request);
     };
     return PondRequest;
 }());

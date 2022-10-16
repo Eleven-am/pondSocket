@@ -98,6 +98,7 @@ var LiveSocket = /** @class */ (function () {
      */
     LiveSocket.prototype.destroy = function () {
         var _this = this;
+        console.log('destroying live socket');
         this._clearTimer();
         this._timer = setTimeout(function () {
             _this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });

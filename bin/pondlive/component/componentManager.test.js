@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var componentManager_1 = require("./componentManager");
+var pondbase_1 = require("../../pondbase");
 var createComponentManager = function () {
     var test = {
         pond: {
@@ -11,6 +12,7 @@ var createComponentManager = function () {
         },
         parentId: 'test',
         secret: 'test',
+        uploadPubSub: new pondbase_1.Broadcast(),
         providers: [],
     };
     var context = {

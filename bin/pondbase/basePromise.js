@@ -42,6 +42,7 @@ var PondError = /** @class */ (function () {
         this.errorMessage = errorMessage;
         this.errorCode = errorCode;
         this.data = data;
+        console.log(this);
     }
     return PondError;
 }());

@@ -43,28 +43,39 @@ describe('Middleware', function () {
             middlewareFn();
             next();
         });
-        var request = {
-            on: jest.fn(),
+        var req = {
+            headers: {},
+            callbacks: [],
+            on: jest.fn(function (event, callback) {
+                if (event === 'end')
+                    req.callbacks.push(callback);
+            }),
+            emit: jest.fn(function () {
+                req.callbacks.forEach(function (callback) { return callback(); });
+            }),
         };
         var response = {
             writeHead: jest.fn(),
             end: jest.fn(),
         };
-        middleware['_execute'](request, response);
+        middleware['_execute'](req, response);
+        req.emit();
         expect(middlewareFn).toBeCalledTimes(6);
         expect(response.writeHead).toBeCalledWith(404, { 'Content-Type': 'text/plain' });
         expect(response.end).toBeCalledWith('404 Not Found');
-        expect(request.on).toBeCalledTimes(3); // it is called during the creation of the first middleware
+        expect(req.on).toBeCalledTimes(3); // it is called during the creation of the first middleware
         // it is however called on three different events (data, end, error)
         middlewareFn.mockClear();
-        request.on.mockClear();
+        req.callbacks = [];
+        req.on.mockClear();
         response.writeHead.mockClear();
         response.end.mockClear();
-        server.emit('request', request, response);
+        server.emit('request', req, response);
+        req.emit();
         expect(middlewareFn).toBeCalledTimes(6);
         expect(response.writeHead).toBeCalledWith(404, { 'Content-Type': 'text/plain' });
         expect(response.end).toBeCalledWith('404 Not Found');
-        expect(request.on).toBeCalledTimes(3); // it is called during the creation of the first middleware
+        expect(req.on).toBeCalledTimes(3); // it is called during the creation of the first middleware
         // it is however called on three different events (data, end, error)
     });
 });

@@ -12,6 +12,7 @@ var authenticate_1 = require("./helpers/authenticate");
 var static_1 = require("./helpers/static");
 var componentManager_1 = require("../component/componentManager");
 var pondResponse_1 = require("./helpers/pondResponse");
+var upload_1 = require("./upload/upload");
 /**
  * @desc Creates a pond live server
  * @param routes - The routes to be used by the server
@@ -30,6 +31,7 @@ var GenerateLiveServer = function (routes, server, options) {
     var pondPath = (options === null || options === void 0 ? void 0 : options.pondPath) || '';
     var htmlPath = undefined;
     var staticPath = path_1.default.join(__dirname, '../client');
+    var broadcaster = new base_1.Broadcast();
     var staticMiddleWare = (0, static_1.staticMiddleware)({
         root: staticPath,
         dotfiles: 'ignore',
@@ -73,13 +75,17 @@ var GenerateLiveServer = function (routes, server, options) {
         chain: handler,
         secret: secret,
         parentId: pondId,
+        uploadPubSub: broadcaster,
         providers: (options === null || options === void 0 ? void 0 : options.providers) || [],
     };
     routes.map(function (route) {
         var path = "".concat(pondPath).concat(route.path);
         return new componentManager_1.ComponentManager(path, new route.Component(), managerProps);
     });
-    var pondLiveMiddleware = handler.chain();
+    var pondLiveMiddleware = (0, upload_1.generatePondLiveUploader)(handler.chain(), {
+        broadcaster: broadcaster,
+        authorizer: (0, authenticate_1.getAuthorizer)(secret, cookieName, options === null || options === void 0 ? void 0 : options.authenticator)
+    });
     return { pondLiveMiddleware: pondLiveMiddleware, pondSocket: pondSocket };
 };
 exports.GenerateLiveServer = GenerateLiveServer;

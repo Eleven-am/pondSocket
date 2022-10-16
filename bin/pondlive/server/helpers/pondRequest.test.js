@@ -3,12 +3,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var pondRequest_1 = require("./pondRequest");
 var http_1 = require("http");
 var net_1 = require("net");
-var createRequest = function (url) {
+var createRequest = function (url, headers, method) {
     var req = {
-        method: 'GET',
+        method: method || 'GET',
         url: url || '/',
-        headers: {},
-        on: jest.fn(),
+        headers: headers || {},
+        callbacks: [],
+        on: jest.fn(function (event, callback) {
+            if (event === 'end')
+                req.callbacks.push(callback);
+        }),
+        emit: jest.fn(function () {
+            req.callbacks.forEach(function (callback) { return callback(); });
+        }),
     };
     var request = new pondRequest_1.PondRequest(req);
     return { req: req, request: request };
@@ -17,6 +24,7 @@ describe('PondRequest', function () {
     it('should parse body', function () {
         var req = new http_1.IncomingMessage(new net_1.Socket());
         var request = new pondRequest_1.PondRequest(req);
+        request.parseBody(function () { });
         req.emit('data', 'test');
         req.emit('end');
         expect(request.body).toBe('test');
@@ -24,6 +32,7 @@ describe('PondRequest', function () {
     it('should parse json body', function () {
         var req = new http_1.IncomingMessage(new net_1.Socket());
         var request = new pondRequest_1.PondRequest(req);
+        request.parseBody(function () { });
         req.headers['content-type'] = 'application/json';
         req.emit('data', '{"test": "test"}');
         req.emit('end');
@@ -51,10 +60,9 @@ describe('PondRequest', function () {
         expect(request2.query).toEqual({ test: 'test', test2: 'test2' });
     });
     it('should read a cookie', function () {
-        var _a = createRequest(), req = _a.req, request = _a.request;
-        req.headers = { 'cookie': 'test=test' };
+        var request = createRequest('/', { 'cookie': 'test=test' }).request;
         expect(request.getCookie('test')).toBe('test');
-        req.headers = { 'cookie': 'test=test; test2=test2' };
-        expect(request.getCookie('test2')).toBe('test2');
+        var request2 = createRequest('/', { 'cookie': 'test=test;test2=test2' }).request;
+        expect(request2.getCookie('test2')).toBe('test2');
     });
 });

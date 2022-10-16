@@ -6,6 +6,17 @@ describe('chainLambda', function () {
         var handler = (0, chainLambda_1.MiddlewareHandler)();
         var middleware = jest.fn();
         var next = jest.fn();
+        var req = {
+            headers: {},
+            callbacks: [],
+            on: jest.fn(function (event, callback) {
+                if (event === 'end')
+                    req.callbacks.push(callback);
+            }),
+            emit: jest.fn(function () {
+                req.callbacks.forEach(function (callback) { return callback(); });
+            }),
+        };
         handler.use(function (_req, _res, next) {
             next();
             middleware();
@@ -20,7 +31,8 @@ describe('chainLambda', function () {
         });
         expect(handler.chain()).toBeDefined();
         expect(handler.chain()).toBeInstanceOf(Function);
-        handler.chain()({ on: jest.fn() }, {}, next);
+        handler.chain()(req, {}, next);
+        req.emit();
         expect(middleware).toBeCalledTimes(3);
         expect(next).toBeCalledTimes(1);
     });
