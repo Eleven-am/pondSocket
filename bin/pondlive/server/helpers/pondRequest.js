@@ -120,11 +120,12 @@ var PondRequest = /** @class */ (function () {
     };
     /**
      * @desc Parse the body of the request
-     * @param next - The next function
      */
-    PondRequest.prototype.parseBody = function (next) {
+    PondRequest.prototype.parseBody = function () {
         var _this = this;
         var body = '';
+        if (this._request.socket.readableDidRead)
+            return;
         this._request.on('data', function (chunk) {
             body += chunk.toString();
         });
@@ -134,19 +135,14 @@ var PondRequest = /** @class */ (function () {
             if (contentType === 'application/json' && _this._body) {
                 try {
                     _this._body = JSON.parse(_this._body);
-                    next();
                 }
                 catch (e) {
                     console.error(e);
-                    next();
                 }
             }
-            else
-                next();
         });
         this._request.on('error', function () {
             _this._body = null;
-            next();
         });
     };
     /**

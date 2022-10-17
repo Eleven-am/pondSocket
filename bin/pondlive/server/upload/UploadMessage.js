@@ -147,6 +147,7 @@ var UploadMessage = /** @class */ (function () {
             name: file.name,
             size: file.size,
             mimetype: file.mimetype,
+            filePath: file.filePath,
             destroy: function () { return _this._deleteFile(file); },
             move: function (directory) { return _this._acceptFile(file, directory); },
         };

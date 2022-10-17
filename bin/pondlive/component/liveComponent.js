@@ -36,8 +36,9 @@ function LiveFactory(context) {
             _this.onRendered = context.onRendered;
             _this.onEvent = context.onEvent;
             _this.onInfo = context.onInfo;
-            _this.onUnmount = context.onUnmount;
+            _this.onUploadRequest = context.onUploadRequest;
             _this.onUpload = context.onUpload;
+            _this.onUnmount = context.onUnmount;
             _this.render = context.render;
             _this.manageStyles = context.manageStyles;
             return _this;

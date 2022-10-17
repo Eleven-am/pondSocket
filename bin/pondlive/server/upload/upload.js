@@ -26,7 +26,7 @@ var uploadPondLiveRequest = function (req, res, next, validator, broadcaster) {
             return response.status(400, 'Bad Request')
                 .json({ error: 'Bad Request' });
         }
-        (0, busboy_1.busBoyManager)(req, response, {
+        return (0, busboy_1.busBoyManager)(req, response, {
             broadcaster: broadcaster,
             event: event_1,
             componentId: router,

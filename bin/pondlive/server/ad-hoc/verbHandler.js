@@ -8,6 +8,7 @@ function verbHandler(path, method, handler) {
         if (method === request.method) {
             var resolver = base.generateEventRequest(path, request.url || '');
             if (resolver) {
+                request.parseBody();
                 request.data = resolver;
                 return handler(request, response);
             }

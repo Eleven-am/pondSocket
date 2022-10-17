@@ -11,7 +11,8 @@ describe('verbHandler', function () {
         expect(chain.use).toBeCalled();
         var use = chain.use.mock.calls[0][0];
         var request = {
-            method: 'GET', url: 'path'
+            method: 'GET', url: 'path',
+            parseBody: jest.fn(),
         };
         var response = {};
         use(request, response, jest.fn());
@@ -26,7 +27,8 @@ describe('verbHandler', function () {
         expect(chain.use).toBeCalled();
         var use = chain.use.mock.calls[0][0];
         var request = {
-            method: 'GET', url: 'path2'
+            method: 'GET', url: 'path2',
+            parseBody: jest.fn(),
         };
         var response = {};
         use(request, response, jest.fn());

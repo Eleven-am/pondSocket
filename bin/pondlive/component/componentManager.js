@@ -110,6 +110,7 @@ var path_1 = __importDefault(require("path"));
 var pondsocket_1 = require("../../pondsocket");
 var index_3 = require("../index");
 var pondbase_1 = require("../../pondbase");
+var UploadAuthoriseMessage_1 = require("../server/upload/UploadAuthoriseMessage");
 var ComponentManager = /** @class */ (function () {
     function ComponentManager(path, component, props) {
         var _this = this;
@@ -122,7 +123,7 @@ var ComponentManager = /** @class */ (function () {
         this._chain = props.chain;
         this._sockets = new pondbase_1.SimpleBase();
         this._initialiseManager();
-        this._setUpUploadHandler(props.uploadPubSub);
+        this._setupUploadHandler(props.uploadPubSub);
         this._htmlPath = props.htmlPath;
         this._secret = props.secret;
         var contexts = __spreadArray(__spreadArray([], __read(component.providers), false), __read(props.providers), false);
@@ -180,6 +181,37 @@ var ComponentManager = /** @class */ (function () {
                         return [4 /*yield*/, this._pushToClient(router, document, 'updated', response)];
                     case 1:
                         _c.sent();
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    ComponentManager.prototype._handleUploadAuthorise = function (authorizer, clientId, event, res) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function () {
+            var router, document, socket, eventRequest;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (!this.component.onUploadRequest || !this.component.onUpload) {
+                            authorizer.sendError('Upload not supported');
+                            return [2 /*return*/];
+                        }
+                        router = new index_2.LiveRouter(res);
+                        document = this._sockets.get(clientId);
+                        if (!document) {
+                            authorizer.sendError('Client not found');
+                            return [2 /*return*/];
+                        }
+                        socket = document.doc.socket;
+                        eventRequest = {
+                            type: event,
+                            message: authorizer,
+                        };
+                        (_a = this.component.onUploadRequest) === null || _a === void 0 ? void 0 : _a.call(socket.context, eventRequest, socket, router);
+                        return [4 /*yield*/, this._pushToClient(router, document, 'updated', res)];
+                    case 1:
+                        _b.sent();
                         return [2 /*return*/];
                 }
             });
@@ -534,20 +566,16 @@ var ComponentManager = /** @class */ (function () {
                 }
             });
         }); });
-        this._pond.on("pondUploadToken/".concat(this.componentId), function (req, res) { return __awaiter(_this, void 0, void 0, function () {
-            var csrfObject, csrfToken;
-            return __generator(this, function (_a) {
-                if (this.component.onUpload) {
-                    csrfObject = {
-                        token: req.client.clientAssigns.csrfToken,
-                        clientId: req.client.clientAssigns.clientId,
-                        timestamp: Date.now()
-                    };
-                    csrfToken = this._base.encrypt(req.client.clientAssigns.clientId, csrfObject);
-                    res.send('pondUploadToken', { token: csrfToken });
+        this._pond.on("".concat(this.componentId, "/upload/token"), function (req, res, channel) { return __awaiter(_this, void 0, void 0, function () {
+            var files, identifier, authorizer;
+            var _a;
+            return __generator(this, function (_b) {
+                if (req.message.files && req.message.files.length > 0 && ((_a = req.message.metadata) === null || _a === void 0 ? void 0 : _a.identifier) && req.message.type) {
+                    files = req.message.files;
+                    identifier = req.message.metadata.identifier;
+                    authorizer = new UploadAuthoriseMessage_1.UploadAuthoriseMessage(files, identifier, req.client.clientAssigns.clientId, channel);
+                    this._handleUploadAuthorise(authorizer, req.client.clientAssigns.clientId, req.message.type, res);
                 }
-                else
-                    res.reject('No upload handler found');
                 return [2 /*return*/];
             });
         }); });
@@ -556,7 +584,7 @@ var ComponentManager = /** @class */ (function () {
         this._initialiseHTTPManager();
         this._initialiseSocketManager();
     };
-    ComponentManager.prototype._setUpUploadHandler = function (pubsub) {
+    ComponentManager.prototype._setupUploadHandler = function (pubsub) {
         var _this = this;
         if (this.component.onUpload)
             pubsub.subscribe(function (data) {

@@ -11,6 +11,7 @@ export interface FileUpload {
     tempPath: string;
     size: number;
     mimetype: string;
+    filePath: string;
 }
 
 interface PondLiveUploadProps {

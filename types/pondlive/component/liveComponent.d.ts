@@ -1,21 +1,45 @@
 import {LiveRouter, LiveSocket} from "../emitters";
 import {CSSGenerator, CSSOutput, HtmlSafeString} from "../parser";
 import {BroadcastEvent, ContextProvider, PeakData} from "../broadcasters";
-import { PondFile } from "../server/upload/UploadMessage";
+import {PondFile} from "../server/upload/UploadMessage";
+import {UploadAuthoriseMessage} from "../server/upload/UploadAuthoriseMessage";
 
 export declare type LiveComponent<LiveContext extends Object = any> = {
     new(...args: any[]): ComponentClass<LiveContext>;
 };
+
+export interface FileMetaData {
+    name: string;
+    size: number;
+    type: string;
+    lastModified: number;
+    lastModifiedDate: Date;
+}
+
+export interface DragData {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+}
 
 export interface Route {
     path: string;
     Component: LiveComponent;
 }
 
+export interface MetaData {
+    type: 'UPLOAD_REQUEST' | 'UPLOAD_SUCCESS' | 'UPLOAD_FAILURE';
+    identifier: string;
+}
+
 export interface LiveEvent<Events extends string = string> {
     type: Events;
     value: string | null;
     dataId: string | null;
+    files?: FileMetaData[];
+    dragData?: DragData;
+    metadata?: MetaData;
 }
 
 export interface MountContext {
@@ -24,9 +48,14 @@ export interface MountContext {
     query: Record<string, string>;
 }
 
-export interface UploadEvent {
-    type: string;
+export interface UploadEvent<Events extends string = string> {
+    type: Events;
     files: PondFile[];
+}
+
+export interface UploadRequestEvent<Events extends string = string> {
+    type: Events;
+    message: UploadAuthoriseMessage;
 }
 
 export declare type RenderContext = () => HtmlSafeString;
@@ -81,6 +110,14 @@ export interface LiveBuilder<LiveContext extends Object = any> {
     onInfo?(this: LiveContext, info: BroadcastEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
 
     /**
+     * @desc Called when the component receives a request to upload files.
+     * @param event - The event of the upload request.
+     * @param socket - The socket of user connection.
+     * @param router - The router of this instance of the connection.
+     */
+    onUploadRequest?(this: LiveContext, event: UploadRequestEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
+    /**
      * @desc Called when the component receives new files from the client.
      * @param event - The event Object containing the files.
      * @param socket - The socket of user connection.
@@ -118,7 +155,9 @@ export declare abstract class ComponentClass<LiveContext extends Object = any> i
 
     abstract onInfo?(info: any, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
 
-    abstract onUpload?(event: any, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+    abstract onUploadRequest?(event: UploadRequestEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
+    abstract onUpload?(event: UploadEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
 
     abstract onUnmount?(socket: LiveSocket<LiveContext>): void | Promise<void>;
 

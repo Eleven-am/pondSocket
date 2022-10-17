@@ -46,6 +46,7 @@ describe('Middleware', function () {
         var req = {
             headers: {},
             callbacks: [],
+            parseBody: jest.fn(),
             on: jest.fn(function (event, callback) {
                 if (event === 'end')
                     req.callbacks.push(callback);

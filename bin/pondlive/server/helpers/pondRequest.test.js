@@ -24,7 +24,7 @@ describe('PondRequest', function () {
     it('should parse body', function () {
         var req = new http_1.IncomingMessage(new net_1.Socket());
         var request = new pondRequest_1.PondRequest(req);
-        request.parseBody(function () { });
+        request.parseBody();
         req.emit('data', 'test');
         req.emit('end');
         expect(request.body).toBe('test');
@@ -32,7 +32,7 @@ describe('PondRequest', function () {
     it('should parse json body', function () {
         var req = new http_1.IncomingMessage(new net_1.Socket());
         var request = new pondRequest_1.PondRequest(req);
-        request.parseBody(function () { });
+        request.parseBody();
         req.headers['content-type'] = 'application/json';
         req.emit('data', '{"test": "test"}');
         req.emit('end');

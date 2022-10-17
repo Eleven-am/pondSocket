@@ -19,7 +19,7 @@ var chainLambda = function (middlewares) {
             else
                 next();
         };
-        request.parseBody(nextMiddleware);
+        nextMiddleware();
     };
 };
 /**
