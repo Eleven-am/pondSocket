@@ -256,12 +256,16 @@ var ComponentManager = /** @class */ (function () {
                             params: data.params, path: data.address, query: data.query
                         };
                         peakData = this._providers.map(function (context) { return context.mount(socket); });
+                        if (router.sentResponse)
+                            return [2 /*return*/, null];
                         if (!this.component.mount) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.component.mount(mountContext, socket, router)];
                     case 1:
                         _d.sent();
                         _d.label = 2;
                     case 2:
+                        if (router.sentResponse)
+                            return [2 /*return*/, null];
                         innerHtml = null;
                         _d.label = 3;
                     case 3:

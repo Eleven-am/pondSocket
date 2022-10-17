@@ -7,15 +7,18 @@ var LiveRouter = /** @class */ (function () {
     function LiveRouter(response, routerType) {
         if (routerType === void 0) { routerType = 'http'; }
         this._response = response;
-        this._responseSent = false;
         this._headers = {
             pageTitle: undefined,
             flashMessage: undefined,
         };
-        if (response instanceof pondsocket_1.PondResponse)
+        if (response instanceof pondsocket_1.PondResponse) {
+            this._responseSent = false;
             this._routerType = 'socket';
-        else
+        }
+        else {
             this._routerType = routerType;
+            this._responseSent = response.response.headersSent;
+        }
     }
     Object.defineProperty(LiveRouter.prototype, "pageTitle", {
         /**
@@ -90,18 +93,21 @@ var LiveRouter = /** @class */ (function () {
         }
     };
     LiveRouter.prototype._sendResponse = function (path, response) {
+        console.log('send response, path: ' + path);
         if (this._responseSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondLive');
         this._responseSent = true;
         response.redirect(path);
     };
     LiveRouter.prototype._sendPondResponse = function (message, response) {
+        console.log('send pond response, message: ' + JSON.stringify(message));
         if (this._responseSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondLive');
         this._responseSent = true;
         response.send('router', message);
     };
     LiveRouter.prototype._sendClientRouterResponse = function (action, path, response) {
+        console.log('send client router response, action: ' + action + ', path: ' + path);
         if (this._responseSent)
             throw new pondbase_1.PondError('Response already sent', 500, 'PondLive');
         this._responseSent = true;
