@@ -1,0 +1,52 @@
+import { ComponentClass } from "./liveComponent";
+import { ContextProvider, PeakData } from "../broadcasters";
+import { LiveRouter, LiveSocket } from "../emitters";
+import { Express } from "express";
+import { UploadBusboyEvent } from "../server/upload/busboy";
+import { Broadcast } from "../../pondBase";
+import { PondChannel, PondResponse } from "../../pondSocket";
+export interface IComponentManagerProps {
+    parentId: string;
+    uploadPath: string;
+    pond: PondChannel;
+    chain: Express;
+    secret: string;
+    uploadPubSub: Broadcast<UploadBusboyEvent, void>;
+    htmlPath?: string;
+    providers: ContextProvider[];
+}
+export declare class ComponentManager {
+    readonly componentId: string;
+    readonly component: ComponentClass;
+    private readonly _path;
+    private readonly _base;
+    private readonly _parentId;
+    private readonly _sockets;
+    private readonly _innerManagers;
+    private readonly _pond;
+    private readonly _chain;
+    private readonly _htmlPath;
+    private readonly _providers;
+    private readonly _secret;
+    private readonly _uploadPath;
+    constructor(path: string, component: ComponentClass, props: IComponentManagerProps);
+    handleInfo(info: any, socket: LiveSocket<any>, router: LiveRouter, res: PondResponse): Promise<void>;
+    handleContextChange(context: PeakData, liveSocket: LiveSocket<any>, router: LiveRouter, response: PondResponse): Promise<void>;
+    private _handleUpload;
+    private _handleUploadAuthorise;
+    private _render;
+    private _handleEvent;
+    private _handleRendered;
+    private _handleUnmount;
+    private _renderHtml;
+    private _onEvent;
+    private _pushToClient;
+    private _renderComponent;
+    private _initialiseHTTPManager;
+    private _initialiseSocketManager;
+    private _initialiseManager;
+    private _setupUploadHandler;
+    private _createRouter;
+    private _handleInitialRequest;
+    private _handleCSRFRequest;
+}

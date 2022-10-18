@@ -18,33 +18,33 @@
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
-  "main": "bin/index.js",
-  "types": "types/index.d.ts",
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "exports": {
-    ".": "./bin/index.js",
-    "./client": "./bin/client.js",
-    "./live": "./bin/live.js",
-    "./socket": "./bin/socket.js"
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./live": "./live.js",
+    "./socket": "./socket.js"
   },
   "typesVersions": {
     "*": {
       "*": [
-        "./types/*"
+        "./index.d.ts"
       ]
     },
     "client": {
       "*": [
-        "./types/client.d.ts"
+        "./client.d.ts"
       ]
     },
     "live": {
       "*": [
-        "./types/live.d.ts"
+        "./live.d.ts"
       ]
     },
     "socket": {
       "*": [
-        "./types/socket.d.ts"
+        "./socket.d.ts"
       ]
     }
   },
