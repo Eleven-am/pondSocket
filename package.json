@@ -1,6 +1,6 @@
 {
   "name": "pondsocket",
-  "version": "0.1.153",
+  "version": "0.1.152",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -19,11 +19,20 @@
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
   "main": "bin/socket.js.js",
-  "types": "types/definitions/*",
+  "types": "types/socket.d.ts",
   "exports": {
-    ".": "./bin/server.js",
-    "./client": "./bin/client.js",
-    "./live": "./bin/live.js"
+    ".": {
+      "types": "./types/socket.d.ts",
+      "import": "./bin/socket.js"
+    },
+    "./client": {
+      "types": "./types/client.d.ts",
+      "import": "./bin/client.js"
+    },
+    "./live": {
+      "types": "./types/live.d.ts",
+      "import": "./bin/live.js"
+    }
   },
   "repository": {
     "type": "git",
