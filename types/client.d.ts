@@ -1,3 +1,6 @@
-export * from './pondclient';
-import { PondClientSocket } from "./pondclient";
-export { PondClientSocket as PondClient };
+import * as ClientExport from './pondclient';
+declare const Client: {
+    PondClient: typeof ClientExport.PondClientSocket;
+    Channel: typeof ClientExport.Channel;
+};
+export { Client };

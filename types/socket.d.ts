@@ -1,3 +1,2 @@
-export * from './pondsocket';
-import { PondSocket } from "./pondsocket";
-export { PondSocket as PondSocket };
+import * as Socket from './pondSocket';
+export { Socket };
