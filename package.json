@@ -1,6 +1,6 @@
 {
   "name": "pondsocket",
-  "version": "0.1.155",
+  "version": "0.1.156",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -27,10 +27,26 @@
     "./socket": "./bin/socket.js"
   },
   "typesVersions": {
-    "*": {"*": ["./types/*"]},
-    "client": {"*": ["./types/client.d.ts"]},
-    "live": {"*": ["./types/live.d.ts"]},
-    "socket": {"*": ["./types/socket.d.ts"]}
+    "*": {
+      "*": [
+        "./types/*"
+      ]
+    },
+    "client": {
+      "*": [
+        "./types/client.d.ts"
+      ]
+    },
+    "live": {
+      "*": [
+        "./types/live.d.ts"
+      ]
+    },
+    "socket": {
+      "*": [
+        "./types/socket.d.ts"
+      ]
+    }
   },
   "repository": {
     "type": "git",
