@@ -20,34 +20,6 @@
   "license": "GPL-3.0",
   "main": "./index.js",
   "types": "./index.d.ts",
-  "exports": {
-    ".": "./index.js",
-    "./client": "./client.js",
-    "./live": "./live.js",
-    "./socket": "./socket.js"
-  },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "./index.d.ts"
-      ]
-    },
-    "client": {
-      "*": [
-        "./client.d.ts"
-      ]
-    },
-    "live": {
-      "*": [
-        "./live.d.ts"
-      ]
-    },
-    "socket": {
-      "*": [
-        "./socket.d.ts"
-      ]
-    }
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Eleven-am/pondLive.git"
