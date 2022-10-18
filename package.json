@@ -19,24 +19,11 @@
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
   "main": "bin/socket.js.js",
-  "types": "types/socket.d.ts",
+  "types": "types/definitions/*",
   "exports": {
     ".": "./bin/server.js",
     "./client": "./bin/client.js",
     "./live": "./bin/live.js"
-  },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "./types/socket.d.ts"
-      ],
-      "client": [
-        "./types/client.d.ts"
-      ],
-      "live": [
-        "./types/live.d.ts"
-      ]
-    }
   },
   "repository": {
     "type": "git",
