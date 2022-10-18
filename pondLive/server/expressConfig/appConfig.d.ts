@@ -1,9 +1,9 @@
-import { Express } from 'express';
-import { Endpoint, EndpointHandler } from "../../../pondSocket";
-import { PondPath } from "../../../pondBase";
-import { PondLiveServerOptions } from "./express";
-import { Route } from "../../component";
-export declare const fileExist: (filePath: string) => boolean;
+import {Express} from 'express';
+import {Endpoint, EndpointHandler} from "../../../pondSocket";
+import {PondPath} from "../../../pondBase";
+import {PondLiveServerOptions} from "./express";
+import {Route} from "../../component";
+
 export interface PondLiveExpressApp extends Express {
     /**
      * @desc Creates an entry point for the pond live components
@@ -23,6 +23,7 @@ export interface PondLiveExpressApp extends Express {
      * });
      */
     usePondLive(routes: Route[], options: PondLiveServerOptions): void;
+
     /**
      * @desc Accepts a new socket upgrade request on the provided endpoint using the handler function to authenticate the socket
      * @param path - the pattern to accept || can also be a regex
@@ -43,6 +44,7 @@ export interface PondLiveExpressApp extends Express {
      */
     upgrade(path: PondPath, handler: EndpointHandler): Endpoint;
 }
+
 /**
  * @desc Creates a pond live server
  * @param app - The Express app to be used by the server

@@ -1,10 +1,12 @@
-import { LiveRouter, LiveSocket } from "../emitters";
-import { CSSGenerator, CSSOutput, HtmlSafeString } from "./parser";
-import { BroadcastEvent, ContextProvider, PeakData } from "../broadcasters";
-import { PondFile, UploadAuthoriseMessage } from "../server";
+import {LiveRouter, LiveSocket} from "../emitters";
+import {CSSGenerator, CSSOutput, HtmlSafeString} from "./parser";
+import {BroadcastEvent, ContextProvider, PeakData} from "../broadcasters";
+import {PondFile, UploadAuthoriseMessage} from "../server";
+
 export declare type LiveComponent<LiveContext extends Object = any> = {
-    new (...args: any[]): ComponentClass<LiveContext>;
+    new(...args: any[]): ComponentClass<LiveContext>;
 };
+
 export interface FileMetaData {
     name: string;
     size: number;
@@ -12,23 +14,28 @@ export interface FileMetaData {
     lastModified: number;
     lastModifiedDate: Date;
 }
+
 export interface PondUploadFile extends FileMetaData {
     identifier: string;
 }
+
 export interface DragData {
     top: number;
     left: number;
     width: number;
     height: number;
 }
+
 export interface Route {
     path: string;
     Component: LiveComponent;
 }
+
 export interface MetaData {
     type: 'UPLOAD_REQUEST' | 'UPLOAD_SUCCESS' | 'UPLOAD_FAILURE';
     identifier: string;
 }
+
 export interface LiveEvent<Events extends string = string> {
     type: Events;
     value: string | null;
@@ -37,28 +44,35 @@ export interface LiveEvent<Events extends string = string> {
     dragData?: DragData;
     metadata?: MetaData;
 }
+
 export interface MountContext {
     path: string;
     params: Record<string, string>;
     query: Record<string, string>;
 }
+
 export interface UploadEvent<Events extends string = string> {
     type: Events;
     files: PondFile[];
 }
+
 export interface UploadRequestEvent<Events extends string = string> {
     type: Events;
     message: UploadAuthoriseMessage;
 }
+
 export declare type RenderContext = () => HtmlSafeString;
+
 export interface LiveBuilder<LiveContext extends Object = any> {
     routes?: Route[];
     providers?: ContextProvider[];
+
     /**
      * @desc Called on every render to generate the CSS for the component.
      * @param css - The CSS generator.
      */
     manageStyles?(this: LiveContext, css: CSSGenerator): CSSOutput;
+
     /**
      * @desc Called when the component is mounted.
      * @param context - The context of the component.
@@ -66,6 +80,7 @@ export interface LiveBuilder<LiveContext extends Object = any> {
      * @param router - The router of this instance of the connection.
      */
     mount?(context: MountContext, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     /**
      * @desc Called when the value of a provided context changes.
      * @param context - The changed context.
@@ -73,12 +88,14 @@ export interface LiveBuilder<LiveContext extends Object = any> {
      * @param router - The router of this instance of the connection.
      */
     onContextChange?(this: LiveContext, context: PeakData, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     /**
      * @desc Called when the component is connected to the server over websockets.
      * @param socket - The socket of user connection.
      * @param router - The router of this instance of the connection.
      */
     onRendered?(this: LiveContext, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     /**
      * @desc Called when the component receives an event from the client.
      * @param event - The event name.
@@ -86,6 +103,7 @@ export interface LiveBuilder<LiveContext extends Object = any> {
      * @param router - The router of this instance of the connection.
      */
     onEvent?(this: LiveContext, event: LiveEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     /**
      * @desc Called when the component receives an info from the server.
      * @param info - The info content.
@@ -93,6 +111,7 @@ export interface LiveBuilder<LiveContext extends Object = any> {
      * @param router - The router of this instance of the connection.
      */
     onInfo?(this: LiveContext, info: BroadcastEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     /**
      * @desc Called when the component receives a request to upload files.
      * @param event - The event of the upload request.
@@ -100,6 +119,7 @@ export interface LiveBuilder<LiveContext extends Object = any> {
      * @param router - The router of this instance of the connection.
      */
     onUploadRequest?(this: LiveContext, event: UploadRequestEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     /**
      * @desc Called when the component receives new files from the client.
      * @param event - The event Object containing the files.
@@ -107,11 +127,13 @@ export interface LiveBuilder<LiveContext extends Object = any> {
      * @param router - The router of this instance of the connection.
      */
     onUpload?(this: LiveContext, event: UploadEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     /**
      * @desc Called when the component is disconnected from the server.
      * @param socket - The socket of user connection.
      */
     onUnmount?(this: LiveContext, socket: LiveSocket<LiveContext>): void | Promise<void>;
+
     /**
      * @desc Called on every render to generate the HTML for the component.
      * @param routes - The context of the component.
@@ -119,18 +141,30 @@ export interface LiveBuilder<LiveContext extends Object = any> {
      */
     render(this: LiveContext, routes: RenderContext, classes: Record<string, string>): HtmlSafeString;
 }
+
 export declare abstract class ComponentClass<LiveContext extends Object = any> implements LiveBuilder<LiveContext> {
     routes: Route[];
     providers: ContextProvider[];
+
     abstract manageStyles?(css: CSSGenerator): CSSOutput;
+
     abstract mount?(context: MountContext, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     abstract onContextChange?(context: PeakData, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     abstract onRendered?(socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     abstract onEvent?(event: any, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     abstract onInfo?(info: any, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     abstract onUploadRequest?(event: UploadRequestEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     abstract onUpload?(event: UploadEvent, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+
     abstract onUnmount?(socket: LiveSocket<LiveContext>): void | Promise<void>;
+
     abstract render(routes: RenderContext, classes: Record<string, string>): HtmlSafeString;
 }
+
 export declare function LiveFactory<LiveContext extends Object>(context: LiveBuilder<LiveContext>): LiveComponent<LiveContext>;
