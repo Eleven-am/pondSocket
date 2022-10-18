@@ -582,7 +582,8 @@ describe('endpoint', function () {
             switch (_a.label) {
                 case 0:
                     socket = new pondSocket_1.PondSocket();
-                    server = socket.listen(3004, function () { });
+                    server = socket.listen(3004, function () {
+                    });
                     expect(server).toBeDefined();
                     endpoint = socket.createEndpoint('/api/:room', function (_, res) {
                         res.accept();

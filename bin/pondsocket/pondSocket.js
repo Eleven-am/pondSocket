@@ -144,7 +144,7 @@ var PondSocket = /** @class */ (function (_super) {
                 ws.isAlive = false;
                 ws.ping();
             });
-        }, 30000);
+        }, 30 * 1000);
         server.on("close", function () { return clearInterval(interval); });
     };
     /**

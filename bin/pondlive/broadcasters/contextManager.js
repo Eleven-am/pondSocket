@@ -12,19 +12,20 @@ var __assign = (this && this.__assign) || function () {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createContext = exports.ContextDistributor = void 0;
-var base_1 = require("../../base");
+var pondbase_1 = require("../../pondbase");
 var emitters_1 = require("../emitters");
 var ContextDistributor = /** @class */ (function () {
     function ContextDistributor(initialValue) {
         this._initialValue = initialValue;
         this._managers = new Set();
         this._contextId = Math.random().toString(36).substring(2, 15);
-        this._database = new base_1.SimpleBase();
+        this._database = new pondbase_1.SimpleBase();
     }
     ContextDistributor.prototype.subscribe = function (manager) {
         var _this = this;
         var _a;
-        var liveSocket = new emitters_1.LiveSocket('context', manager, function () { });
+        var liveSocket = new emitters_1.LiveSocket('context', manager, function () {
+        });
         var router = {};
         var verify = {
             contextId: this._contextId,
@@ -40,7 +41,7 @@ var ContextDistributor = /** @class */ (function () {
         if (!this._managers.has(socket.componentId))
             return null;
         var doc = this._database.getOrCreate(socket.clientId, function () {
-            return new base_1.Subject(_this._initialValue);
+            return new pondbase_1.Subject(_this._initialValue);
         });
         var sub = doc.doc.subscribe(function (data) {
             var peakData = {

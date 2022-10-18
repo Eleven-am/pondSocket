@@ -1,8 +1,7 @@
-/// <reference types="node" />
-import {Authorizer} from "../helpers/authenticate";
-import {IncomingMessage} from "http";
+import {Request} from "express";
+import {Authorizer} from "../auth/authenticate";
 
-export declare type ValidateUpload = (request: IncomingMessage) => {
+export declare type ValidateUpload = (request: Request) => {
     valid: boolean;
     clientId: string;
 };

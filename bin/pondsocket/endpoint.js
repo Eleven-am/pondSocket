@@ -178,7 +178,7 @@ var Endpoint = /** @class */ (function (_super) {
                             channelData: {}
                         };
                         doc = this._sockets.set({});
-                        req = __assign(__assign({ request: request }, data), { clientId: doc.id });
+                        req = __assign(__assign({ headers: request.headers }, data), { clientId: doc.id });
                         resolver = function (data) {
                             if (data.error) {
                                 doc.removeDoc();

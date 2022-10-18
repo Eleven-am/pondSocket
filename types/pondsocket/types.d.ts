@@ -2,7 +2,7 @@
 import {default_t, ResponsePicker} from "../pondbase";
 import {ServerActions} from "./enums";
 import {WebSocket} from "ws";
-import {IncomingMessage} from "http";
+import {IncomingHttpHeaders} from "http";
 
 export interface NewUser {
     client: Omit<SocketCache, 'assigns' | 'socket'>;
@@ -32,7 +32,7 @@ export interface IncomingConnection {
     clientId: string;
     params: default_t<string>;
     query: default_t<string>;
-    request: IncomingMessage;
+    headers: IncomingHttpHeaders;
     address: string;
 }
 

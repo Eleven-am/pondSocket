@@ -79,12 +79,14 @@ describe('PondChannel', function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    pondChannel = new pondChannel_1.PondChannel('/test', function () { });
+                    pondChannel = new pondChannel_1.PondChannel('/test', function () {
+                    });
                     messageReceived = null;
                     pondChannel.on('message', function (message) {
                         messageReceived = message;
                     });
-                    channel = new channel_1.Channel('/test', function () { });
+                    channel = new channel_1.Channel('/test', function () {
+                    });
                     doc = pondChannel["_channels"].set(channel);
                     expect(doc).toBeDefined();
                     expect(doc).toBeInstanceOf(pondbase_1.PondDocument);
@@ -97,8 +99,10 @@ describe('PondChannel', function () {
                             clientId: 'test',
                             assigns: {},
                             socket: {
-                                send: function () { },
-                                on: function () { }
+                                send: function () {
+                                },
+                                on: function () {
+                                }
                             }
                         }, '/balls', {})).rejects.toEqual(new pondbase_1.PondError('Invalid channel name', 400, { channelName: '/balls' }))];
                 case 1:
@@ -110,8 +114,10 @@ describe('PondChannel', function () {
                             clientId: 'test',
                             assigns: {},
                             socket: {
-                                send: function () { },
-                                on: function () { }
+                                send: function () {
+                                },
+                                on: function () {
+                                }
                             }
                         }, '/test', {})];
                 case 3:
@@ -133,8 +139,10 @@ describe('PondChannel', function () {
                             clientId: 'test',
                             assigns: {},
                             socket: {
-                                send: function () { },
-                                on: function () { }
+                                send: function () {
+                                },
+                                on: function () {
+                                }
                             }
                         }, '/test', {})];
                 case 6:
@@ -165,8 +173,10 @@ describe('PondChannel', function () {
                             clientId: 'test',
                             assigns: {},
                             socket: {
-                                send: function () { },
-                                on: function () { }
+                                send: function () {
+                                },
+                                on: function () {
+                                }
                             }
                         }, '/rejectWithMessage', {})];
                 case 8:
@@ -185,8 +195,10 @@ describe('PondChannel', function () {
                             clientId: 'test',
                             assigns: {},
                             socket: {
-                                send: function () { },
-                                on: function () { }
+                                send: function () {
+                                },
+                                on: function () {
+                                }
                             }
                         }, '/balls', {})];
                 case 11:
@@ -213,7 +225,8 @@ describe('PondChannel', function () {
                                 send: function (data) {
                                     message = JSON.parse(data);
                                 },
-                                on: function () { }
+                                on: function () {
+                                }
                             }
                         }, '/test', {})];
                 case 14:
@@ -601,7 +614,8 @@ describe('PondChannel', function () {
                             assigns: {},
                             socket: {
                                 send: sender,
-                                on: function () { }
+                                on: function () {
+                                }
                             }
                         }, '/test', {})];
                 case 1:
@@ -611,7 +625,8 @@ describe('PondChannel', function () {
                             assigns: {},
                             socket: {
                                 send: sender,
-                                on: function () { }
+                                on: function () {
+                                }
                             },
                         }, '/test', {})];
                 case 2:
@@ -621,7 +636,8 @@ describe('PondChannel', function () {
                             assigns: {},
                             socket: {
                                 send: sender,
-                                on: function () { }
+                                on: function () {
+                                }
                             }
                         }, '/test', {})];
                 case 3:
@@ -679,7 +695,8 @@ describe('PondChannel', function () {
                             assigns: {},
                             socket: {
                                 send: sender,
-                                on: function () { }
+                                on: function () {
+                                }
                             }
                         }, '/test', {})];
                 case 4:

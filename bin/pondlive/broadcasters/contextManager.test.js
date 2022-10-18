@@ -83,7 +83,8 @@ describe('ContextManager', function () {
         var handler = jest.fn();
         manager.handleContextChange = handler;
         manager.component.onContextChange = function (data) {
-            contextManager.handleContextChange(data, function () { });
+            contextManager.handleContextChange(data, function () {
+            });
         };
         contextManager.subscribe(manager);
         expect(handler).not.toHaveBeenCalled();
@@ -137,7 +138,8 @@ describe('ContextManager', function () {
         var contextManager = new contextManager_1.ContextDistributor({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
         manager.component.onContextChange = function (data) {
-            contextManager.handleContextChange(data, function () { });
+            contextManager.handleContextChange(data, function () {
+            });
         };
         manager.handleContextChange = function (data) {
             manager.component.onContextChange(data);
@@ -202,7 +204,8 @@ describe('ContextManager', function () {
         var contextManager = new contextManager_1.ContextDistributor({});
         var _a = createManager(), socket = _a.socket, manager = _a.manager;
         manager.component.onContextChange = function (data) {
-            contextManager.handleContextChange(data, function () { });
+            contextManager.handleContextChange(data, function () {
+            });
         };
         manager.handleContextChange = function (data) {
             manager.component.onContextChange(data);

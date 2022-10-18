@@ -24,7 +24,13 @@ export declare class Subject<T, A> extends Broadcast<T, A> {
     /**
      * @desc Get the current value of the subject
      */
-    get value(): T | undefined;
+    get value(): T;
+
+    /**
+     * @desc Get the list of observers
+     * @returns The list of observers
+     */
+    get observers(): Set<(data: T) => Anything<A>>;
 
     /**
      * @desc Subscribe to the subject

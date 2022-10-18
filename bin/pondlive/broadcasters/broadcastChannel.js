@@ -12,11 +12,11 @@ var __assign = (this && this.__assign) || function () {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BroadcastChannel = void 0;
-var base_1 = require("../../base");
+var pondbase_1 = require("../../pondbase");
 var BroadcastChannel = /** @class */ (function () {
     function BroadcastChannel(initialData) {
         this._channelData = initialData;
-        this._database = new base_1.SimpleBase();
+        this._database = new pondbase_1.SimpleBase();
         this._name = Math.random().toString(36).substring(7);
     }
     Object.defineProperty(BroadcastChannel.prototype, "channelData", {

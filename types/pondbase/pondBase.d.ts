@@ -2,15 +2,14 @@ import {Subscription} from "./pubSub";
 import {PondBaseActions} from "./enums";
 
 export declare class PondDocument<T> {
+    get id(): string;
 
     get doc(): T;
-
-    get id(): string;
 
     /**
      * @desc Removes the document from the collection
      */
-    removeDoc(): T | undefined;
+    removeDoc(): T;
 
     /**
      * @desc Updates the document in the collection

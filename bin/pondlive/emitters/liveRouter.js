@@ -17,7 +17,7 @@ var LiveRouter = /** @class */ (function () {
         }
         else {
             this._routerType = routerType;
-            this._responseSent = response.response.headersSent;
+            this._responseSent = response.headersSent;
         }
     }
     Object.defineProperty(LiveRouter.prototype, "pageTitle", {

@@ -7,7 +7,7 @@ var pondbase_1 = require("../../../pondbase");
  * @param authorizer - a function that authorizes the request
  */
 var authoriseUploader = function (authorizer) { return function (req) {
-    var _a = authorizer(req), clientId = _a.clientId, setToken = _a.setToken;
+    var _a = authorizer(req.headers), clientId = _a.clientId, setToken = _a.setToken;
     if (setToken || !clientId)
         return { valid: false, clientId: '' };
     var csrfToken = req.headers['x-csrf-token'];

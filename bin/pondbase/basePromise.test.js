@@ -76,7 +76,8 @@ describe('BasePromise', function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    promise = (0, basePromise_1.BasePromise)({}, function (_resolve, _reject) { });
+                    promise = (0, basePromise_1.BasePromise)({}, function (_resolve, _reject) {
+                    });
                     // because the stack is different on every machine, we can't test for it
                     return [4 /*yield*/, expect(promise).rejects.toEqual(new basePromise_1.PondError('Function did not resolve a Promise', 500, {}))];
                 case 1:

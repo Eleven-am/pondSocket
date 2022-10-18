@@ -361,13 +361,16 @@ describe('Channel', function () {
         });
     });
     it('should be possible to remove multiple users at once', function () {
-        var channel = new channel_1.Channel('test', function () { });
+        var channel = new channel_1.Channel('test', function () {
+        });
         var user1 = {
             client: {
                 clientId: 'test1',
                 socket: {
-                    send: function () { },
-                    on: function () { }
+                    send: function () {
+                    },
+                    on: function () {
+                    }
                 }
             },
             presence: {},
@@ -378,8 +381,10 @@ describe('Channel', function () {
             client: {
                 clientId: 'test2',
                 socket: {
-                    send: function () { },
-                    on: function () { }
+                    send: function () {
+                    },
+                    on: function () {
+                    }
                 }
             },
             presence: {},
@@ -393,7 +398,8 @@ describe('Channel', function () {
         expect(channel.info.presence.length).toBe(0);
     });
     it('should broadcast a message to all users in the channel', function () {
-        var channel = new channel_1.Channel('test', function () { });
+        var channel = new channel_1.Channel('test', function () {
+        });
         var receivedMessages = [];
         var sub = channel.subscribe(function (message) {
             receivedMessages.push(message);
@@ -424,7 +430,8 @@ describe('Channel', function () {
         sub.unsubscribe();
     });
     it('should broadcast a message to all users in the channel except the sender', function () {
-        var channel = new channel_1.Channel('test', function () { });
+        var channel = new channel_1.Channel('test', function () {
+        });
         var addresses = [];
         var user1 = {
             client: {
@@ -461,7 +468,8 @@ describe('Channel', function () {
         sub2.unsubscribe();
     });
     it('should interrupt broadcast if a subscriber returns a PondError', function () {
-        var channel = new channel_1.Channel('test', function () { });
+        var channel = new channel_1.Channel('test', function () {
+        });
         var receivedMessages = [];
         channel.subscribe(function (event) {
             if (event.event === 'testEvent' && event.clientId === 'test1')
@@ -517,7 +525,8 @@ describe('Channel', function () {
         expect(function () { return channel.broadcast('testEvent', { test: 'test' }, 'test3'); }).toThrowError();
     });
     it('should send messages to a specific user | users', function () {
-        var channel = new channel_1.Channel('test', function () { });
+        var channel = new channel_1.Channel('test', function () {
+        });
         var message1 = 0;
         var message2 = 0;
         var user1 = {

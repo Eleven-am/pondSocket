@@ -65,7 +65,8 @@ describe('server', function () {
     });
     it('should be able to listen on a port', function () {
         var socket = new pondSocket_1.PondSocket();
-        expect(socket.listen(3001, function () { })).toBeDefined();
+        expect(socket.listen(3001, function () {
+        })).toBeDefined();
         socket['_server'].close();
     });
     it('should be able to create an endpoint', function () {
@@ -89,7 +90,8 @@ describe('server', function () {
     it('should throw an error when the server throws an error', function () {
         var server = require('http').createServer();
         var socket = new pondSocket_1.PondSocket(server);
-        socket.listen(3001, function () { });
+        socket.listen(3001, function () {
+        });
         expect(function () { return server.emit('error', new Error('test')); }).toThrowError(pondbase_1.PondError);
         server.close();
     });
@@ -101,7 +103,8 @@ describe('server', function () {
             write: jest.fn(),
             destroy: jest.fn(),
         };
-        socket.listen(3001, function () { });
+        socket.listen(3001, function () {
+        });
         server.emit('upgrade', {}, socketClient);
         server.close();
         // these functions are called because there is no endpoint to accept the socket
@@ -117,7 +120,8 @@ describe('server', function () {
                     server = socket.listen(3001, function () {
                     });
                     expect(server).toBeDefined();
-                    socket.createEndpoint('/api/hello', function () { });
+                    socket.createEndpoint('/api/hello', function () {
+                    });
                     socket.createEndpoint('/api/:path', function (req, res) {
                         expect(req.params.path).toBe('socket');
                         res.accept();

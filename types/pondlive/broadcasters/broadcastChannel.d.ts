@@ -1,5 +1,5 @@
-import {Subscription} from "../../base";
-import {LiveSocket} from "../index";
+import {Subscription} from "../../pondbase";
+import {LiveSocket} from "../emitters";
 
 export interface BroadcastEvent<ContextType extends Object = any> {
     event: string;

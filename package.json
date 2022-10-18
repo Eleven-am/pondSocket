@@ -14,15 +14,12 @@
     "realtime server"
   ],
   "scripts": {
-    "test": "jest --coverage",
-    "build:client": "parcel build src/pondclient/pondLive.ts --no-source-maps",
-    "build:server": "tsc",
-    "build": "npm run build:server && npm run build:client"
+    "test": "jest --coverage"
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",
-  "main": "bin/server.js",
-  "types": "types/server.d.ts",
+  "main": "bin/socket.js.js",
+  "types": "types/socket.d.ts",
   "exports": {
     ".": "./bin/server.js",
     "./client": "./bin/client.js",
@@ -31,7 +28,7 @@
   "typesVersions": {
     "*": {
       "*": [
-        "./types/server.d.ts"
+        "./types/socket.d.ts"
       ],
       "client": [
         "./types/client.d.ts"
@@ -51,6 +48,7 @@
     "ws": "^8.8.1"
   },
   "devDependencies": {
+    "@parcel/transformer-typescript-types": "^2.7.0",
     "@types/express": "^4.17.14",
     "@types/jest": "^29.1.2",
     "@types/node": "^16.10.3",

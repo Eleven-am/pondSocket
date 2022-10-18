@@ -1,8 +1,7 @@
 import {LiveRouter, LiveSocket} from "../emitters";
-import {CSSGenerator, CSSOutput, HtmlSafeString} from "../parser";
+import {CSSGenerator, CSSOutput, HtmlSafeString} from "./parser";
 import {BroadcastEvent, ContextProvider, PeakData} from "../broadcasters";
-import {PondFile} from "../server/upload/UploadMessage";
-import {UploadAuthoriseMessage} from "../server/upload/UploadAuthoriseMessage";
+import {PondFile, UploadAuthoriseMessage} from "../server";
 
 export declare type LiveComponent<LiveContext extends Object = any> = {
     new(...args: any[]): ComponentClass<LiveContext>;
@@ -14,6 +13,10 @@ export interface FileMetaData {
     type: string;
     lastModified: number;
     lastModifiedDate: Date;
+}
+
+export interface PondUploadFile extends FileMetaData {
+    identifier: string;
 }
 
 export interface DragData {
@@ -147,7 +150,7 @@ export declare abstract class ComponentClass<LiveContext extends Object = any> i
 
     abstract mount?(context: MountContext, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
 
-    abstract onContextChange?(context: PeakData<any>, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
+    abstract onContextChange?(context: PeakData, socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
 
     abstract onRendered?(socket: LiveSocket<LiveContext>, router: LiveRouter): void | Promise<void>;
 

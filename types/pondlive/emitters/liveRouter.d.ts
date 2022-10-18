@@ -26,3 +26,4 @@ export declare class LiveRouter {
     replace(path: string): Promise<void> | void;
 }
 
+export {};

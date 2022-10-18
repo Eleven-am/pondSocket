@@ -1,10 +1,7 @@
-/// <reference types="node" />
-import {MiddleWareFunction, NextFunction} from "../helpers/chainLambda";
-import {IncomingMessage, ServerResponse} from "http";
-import {Authorizer} from "../helpers/authenticate";
 import {ValidateUpload} from "./authoriseUploads";
 import {UploadBusboyEvent} from "./busboy";
 import {Broadcast} from "../../../pondbase";
+import {NextFunction, Request, Response} from "express";
 
 export interface FileUpload {
     name: string;
@@ -14,16 +11,11 @@ export interface FileUpload {
     filePath: string;
 }
 
-interface PondLiveUploadProps {
-    broadcaster: Broadcast<UploadBusboyEvent, void>;
-    authorizer: Authorizer;
-}
-
-export declare type UploadPondLiveRequest = (req: IncomingMessage, res: ServerResponse, next: NextFunction, validator: ValidateUpload, broadcaster: Broadcast<UploadBusboyEvent, void>) => void;
+export declare type UploadPondLiveRequest = (validator: ValidateUpload, broadcaster: Broadcast<UploadBusboyEvent, void>) => (req: Request, res: Response, next: NextFunction) => void;
 /**
- * @desc Creates a new upload middleware and wraps it around the existing middleware function
- * @param pondLiveMiddleware - the pond live middleware
- * @param props - the props to be used by the middleware
+ * @desc A middleware function that handles file uploads
+ * @param validator - a function that validates the request
+ * @param broadcaster - a broadcaster that broadcasts the upload events
+ * @returns a middleware function
  */
-export declare const generatePondLiveUploader: (pondLiveMiddleware: MiddleWareFunction, props: PondLiveUploadProps) => MiddleWareFunction;
-export {};
+export declare const GenerateUploader: UploadPondLiveRequest;

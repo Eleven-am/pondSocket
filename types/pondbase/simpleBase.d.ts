@@ -1,4 +1,6 @@
 import {PondDocument} from "./pondBase";
+import {Subscription} from "./pubSub";
+import {PondBaseActions} from "./enums";
 
 declare type ExtractSameValueType<A, B, C extends keyof A> = {
     [K in keyof B]: B[K] extends A[C] ? A[C] extends B[K] ? K : never : never;
@@ -25,6 +27,11 @@ export declare class SimpleBase<Type extends object> {
      */
     set(key: string, value: Type): PondDocument<Type>;
 
+    /**
+     * @desc Upsert a document to the database
+     * @param key - The key of the document
+     * @param creator - The creator function
+     */
     getOrCreate(key: string, creator: (doc: PondDocument<Type>) => Type): PondDocument<Type>;
 
     /**
@@ -38,6 +45,12 @@ export declare class SimpleBase<Type extends object> {
      */
     generate(): Generator<Type>;
 
+    /**
+     * @desc Performs a join between two ponds
+     * @param secondPond - The second pond
+     * @param key - The key to join on
+     * @param secondKey - The key from the second pond to join on
+     */
     join<A extends keyof Type, SecondType extends Object, B extends ExtractSameValueType<Type, SecondType, A>>(secondPond: SimpleBase<SecondType>, key: A, secondKey: B): (Type & SecondType)[];
 
     /**
@@ -69,6 +82,12 @@ export declare class SimpleBase<Type extends object> {
      * @desc Clear the pond
      */
     clear(): void;
+
+    /**
+     * @desc Subscribe to change on all documents
+     * @param handler - The handler function of the event
+     */
+    subscribe(handler: (docs: Type[], change: Type | null, action: PondBaseActions) => void): Subscription;
 
     /**
      * @desc Get all the documents in an array

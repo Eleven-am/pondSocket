@@ -12,6 +12,7 @@ var createComponentManager = function () {
         },
         parentId: 'test',
         secret: 'test',
+        uploadPath: 'test',
         uploadPubSub: new pondbase_1.Broadcast(),
         providers: [],
     };

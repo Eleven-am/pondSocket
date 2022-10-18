@@ -1,14 +1,18 @@
 import {ComponentClass} from "./liveComponent";
-import {LiveRouter, LiveSocket} from "../index";
 import {ContextProvider, PeakData} from "../broadcasters";
-import {PondChain} from "../server/helpers/chainLambda";
 import {PondChannel, PondResponse} from "../../pondsocket";
+import {Broadcast} from "../../pondbase";
+import {LiveRouter, LiveSocket} from "../emitters";
+import {Express} from "express";
+import {UploadBusboyEvent} from "../server/upload/busboy";
 
 export interface IComponentManagerProps {
     parentId: string;
+    uploadPath: string;
     pond: PondChannel;
-    chain: PondChain;
+    chain: Express;
     secret: string;
+    uploadPubSub: Broadcast<UploadBusboyEvent, void>;
     htmlPath?: string;
     providers: ContextProvider[];
 }
@@ -21,5 +25,5 @@ export declare class ComponentManager {
 
     handleInfo(info: any, socket: LiveSocket<any>, router: LiveRouter, res: PondResponse): Promise<void>;
 
-    handleContextChange(context: PeakData, clientId: string): Promise<void>;
+    handleContextChange(context: PeakData, liveSocket: LiveSocket<any>, router: LiveRouter, response: PondResponse): Promise<void>;
 }

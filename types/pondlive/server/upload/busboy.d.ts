@@ -1,8 +1,6 @@
-/// <reference types="node" />
-import {IncomingMessage} from "http";
+import {UploadMessage} from "./index";
 import {Broadcast} from "../../../pondbase";
-import {UploadMessage} from "./UploadMessage";
-import {PondResponse} from "../helpers/pondResponse";
+import {Request, Response} from "express";
 
 export interface UploadBusboyEvent {
     message: UploadMessage;
@@ -18,7 +16,7 @@ interface BusBoyManagerProps {
     clientId: string;
 }
 
-export declare type BusBoyManager = (req: IncomingMessage, res: PondResponse, props: BusBoyManagerProps) => void;
+export declare type BusBoyManager = (req: Request, res: Response, props: BusBoyManagerProps) => void;
 /**
  * @desc This function is used to handle the upload of files to the server.
  * @param req - The request object from the http server.

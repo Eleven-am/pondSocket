@@ -7,7 +7,7 @@ exports.busBoyManager = void 0;
 var busboy_1 = __importDefault(require("busboy"));
 var path_1 = __importDefault(require("path"));
 var fs_1 = __importDefault(require("fs"));
-var UploadMessage_1 = require("./UploadMessage");
+var _1 = require("./");
 /**
  * @desc This function is used to handle the upload of files to the server.
  * @param req - The request object from the http server.
@@ -32,7 +32,7 @@ var busBoyManager = function (req, res, props) {
             });
             fileCount--;
             if (finished && fileCount === 0) {
-                res.status(200, 'OK')
+                res.status(200)
                     .json({
                     files: files.map(function (e) {
                         return {
@@ -40,7 +40,7 @@ var busBoyManager = function (req, res, props) {
                         };
                     })
                 });
-                var message = new UploadMessage_1.UploadMessage(files);
+                var message = new _1.UploadMessage(files);
                 var broadcaster = props.broadcaster, event_1 = props.event, componentId = props.componentId, clientId = props.clientId;
                 broadcaster.publish({ message: message, event: event_1, componentId: componentId, clientId: clientId });
             }

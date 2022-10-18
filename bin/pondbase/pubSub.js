@@ -96,13 +96,6 @@ var Subject = /** @class */ (function (_super) {
         enumerable: false,
         configurable: true
     });
-    /**
-     * @desc Subscribe to the subject
-     */
-    Subject.prototype.subscribe = function (handler) {
-        handler(this._value);
-        return _super.prototype.subscribe.call(this, handler);
-    };
     Object.defineProperty(Subject.prototype, "observers", {
         /**
          * @desc Get the list of observers
@@ -114,6 +107,13 @@ var Subject = /** @class */ (function (_super) {
         enumerable: false,
         configurable: true
     });
+    /**
+     * @desc Subscribe to the subject
+     */
+    Subject.prototype.subscribe = function (handler) {
+        handler(this._value);
+        return _super.prototype.subscribe.call(this, handler);
+    };
     /**
      * @desc Publish to the subject
      */

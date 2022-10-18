@@ -63,6 +63,28 @@ var LiveSocket = /** @class */ (function () {
         this._timer = null;
         this.componentId = manager.componentId;
     }
+    Object.defineProperty(LiveSocket.prototype, "isWebsocket", {
+        /**
+         * @desc The type of the live socket.
+         */
+        get: function () {
+            return this._isWebsocket;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(LiveSocket.prototype, "context", {
+        /**
+         * @desc The live context.
+         */
+        get: function () {
+            this._clearTimer();
+            var result = __assign({}, this._liveContext);
+            return Object.freeze(result);
+        },
+        enumerable: false,
+        configurable: true
+    });
     /**
      * @desc Assigns a value to the live context.
      * @param assign - The data to assign.
@@ -81,18 +103,6 @@ var LiveSocket = /** @class */ (function () {
         if (this._channel)
             this._channel.broadcast('emit', { event: event, data: data });
     };
-    Object.defineProperty(LiveSocket.prototype, "context", {
-        /**
-         * @desc The live context.
-         */
-        get: function () {
-            this._clearTimer();
-            var result = __assign({}, this._liveContext);
-            return Object.freeze(result);
-        },
-        enumerable: false,
-        configurable: true
-    });
     /**
      * @desc Destroys the live socket.
      */
@@ -178,16 +188,6 @@ var LiveSocket = /** @class */ (function () {
             });
         });
     };
-    Object.defineProperty(LiveSocket.prototype, "isWebsocket", {
-        /**
-         * @desc The type of the live socket.
-         */
-        get: function () {
-            return this._isWebsocket;
-        },
-        enumerable: false,
-        configurable: true
-    });
     /**
      * @desc Receives a subscription from a subscriber.
      * @param sub - The subscription.
