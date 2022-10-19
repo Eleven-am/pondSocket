@@ -109,6 +109,7 @@ var Subject = /** @class */ (function (_super) {
     });
     /**
      * @desc Subscribe to the subject
+     * @param handler - The handler to call when the subject is published
      */
     Subject.prototype.subscribe = function (handler) {
         handler(this._value);
@@ -116,6 +117,7 @@ var Subject = /** @class */ (function (_super) {
     };
     /**
      * @desc Publish to the subject
+     * @param data - The data to publish
      */
     Subject.prototype.publish = function (data) {
         if (this._value !== data) {
