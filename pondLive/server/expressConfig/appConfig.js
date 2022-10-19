@@ -93,7 +93,7 @@ var PondLive = function (app) {
             chain: app,
             secret: secret,
             parentId: pondId,
-            uploadPubSub: broadcaster,
+            internalBus: broadcaster,
             providers: providers,
             uploadPath: uploadPath,
         };

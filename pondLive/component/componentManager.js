@@ -122,11 +122,12 @@ var ComponentManager = /** @class */ (function () {
         this._chain = props.chain;
         this._sockets = new pondBase_1.SimpleBase();
         this._initialiseManager();
-        this._setupUploadHandler(props.uploadPubSub);
+        this._setupEventHandler(props.internalBus);
         this._htmlPath = props.htmlPath;
         this._secret = props.secret;
         this._uploadPath = props.uploadPath;
         this._providers = [];
+        this._internalBus = props.internalBus;
         var contexts = __spreadArray(__spreadArray([], __read(component.providers), false), __read(props.providers), false);
         contexts.forEach(function (context) { return __awaiter(_this, void 0, void 0, function () {
             var shouldAdd;
@@ -147,7 +148,7 @@ var ComponentManager = /** @class */ (function () {
             pond: _this._pond,
             chain: _this._chain,
             htmlPath: props.htmlPath,
-            uploadPubSub: props.uploadPubSub,
+            internalBus: props.internalBus,
             providers: contexts,
             secret: props.secret,
             uploadPath: props.uploadPath,
@@ -160,8 +161,11 @@ var ComponentManager = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         document = this._sockets.get(socket.clientId);
-                        if (!document)
-                            return [2 /*return*/, socket.destroy(true)];
+                        if (!document) {
+                            this._internalBus.publish({ clientId: socket.clientId, action: 'DISCONNECT' });
+                            router.reload();
+                            return [2 /*return*/];
+                        }
                         return [4 /*yield*/, callback(this._component)];
                     case 1:
                         _a.sent();
@@ -182,7 +186,8 @@ var ComponentManager = /** @class */ (function () {
                         document = this._sockets.get(clientId);
                         if (!document) {
                             uploadMessage.files.forEach(function (file) { return file.destroy(); });
-                            throw new pondBase_1.PondError('Client not found', 404, clientId);
+                            this._internalBus.publish({ clientId: clientId, action: 'DISCONNECT' });
+                            return [2 /*return*/];
                         }
                         uploadEvent = {
                             type: event,
@@ -394,8 +399,11 @@ var ComponentManager = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         document = this._sockets.get(clientId);
-                        if (!document)
-                            throw new pondBase_1.PondError('Client not found', 404, clientId);
+                        if (!document) {
+                            this._internalBus.publish({ clientId: clientId, action: 'DISCONNECT' });
+                            props === null || props === void 0 ? void 0 : props.router.reload();
+                            return [2 /*return*/];
+                        }
                         return [4 /*yield*/, callback(document.doc.socket)];
                     case 1:
                         _a.sent();
@@ -585,12 +593,19 @@ var ComponentManager = /** @class */ (function () {
         this._initialiseHTTPManager();
         this._initialiseSocketManager();
     };
-    ComponentManager.prototype._setupUploadHandler = function (pubsub) {
+    ComponentManager.prototype._setupEventHandler = function (pubsub) {
         var _this = this;
         if (this._component.onUpload)
             pubsub.subscribe(function (data) {
-                if (data.componentId === _this._componentId)
-                    _this._handleUpload(data.message, data.clientId, data.event);
+                if ("message" in data && (data === null || data === void 0 ? void 0 : data.message)) {
+                    if (data.componentId === _this._componentId)
+                        _this._handleUpload(data.message, data.clientId, data.event);
+                }
+                else if ("event" in data && (data === null || data === void 0 ? void 0 : data.event)) {
+                    var document_1 = _this._sockets.get(data.clientId);
+                    if (document_1)
+                        document_1.doc.socket.destroy(true);
+                }
             });
     };
     ComponentManager.prototype._createRouter = function (innerRoute, parentId, componentId) {

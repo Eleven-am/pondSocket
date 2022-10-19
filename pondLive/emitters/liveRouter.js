@@ -92,6 +92,18 @@ var LiveRouter = /** @class */ (function () {
                 this._sendResponse(path, this._response);
         }
     };
+    /**
+     * @desc Reloads the current page, only works if the client is already rendered
+     */
+    LiveRouter.prototype.reload = function () {
+        if (this._response instanceof pondSocket_1.PondResponse) {
+            var message = {
+                action: 'reload',
+                path: 'current',
+            };
+            this._sendPondResponse(message, this._response);
+        }
+    };
     LiveRouter.prototype._sendResponse = function (path, response) {
         if (this._responseSent)
             throw new pondBase_1.PondError('Response already sent', 500, 'PondLive');

@@ -13,7 +13,7 @@ var createComponentManager = function () {
         parentId: 'test',
         secret: 'test',
         uploadPath: 'test',
-        uploadPubSub: new pondBase_1.Broadcast(),
+        internalBus: new pondBase_1.Broadcast(),
         providers: [],
     };
     var context = {

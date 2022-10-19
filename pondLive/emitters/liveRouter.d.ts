@@ -23,6 +23,11 @@ export declare class LiveRouter {
      * @param path - The path to replace with
      */
     replace(path: string): Promise<void> | void;
+
+    /**
+     * @desc Reloads the current page, only works if the client is already rendered
+     */
+    reload(): void;
 }
 
 export {};
