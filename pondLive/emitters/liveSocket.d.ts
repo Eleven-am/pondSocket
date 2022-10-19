@@ -14,6 +14,11 @@ export declare class LiveSocket<LiveContext extends Object> {
     assign(assign: Partial<LiveContext>): void;
 
     /**
+     * @desc Get the current live context.
+     */
+    get context(): Readonly<LiveContext>;
+
+    /**
      * @desc Emits an event on the browser window.
      * @param event - The event name.
      * @param data - The data to emit.
