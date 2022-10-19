@@ -72,7 +72,7 @@ var ContextDistributor = /** @class */ (function () {
         var doc = this._database.get(socket.clientId);
         if (doc)
             return Object.freeze(__assign({}, doc.doc.value));
-        return this._initialValue;
+        return Object.freeze(__assign({}, this._initialValue));
     };
     ContextDistributor.prototype.handleContextChange = function (context, handler) {
         if (context.listensFor)

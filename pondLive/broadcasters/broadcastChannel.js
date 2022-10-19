@@ -17,7 +17,7 @@ var BroadcastChannel = /** @class */ (function () {
     function BroadcastChannel(initialData) {
         this._channelData = initialData;
         this._database = new pondBase_1.SimpleBase();
-        this._name = Math.random().toString(36).substring(7);
+        this._contextId = Math.random().toString(36).substring(7);
     }
     Object.defineProperty(BroadcastChannel.prototype, "channelData", {
         get: function () {
@@ -43,15 +43,18 @@ var BroadcastChannel = /** @class */ (function () {
     BroadcastChannel.prototype.broadcast = function (payload) {
         var _this = this;
         this._database.toArray()
-            .forEach(function (doc) { return doc.doc.onMessage({ event: _this._name, payload: payload }); });
+            .forEach(function (doc) { return doc.doc.onMessage({ event: _this._contextId, payload: payload }); });
     };
     BroadcastChannel.prototype.broadcastFrom = function (socket, payload) {
         var _this = this;
+        var client = this._database.get(socket.clientId);
+        if (!client)
+            throw new pondBase_1.PondError("Client not found", 404, 'BroadcastChannel');
         var sockets = this._database.query(function (doc) { return doc.clientId !== socket.clientId; });
-        sockets.forEach(function (doc) { return doc.doc.onMessage({ event: _this._name, payload: payload }); });
+        sockets.forEach(function (doc) { return doc.doc.onMessage({ event: _this._contextId, payload: payload }); });
     };
     BroadcastChannel.prototype.handleEvent = function (data, callback) {
-        if (data.event === this._name)
+        if (data.event === this._contextId)
             callback(data.payload);
     };
     return BroadcastChannel;
