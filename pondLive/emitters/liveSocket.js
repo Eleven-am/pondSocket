@@ -90,6 +90,11 @@ var LiveSocket = /** @class */ (function () {
      */
     LiveSocket.prototype.assign = function (assign) {
         var _this = this;
+        if (!this._isWebsocket) {
+            this._clearTimer();
+            this._liveContext = __assign(__assign({}, this._liveContext), assign);
+            return;
+        }
         this._reRender(function () {
             _this._liveContext = Object.assign(_this._liveContext, assign);
         });

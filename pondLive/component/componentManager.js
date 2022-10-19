@@ -234,6 +234,8 @@ var ComponentManager = /** @class */ (function () {
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
+                        if (router.sentResponse)
+                            return [2 /*return*/, null];
                         document = this._sockets.getOrCreate(clientId, function (doc) {
                             return {
                                 socket: new emitters_1.LiveSocket(clientId, _this, doc.removeDoc.bind(doc)), rendered: (0, parser_1.html)(templateObject_1 || (templateObject_1 = __makeTemplateObject([""], [""]))), timer: null,
@@ -245,8 +247,6 @@ var ComponentManager = /** @class */ (function () {
                             path: data.address,
                             query: data.query
                         };
-                        if (router.sentResponse)
-                            return [2 /*return*/, null];
                         if (!this._component.mount) return [3 /*break*/, 2];
                         return [4 /*yield*/, this._component.mount(mountContext, socket, router)];
                     case 1:
