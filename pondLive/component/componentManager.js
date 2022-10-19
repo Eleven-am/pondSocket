@@ -163,6 +163,7 @@ var ComponentManager = /** @class */ (function () {
                         document = this._sockets.get(socket.clientId);
                         if (!document) {
                             this._internalBus.publish({ clientId: socket.clientId, action: 'DISCONNECT' });
+                            socket.destroy(true);
                             router.reload();
                             return [2 /*return*/];
                         }
