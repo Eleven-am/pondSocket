@@ -31,14 +31,15 @@ var BroadcastChannel = /** @class */ (function () {
         this._channelData = Object.assign(this._channelData, assigns);
     };
     BroadcastChannel.prototype.subscribe = function (socket) {
-        var doc = this._database.set(socket.clientId, socket);
-        var subscription = {
+        socket.subscribeToBroadcastChannel(this, this._contextId);
+    };
+    BroadcastChannel.prototype.mountSocket = function (socket) {
+        var doc = this._database.getOrCreate(socket.clientId, function () { return socket; });
+        return {
             unsubscribe: function () {
                 doc.removeDoc();
             }
         };
-        socket.addSubscription(subscription);
-        return subscription;
     };
     BroadcastChannel.prototype.broadcast = function (payload) {
         var _this = this;

@@ -61,7 +61,6 @@ var LiveSocket = /** @class */ (function () {
         this._isWebsocket = false;
         this._remove = remove;
         this._timer = null;
-        this.componentId = manager.componentId;
     }
     Object.defineProperty(LiveSocket.prototype, "isWebsocket", {
         /**
@@ -114,13 +113,13 @@ var LiveSocket = /** @class */ (function () {
         if (!force) {
             this._clearTimer();
             this._timer = setTimeout(function () {
-                _this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });
+                _this._subscriptions.forEach(function (s) { return s.subscription.unsubscribe(); });
                 _this._subscriptions.length = 0;
                 _this._remove();
             }, 5000);
         }
         else {
-            this._subscriptions.forEach(function (s) { return s.sub.unsubscribe(); });
+            this._subscriptions.forEach(function (s) { return s.subscription.unsubscribe(); });
             this._subscriptions.length = 0;
             this._remove();
         }
@@ -152,14 +151,14 @@ var LiveSocket = /** @class */ (function () {
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._reRender(function (router) { return __awaiter(_this, void 0, void 0, function () {
+                    case 0: return [4 /*yield*/, this._reRender(function (component, router) { return __awaiter(_this, void 0, void 0, function () {
                             var _a;
                             return __generator(this, function (_b) {
                                 switch (_b.label) {
                                     case 0:
                                         if (!router)
                                             return [2 /*return*/];
-                                        return [4 /*yield*/, ((_a = this._manager.component.onInfo) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, info, this, router))];
+                                        return [4 /*yield*/, ((_a = component.onInfo) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, info, this, router))];
                                     case 1:
                                         _b.sent();
                                         return [2 /*return*/];
@@ -182,14 +181,11 @@ var LiveSocket = /** @class */ (function () {
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._reRender(function (router) { return __awaiter(_this, void 0, void 0, function () {
+                    case 0: return [4 /*yield*/, this._reRender(function (component, router) { return __awaiter(_this, void 0, void 0, function () {
                             var _a;
                             return __generator(this, function (_b) {
                                 switch (_b.label) {
-                                    case 0:
-                                        if (!router)
-                                            return [2 /*return*/];
-                                        return [4 /*yield*/, ((_a = this._manager.component.onContextChange) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, context, this, router))];
+                                    case 0: return [4 /*yield*/, ((_a = component.onContextChange) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, context, this, router))];
                                     case 1:
                                         _b.sent();
                                         return [2 /*return*/];
@@ -204,30 +200,28 @@ var LiveSocket = /** @class */ (function () {
         });
     };
     /**
-     * @desc Fires when the live socket is subscribing to a context manager.
-     * @param context - The context manager's current context.
-     * @param router - The router.
+     * @desc Subscribes to a context provider.
+     * @param provider - The context provider.
      */
-    LiveSocket.prototype.mountContext = function (context, router) {
-        var _a;
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0: return [4 /*yield*/, ((_a = this._manager.component.onContextChange) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, context, this, router))];
-                    case 1:
-                        _b.sent();
-                        return [2 /*return*/];
-                }
-            });
-        });
+    LiveSocket.prototype.subscribeToContextManager = function (provider) {
+        var data = provider.pullContext(this);
+        var isPresent = this._subscriptions.some(function (s) { return s.contextType === 'CONTEXT_PROVIDER' && s.contextId === data.contextId; });
+        if (isPresent)
+            return;
+        var subscription = provider.mountSocket(this);
+        this._subscriptions.push({ subscription: subscription, contextType: 'CONTEXT_PROVIDER', contextId: data.contextId });
     };
     /**
-     * @desc Receives a subscription from a subscriber.
-     * @param sub - The subscription.
+     * @desc Subscribes to a broadcast channel.
+     * @param channel - The broadcast channel to subscribe to.
+     * @param contextId - The context id of the channel.
      */
-    LiveSocket.prototype.addSubscription = function (sub) {
-        this._clearTimer();
-        this._subscriptions.push({ sub: sub });
+    LiveSocket.prototype.subscribeToBroadcastChannel = function (channel, contextId) {
+        var isPresent = this._subscriptions.some(function (s) { return s.contextType === 'BROADCAST_CHANNEL' && s.contextId === contextId; });
+        if (isPresent)
+            return;
+        var subscription = channel.mountSocket(this);
+        this._subscriptions.push({ subscription: subscription, contextType: 'BROADCAST_CHANNEL', contextId: contextId });
     };
     /**
      * @desc Handles the upload complete event from the file uploader.
@@ -238,18 +232,11 @@ var LiveSocket = /** @class */ (function () {
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._reRender(function (router) { return __awaiter(_this, void 0, void 0, function () {
+                    case 0: return [4 /*yield*/, this._reRender(function (component, router) { return __awaiter(_this, void 0, void 0, function () {
                             var _a;
                             return __generator(this, function (_b) {
-                                switch (_b.label) {
-                                    case 0:
-                                        if (!router)
-                                            return [2 /*return*/];
-                                        return [4 /*yield*/, ((_a = this._manager.component.onUpload) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, uploadEvent, this, router))];
-                                    case 1:
-                                        _b.sent();
-                                        return [2 /*return*/];
-                                }
+                                (_a = component.onUpload) === null || _a === void 0 ? void 0 : _a.call(this._liveContext, uploadEvent, this, router);
+                                return [2 /*return*/];
                             });
                         }); })];
                     case 1:
@@ -299,14 +286,13 @@ var LiveSocket = /** @class */ (function () {
                     case 0:
                         this._clearTimer();
                         if (!this._isWebsocket)
-                            return [2 /*return*/, callback()];
+                            return [2 /*return*/];
                         response = this._createPondResponse();
                         router = new liveRouter_1.LiveRouter(response);
-                        return [4 /*yield*/, callback(router)];
+                        return [4 /*yield*/, this._manager.manageSocketRender(this, router, response, function (component) {
+                                callback(component, router);
+                            })];
                     case 1:
-                        _a.sent();
-                        return [4 /*yield*/, this._manager.manageSocketRender(this, router, response)];
-                    case 2:
                         _a.sent();
                         return [2 /*return*/];
                 }

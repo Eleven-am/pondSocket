@@ -116,8 +116,8 @@ var ComponentManager = /** @class */ (function () {
         this._base = new pondBase_1.BaseClass();
         this._path = path.replace(/\/{2,}/g, '/');
         this._parentId = props.parentId;
-        this.componentId = this._base.nanoId();
-        this.component = component;
+        this._componentId = this._base.nanoId();
+        this._component = component;
         this._pond = props.pond;
         this._chain = props.chain;
         this._sockets = new pondBase_1.SimpleBase();
@@ -126,11 +126,24 @@ var ComponentManager = /** @class */ (function () {
         this._htmlPath = props.htmlPath;
         this._secret = props.secret;
         this._uploadPath = props.uploadPath;
+        this._providers = [];
         var contexts = __spreadArray(__spreadArray([], __read(component.providers), false), __read(props.providers), false);
-        contexts.forEach(function (context) { return context.subscribe(_this); });
-        this._providers = contexts;
+        contexts.forEach(function (context) { return __awaiter(_this, void 0, void 0, function () {
+            var shouldAdd;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, context.subscribe(this._componentId, this._component)];
+                    case 1:
+                        shouldAdd = _a.sent();
+                        if (!shouldAdd)
+                            return [2 /*return*/];
+                        this._providers.push(context);
+                        return [2 /*return*/];
+                }
+            });
+        }); });
         this._innerManagers = (component.routes || []).map(function (route) { return new ComponentManager("".concat(path).concat(route.path), new route.Component(), {
-            parentId: _this.componentId,
+            parentId: _this._componentId,
             pond: _this._pond,
             chain: _this._chain,
             htmlPath: props.htmlPath,
@@ -140,7 +153,7 @@ var ComponentManager = /** @class */ (function () {
             uploadPath: props.uploadPath,
         }); });
     }
-    ComponentManager.prototype.manageSocketRender = function (socket, router, response) {
+    ComponentManager.prototype.manageSocketRender = function (socket, router, response, callback) {
         return __awaiter(this, void 0, void 0, function () {
             var document;
             return __generator(this, function (_a) {
@@ -149,8 +162,11 @@ var ComponentManager = /** @class */ (function () {
                         document = this._sockets.get(socket.clientId);
                         if (!document)
                             return [2 /*return*/, socket.destroy(true)];
-                        return [4 /*yield*/, this._pushToClient(router, document, 'updated', response)];
+                        return [4 /*yield*/, callback(this._component)];
                     case 1:
+                        _a.sent();
+                        return [4 /*yield*/, this._pushToClient(router, document, 'updated', response)];
+                    case 2:
                         _a.sent();
                         return [2 /*return*/];
                 }
@@ -187,7 +203,7 @@ var ComponentManager = /** @class */ (function () {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        if (!this.component.onUploadRequest || !this.component.onUpload) {
+                        if (!this._component.onUploadRequest || !this._component.onUpload) {
                             authorizer.sendError('Upload not supported');
                             return [2 /*return*/];
                         }
@@ -201,7 +217,7 @@ var ComponentManager = /** @class */ (function () {
                         eventRequest = {
                             type: event, message: authorizer,
                         };
-                        (_a = this.component.onUploadRequest) === null || _a === void 0 ? void 0 : _a.call(socket.context, eventRequest, socket, router);
+                        (_a = this._component.onUploadRequest) === null || _a === void 0 ? void 0 : _a.call(socket.context, eventRequest, socket, router);
                         return [4 /*yield*/, this._pushToClient(router, document, 'updated', res)];
                     case 1:
                         _b.sent();
@@ -212,7 +228,7 @@ var ComponentManager = /** @class */ (function () {
     };
     ComponentManager.prototype._render = function (data, clientId, router) {
         return __awaiter(this, void 0, void 0, function () {
-            var document, socket, mountContext, peakData, innerHtml, _a, _b, manager, event_1, rendered_1, e_1_1, renderRoutes, rendered;
+            var document, socket, mountContext, innerHtml, _a, _b, manager, event_1, rendered_1, e_1_1, renderRoutes, rendered;
             var e_1, _c;
             var _this = this;
             return __generator(this, function (_d) {
@@ -225,13 +241,14 @@ var ComponentManager = /** @class */ (function () {
                         });
                         socket = document.doc.socket;
                         mountContext = {
-                            params: data.params, path: data.address, query: data.query
+                            params: data.params,
+                            path: data.address,
+                            query: data.query
                         };
-                        peakData = this._providers.map(function (context) { return context.mount(socket); });
                         if (router.sentResponse)
                             return [2 /*return*/, null];
-                        if (!this.component.mount) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.component.mount(mountContext, socket, router)];
+                        if (!this._component.mount) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this._component.mount(mountContext, socket, router)];
                     case 1:
                         _d.sent();
                         _d.label = 2;
@@ -272,18 +289,15 @@ var ComponentManager = /** @class */ (function () {
                         finally { if (e_1) throw e_1.error; }
                         return [7 /*endfinally*/];
                     case 10:
-                        peakData.forEach(function (peakData) {
-                            if (peakData)
-                                socket.mountContext(peakData.get(), router);
-                        });
+                        this._providers.forEach(function (provider) { return socket.subscribeToContextManager(provider); });
                         if (router.sentResponse)
                             return [2 /*return*/, null];
-                        renderRoutes = function () { return _this._createRouter((innerHtml === null || innerHtml === void 0 ? void 0 : innerHtml.rendered) || (0, parser_1.html)(templateObject_2 || (templateObject_2 = __makeTemplateObject([""], [""]))), _this.componentId, (innerHtml === null || innerHtml === void 0 ? void 0 : innerHtml.path) || ''); };
+                        renderRoutes = function () { return _this._createRouter((innerHtml === null || innerHtml === void 0 ? void 0 : innerHtml.rendered) || (0, parser_1.html)(templateObject_2 || (templateObject_2 = __makeTemplateObject([""], [""]))), _this._componentId, (innerHtml === null || innerHtml === void 0 ? void 0 : innerHtml.path) || ''); };
                         return [4 /*yield*/, this._renderComponent(document, renderRoutes)];
                     case 11:
                         rendered = _d.sent();
                         return [2 /*return*/, {
-                                path: this.componentId, rendered: rendered
+                                path: this._componentId, rendered: rendered
                             }];
                 }
             });
@@ -298,7 +312,7 @@ var ComponentManager = /** @class */ (function () {
                             var _a;
                             return __generator(this, function (_b) {
                                 switch (_b.label) {
-                                    case 0: return [4 /*yield*/, ((_a = this.component.onEvent) === null || _a === void 0 ? void 0 : _a.call(socket.context, event, socket, router))];
+                                    case 0: return [4 /*yield*/, ((_a = this._component.onEvent) === null || _a === void 0 ? void 0 : _a.call(socket.context, event, socket, router))];
                                     case 1:
                                         _b.sent();
                                         return [2 /*return*/];
@@ -328,7 +342,7 @@ var ComponentManager = /** @class */ (function () {
                                     switch (_b.label) {
                                         case 0:
                                             socket.upgradeToWebsocket(channel);
-                                            return [4 /*yield*/, ((_a = this.component.onRendered) === null || _a === void 0 ? void 0 : _a.call(socket.context, socket, router))];
+                                            return [4 /*yield*/, ((_a = this._component.onRendered) === null || _a === void 0 ? void 0 : _a.call(socket.context, socket, router))];
                                         case 1:
                                             _b.sent();
                                             return [2 /*return*/];
@@ -352,7 +366,7 @@ var ComponentManager = /** @class */ (function () {
                         socket = this._sockets.get(clientId);
                         if (!socket)
                             return [2 /*return*/];
-                        return [4 /*yield*/, ((_a = this.component.onUnmount) === null || _a === void 0 ? void 0 : _a.call(socket.doc.socket.context, socket.doc.socket))];
+                        return [4 /*yield*/, ((_a = this._component.onUnmount) === null || _a === void 0 ? void 0 : _a.call(socket.doc.socket.context, socket.doc.socket))];
                     case 1:
                         _b.sent();
                         socket.doc.socket.destroy();
@@ -407,22 +421,22 @@ var ComponentManager = /** @class */ (function () {
                     case 0:
                         if (router.sentResponse)
                             return [2 /*return*/];
-                        renderRoutes = function () { return _this._createRouter((0, parser_1.html)(templateObject_3 || (templateObject_3 = __makeTemplateObject([""], [""]))), _this.componentId, 'BREAK'); };
+                        renderRoutes = function () { return _this._createRouter((0, parser_1.html)(templateObject_3 || (templateObject_3 = __makeTemplateObject([""], [""]))), _this._componentId, 'BREAK'); };
                         previousRender = document.doc.rendered;
                         return [4 /*yield*/, this._renderComponent(document, renderRoutes)];
                     case 1:
                         renderContext = _a.sent();
-                        htmlData = this._createRouter(renderContext, this._parentId, this.componentId);
+                        htmlData = this._createRouter(renderContext, this._parentId, this._componentId);
                         if (responseEvent === 'updated') {
                             previous = this._createRouter(previousRender);
                             difference = previous.differentiate(htmlData);
                             if (this._base.isObjectEmpty(difference))
                                 return [2 /*return*/];
-                            res.send(responseEvent, { rendered: difference, path: this.componentId, headers: router.headers });
+                            res.send(responseEvent, { rendered: difference, path: this._componentId, headers: router.headers });
                         }
                         else {
                             res.send(responseEvent, {
-                                rendered: htmlData.getParts(), path: this.componentId, headers: router.headers
+                                rendered: htmlData.getParts(), path: this._componentId, headers: router.headers
                             });
                         }
                         return [2 /*return*/];
@@ -436,10 +450,10 @@ var ComponentManager = /** @class */ (function () {
             return __generator(this, function (_a) {
                 renderContext = renderRoutes;
                 css = (0, parser_1.CssGenerator)(this._parentId);
-                styleObject = this.component.manageStyles ? this.component.manageStyles.call(document.doc.socket.context, css) : {
+                styleObject = this._component.manageStyles ? this._component.manageStyles.call(document.doc.socket.context, css) : {
                     string: (0, parser_1.html)(templateObject_4 || (templateObject_4 = __makeTemplateObject([""], [""]))), classes: {}
                 };
-                rendered = this.component.render.call(document.doc.socket.context, renderContext, styleObject.classes);
+                rendered = this._component.render.call(document.doc.socket.context, renderContext, styleObject.classes);
                 finalHtml = (0, parser_1.html)(templateObject_5 || (templateObject_5 = __makeTemplateObject(["", "", ""], ["", "", ""])), styleObject.string, rendered);
                 document.updateDoc({
                     socket: document.doc.socket, rendered: finalHtml
@@ -480,7 +494,7 @@ var ComponentManager = /** @class */ (function () {
     };
     ComponentManager.prototype._initialiseSocketManager = function () {
         var _this = this;
-        this._pond.on("mount/".concat(this.componentId), function (req, res, channel) { return __awaiter(_this, void 0, void 0, function () {
+        this._pond.on("mount/".concat(this._componentId), function (req, res, channel) { return __awaiter(_this, void 0, void 0, function () {
             var router, sub;
             var _this = this;
             return __generator(this, function (_a) {
@@ -491,7 +505,7 @@ var ComponentManager = /** @class */ (function () {
                     case 1:
                         _a.sent();
                         sub = channel.subscribe(function (data) {
-                            if ((data.action === pondSocket_1.ServerActions.PRESENCE && data.event === 'LEAVE_CHANNEL') || (data.event === "unmount/".concat(_this.componentId))) {
+                            if ((data.action === pondSocket_1.ServerActions.PRESENCE && data.event === 'LEAVE_CHANNEL') || (data.event === "unmount/".concat(_this._componentId))) {
                                 _this._handleUnmount(req.client.clientAssigns.clientId);
                                 sub.unsubscribe();
                             }
@@ -500,7 +514,7 @@ var ComponentManager = /** @class */ (function () {
                 }
             });
         }); });
-        this._pond.on("update/".concat(this.componentId), function (req, res, channel) { return __awaiter(_this, void 0, void 0, function () {
+        this._pond.on("update/".concat(this._componentId), function (req, res, channel) { return __awaiter(_this, void 0, void 0, function () {
             var router, e_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -518,7 +532,7 @@ var ComponentManager = /** @class */ (function () {
                 }
             });
         }); });
-        this._pond.on("event/".concat(this.componentId), function (req, res) { return __awaiter(_this, void 0, void 0, function () {
+        this._pond.on("event/".concat(this._componentId), function (req, res) { return __awaiter(_this, void 0, void 0, function () {
             var router, e_3;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -536,7 +550,7 @@ var ComponentManager = /** @class */ (function () {
                 }
             });
         }); });
-        this._pond.on("unmount/".concat(this.componentId), function (req) { return __awaiter(_this, void 0, void 0, function () {
+        this._pond.on("unmount/".concat(this._componentId), function (req) { return __awaiter(_this, void 0, void 0, function () {
             var e_4;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -553,7 +567,7 @@ var ComponentManager = /** @class */ (function () {
                 }
             });
         }); });
-        this._pond.on("".concat(this.componentId, "/upload/token"), function (req, res, channel) { return __awaiter(_this, void 0, void 0, function () {
+        this._pond.on("".concat(this._componentId, "/upload/token"), function (req, res, channel) { return __awaiter(_this, void 0, void 0, function () {
             var files, identifier, authorizer;
             var _a;
             return __generator(this, function (_b) {
@@ -573,15 +587,15 @@ var ComponentManager = /** @class */ (function () {
     };
     ComponentManager.prototype._setupUploadHandler = function (pubsub) {
         var _this = this;
-        if (this.component.onUpload)
+        if (this._component.onUpload)
             pubsub.subscribe(function (data) {
-                if (data.componentId === _this.componentId)
+                if (data.componentId === _this._componentId)
                     _this._handleUpload(data.message, data.clientId, data.event);
             });
     };
     ComponentManager.prototype._createRouter = function (innerRoute, parentId, componentId) {
         if (parentId === void 0) { parentId = this._parentId; }
-        if (componentId === void 0) { componentId = this.componentId; }
+        if (componentId === void 0) { componentId = this._componentId; }
         return (0, parser_1.html)(templateObject_6 || (templateObject_6 = __makeTemplateObject(["\n            <div id=\"", "\" pond-router=\"", "\">", "</div>"], ["\n            <div id=\"", "\" pond-router=\"", "\">", "</div>"])), parentId, componentId, innerRoute);
     };
     ComponentManager.prototype._handleInitialRequest = function (request, clientId, response, next) {

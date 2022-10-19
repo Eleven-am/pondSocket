@@ -116,49 +116,4 @@ describe('LiveSocket', function () {
         socket.upgradeToWebsocket(channel);
         socket.emit('test', { test: 'test' });
     });
-    it('should be capable of taking in subscriptions', function () {
-        var _a = createSocket(), socket = _a.socket, removeDoc = _a.removeDoc;
-        var channel = createChannel().channel;
-        jest.useFakeTimers();
-        var subscription = {
-            unsubscribe: jest.fn(),
-        };
-        socket.upgradeToWebsocket(channel);
-        expect(socket['_subscriptions']).toHaveLength(0);
-        // The socket takes in subscriptions and stores them, this subscriptions could be broadcast subscriptions
-        // they could also be a context subscription
-        // When ever these subjects emit a value, their subscription will be called on the socket
-        // The reason we add the subscription to the socket is so that we can unsubscribe from them when the socket is destroyed
-        socket.addSubscription(subscription);
-        expect(socket['_subscriptions']).toHaveLength(1);
-        expect(subscription.unsubscribe).not.toHaveBeenCalled();
-        // When the socket is destroyed, it unsubscribes from all of its subscriptions
-        socket.destroy();
-        jest.runAllTimers();
-        expect(subscription.unsubscribe).toHaveBeenCalled();
-        // The removeDoc method is also called on the socket
-        // this method is used to remove the socket from the manager
-        expect(removeDoc).toHaveBeenCalled();
-    });
-    it('should be able to downgrade', function () {
-        var socket = createSocket().socket;
-        var channel = createChannel().channel;
-        jest.useFakeTimers();
-        socket.upgradeToWebsocket(channel);
-        // The downgrade method unsubscribes from all of the subscriptions
-        // it does not remove the socket from the manager
-        // This is because the downgrade method is called usually when a component is remounted
-        // The socket is not destroyed, it is just downgraded and could be upgraded again
-        // The subscriptions are cleared because the component is remounted and the subscriptions are no longer valid
-        var subscription = {
-            unsubscribe: jest.fn(),
-        };
-        socket.addSubscription(subscription);
-        expect(socket['_subscriptions']).toHaveLength(1);
-        expect(subscription.unsubscribe).not.toHaveBeenCalled();
-        socket.destroy(); // this will remove the socket from the database
-        jest.runAllTimers();
-        expect(subscription.unsubscribe).toHaveBeenCalled();
-        expect(socket['_subscriptions']).toHaveLength(0);
-    });
 });
