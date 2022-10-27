@@ -3,12 +3,12 @@
 /// <reference types="node" />
 import {IncomingMessage, Server as HTTPServer} from "http";
 import {WebSocketServer} from "ws";
-import {BaseClass, PondPath} from "../pondBase";
+import {PondPath} from "../pondBase";
 import {Endpoint, EndpointHandler} from "./endpoint";
 import internal from "stream";
 import {NextFunction} from "./socketMiddleWare";
 
-export declare class PondSocket extends BaseClass {
+export declare class PondSocket {
 
     constructor(server?: HTTPServer, socketServer?: WebSocketServer);
 

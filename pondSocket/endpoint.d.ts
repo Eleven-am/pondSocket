@@ -5,14 +5,14 @@ import {IncomingConnection} from "./types";
 import internal from "stream";
 import {WebSocket, WebSocketServer} from "ws";
 import {IncomingMessage} from "http";
-import {BaseClass, default_t, PondPath, Resolver, ResponsePicker} from "../pondBase";
+import {default_t, PondPath, Resolver, ResponsePicker} from "../pondBase";
 import {PondChannel, PondChannelHandler} from "./pondChannel";
 import {ChannelInfo} from "./channel";
 import {PondResponse} from "./pondResponse";
 
 export declare type EndpointHandler = (req: IncomingConnection, res: PondResponse<ResponsePicker.POND>, endpoint: Endpoint) => void;
 
-export declare class Endpoint extends BaseClass {
+export declare class Endpoint {
     constructor(server: WebSocketServer, handler: EndpointHandler);
 
     /**

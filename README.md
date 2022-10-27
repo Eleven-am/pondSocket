@@ -19,13 +19,11 @@ Multiple endpoints can be created but every endpoint is independent of the other
 
 ```js
   import { PondSocket } from "@eleven-am/pondsocket";
-  import parse from "url";
   
   const pond = new PondSocket();
  
   const endpoint = pond.createEndpoint('/api/socket', (req, res, _endpoint) => {
-       const { query } = parse(req.url || '');     
-       const { token } = query;     
+       const token = req.query.token;   
        if (!token)         
             return res.reject('No token provided');      
        res.accept({
@@ -69,7 +67,7 @@ It can be anything from a boolean to an instance of a class. This data cannot be
 
 ```js
     channel.on('hello', (req, res, channel) => {      
-       const users = channel.getPresence();      
+       const users = channel.presence;      
        res.assign({
            assign: {
                pingDate: new Date(),
@@ -91,7 +89,7 @@ In case there is no *on* function, the message will be sent without any action b
 ```js
     import { PondClient } from "@eleven-am/pondsocket/client";
 
-    export const socket = new PondClientSocket('/api/socket', {});
+    export const socket = new PondClient('/api/socket', {});
     socket.connect();
 ```
 

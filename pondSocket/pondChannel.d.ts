@@ -1,11 +1,11 @@
-import {BaseClass, default_t, PondPath} from "../pondBase";
+import {default_t, PondPath} from "../pondBase";
 import {Channel, ChannelInfo} from "./channel";
 import {IncomingChannelMessage, IncomingJoinMessage, PondMessage, PondResponseAssigns, SocketCache} from "./types";
 import {PondResponse} from "./pondResponse";
 
 export declare type PondChannelHandler = (req: IncomingJoinMessage, res: PondResponse, channel: Channel) => void;
 
-export declare class PondChannel extends BaseClass {
+export declare class PondChannel {
 
     /**
      * @desc Gets a list of all the channels in the endpoint.

@@ -1,4 +1,4 @@
-import {BaseClass, default_t, PondDocument, Subscription} from "../pondBase";
+import {default_t, Subscription} from "../pondBase";
 import {NewUser, PondAssigns, PondChannelData, PondMessage, PondPresence, ServerMessage} from "./types";
 import {PondSenders, ServerActions} from "./enums";
 import {ChannelHandler} from "./channelMiddleWare";
@@ -10,12 +10,7 @@ export interface ChannelInfo {
     assigns: PondPresence[];
 }
 
-export interface PondUser {
-    presence: PondDocument<PondPresence>;
-    assigns: PondDocument<PondAssigns>;
-}
-
-export declare class Channel extends BaseClass {
+export declare class Channel {
     readonly name: string;
 
     /**

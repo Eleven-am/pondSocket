@@ -13,6 +13,7 @@ export declare type ChannelEvent = {
     payload: default_t;
     event: string;
 };
+
 export declare type IncomingMiddlewareRequest = {
     channelName: string;
     event: string;
@@ -23,4 +24,5 @@ export declare type IncomingMiddlewareRequest = {
         clientPresence: PondPresence;
     };
 };
+
 export declare type ChannelHandler = (req: IncomingMiddlewareRequest, res: PondResponse, channel: Channel) => void | Promise<void>;
