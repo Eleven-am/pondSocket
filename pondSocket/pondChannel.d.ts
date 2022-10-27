@@ -1,16 +1,12 @@
-import {Anything, BaseClass, default_t, PondPath, RejectPromise, Subscription} from "../pondBase";
-import {Channel, ChannelEvent, ChannelInfo} from "./channel";
+import {BaseClass, default_t, PondPath} from "../pondBase";
+import {Channel, ChannelInfo} from "./channel";
 import {IncomingChannelMessage, IncomingJoinMessage, PondMessage, PondResponseAssigns, SocketCache} from "./types";
 import {PondResponse} from "./pondResponse";
 
-export declare type ChannelHandler = (req: IncomingJoinMessage, res: PondResponse, channel: Channel) => void;
-export declare type Subscriber = (event: ChannelEvent) => Anything<RejectPromise<{
-    event: string;
-    channelName: string;
-}> | boolean>;
+export declare type PondChannelHandler = (req: IncomingJoinMessage, res: PondResponse, channel: Channel) => void;
 
 export declare class PondChannel extends BaseClass {
-    readonly path: PondPath;
+
     /**
      * @desc Gets a list of all the channels in the endpoint.
      */
@@ -29,7 +25,7 @@ export declare class PondChannel extends BaseClass {
      * @param channelName - The name of the channel
      * @param joinParams - The params to join the channel with
      */
-    addUser(user: SocketCache, channelName: string, joinParams: default_t): Promise<void>;
+    addUser(user: SocketCache, channelName: string, joinParams: default_t): void;
 
     /**
      * @desc Sends a message to a channel in the endpoint.
@@ -71,16 +67,9 @@ export declare class PondChannel extends BaseClass {
 
     /**
      * @desc Searches for a channel in the endpoint.
-     * @param query - The query to search for.
+     * @param channelName - The name of the channel to search for.
      */
-    findChannel(query: (channel: Channel) => boolean): Channel | null;
-
-    /**
-     * @desc Subscribes a function to a channel in the endpoint.
-     * @param channelName - The name of the channel to subscribe to.
-     * @param callback - The function to subscribe to the channel.
-     */
-    subscribe(channelName: string, callback: Subscriber): Subscription;
+    getChannel(channelName: string): Channel | null;
 
     /**
      * @desc removes a user from all channels

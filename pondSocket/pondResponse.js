@@ -1,98 +1,120 @@
 "use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PondResponse = void 0;
-var pondBase_1 = require("../pondBase");
-var PondResponse = /** @class */ (function () {
-    function PondResponse(data, assigns, resolver, isChannel) {
-        if (isChannel === void 0) { isChannel = true; }
-        this._executed = false;
-        this._data = data;
-        this.resolver = resolver;
-        this._assigns = assigns;
-        this._isChannel = isChannel;
-    }
-    /**
-     * @desc Emits a direct message to the client
-     * @param event - the event name
-     * @param payload - the payload to send
-     * @param assigns - the data to assign to the client
-     */
-    PondResponse.prototype.send = function (event, payload, assigns) {
-        this._message = {
-            event: event,
-            payload: payload,
-        };
-        return this._execute(assigns);
-    };
-    /**
-     * @desc Accepts the request and optionally assigns data to the client
-     * @param assigns - the data to assign to the client
-     */
-    PondResponse.prototype.accept = function (assigns) {
-        return this._execute(assigns);
-    };
-    /**
-     * @desc Rejects the request with the given error message
-     * @param message - the error message
-     * @param errorCode - the error code
-     */
-    PondResponse.prototype.reject = function (message, errorCode) {
-        message = message || (this._isChannel ? 'Message' : 'Connection') + ' rejected';
-        errorCode = errorCode || 403;
-        this._error = {
-            errorMessage: message,
-            errorCode: errorCode,
-        };
-        return this._execute({});
-    };
-    /**
-     * @desc Executes the response callback
-     * @param assigns - the data to assign to the client
-     * @private
-     */
-    PondResponse.prototype._execute = function (assigns) {
-        if (!this._executed) {
-            this._executed = true;
-            var data = {
-                assigns: this._mergeAssigns(assigns),
-                message: this._message,
-                error: this._error,
-            };
-            this.resolver(data);
-        }
-        else
-            throw new pondBase_1.PondError('Response has already been sent', 500, this._data);
-    };
-    /**
-     * @desc Merges the assigns with the default assigns
-     * @param data - the data to merge
-     * @private
-     */
-    PondResponse.prototype._mergeAssigns = function (data) {
-        if (data === undefined)
-            return this._assigns;
-        var otherAssigns = data;
-        var newAssigns = this._assigns;
-        var presence = __assign(__assign({}, newAssigns.presence), otherAssigns.presence);
-        var channelData = __assign(__assign({}, newAssigns.channelData), otherAssigns.channelData);
-        var assigns = __assign(__assign({}, newAssigns.assigns), otherAssigns.assigns);
-        return {
-            presence: presence,
-            channelData: channelData,
-            assigns: assigns,
-        };
-    };
-    return PondResponse;
-}());
+exports.EndpointResponse = exports.PondChannelResponse = exports.ChannelResponse = exports.PondResponse = void 0;
+const enums_1 = require("./enums");
+class PondResponse {
+}
 exports.PondResponse = PondResponse;
+class ChannelResponse extends PondResponse {
+    constructor(clientId, channel, resolver) {
+        super();
+        this._clientId = clientId;
+        this._channel = channel;
+        this._resolver = resolver;
+        this._hasExecuted = false;
+    }
+    get hasExecuted() {
+        return this._hasExecuted;
+    }
+    accept(assigns) {
+        if (this._hasExecuted)
+            throw new Error('Response has already been sent');
+        this._hasExecuted = true;
+        if (assigns) {
+            if (Object.values(enums_1.PondSenders).includes(this._clientId))
+                throw new Error('Cannot accept a message sent by the server');
+            this._channel.updateUser(this._clientId, assigns.presence || {}, assigns.assigns || {});
+            this._channel.data = assigns.channelData || {};
+        }
+        this._resolver(false);
+    }
+    reject(message, errorCode) {
+        if (this._hasExecuted)
+            throw new Error('Response has already been sent');
+        this._hasExecuted = true;
+        message = message || 'Message rejected';
+        errorCode = errorCode || 403;
+        if (Object.values(enums_1.PondSenders).includes(this._clientId))
+            throw new Error('Cannot reject a message sent by the server');
+        this._channel.respondToClient('error', { message: message, code: errorCode }, this._clientId, enums_1.ServerActions.ERROR);
+        this._resolver(true);
+    }
+    send(event, payload, assigns) {
+        if (this._hasExecuted)
+            throw new Error('Response has already been sent');
+        this._hasExecuted = true;
+        if (Object.values(enums_1.PondSenders).includes(this._clientId))
+            throw new Error('Cannot reply to a message sent by the server');
+        if (assigns) {
+            this._channel.updateUser(this._clientId, assigns.presence || {}, assigns.assigns || {});
+            this._channel.data = assigns.channelData || {};
+        }
+        this._channel.respondToClient(event, payload, this._clientId);
+        this._resolver(false);
+    }
+}
+exports.ChannelResponse = ChannelResponse;
+class PondChannelResponse extends PondResponse {
+    constructor(user, handler) {
+        super();
+        this._handler = handler;
+        this._user = user;
+        this._executed = false;
+    }
+    get isResolved() {
+        return this._executed;
+    }
+    accept(assigns) {
+        if (this._executed)
+            throw new Error('Response has already been sent');
+        this._executed = true;
+        const newAssigns = this._mergeAssigns(assigns);
+        this._handler(newAssigns);
+    }
+    reject(message, errorCode) {
+        if (this._executed)
+            throw new Error('Response has already been sent');
+        this._executed = true;
+        const newMessage = {
+            action: enums_1.ServerActions.ERROR,
+            event: "JOIN_REQUEST_ERROR",
+            channelName: enums_1.PondSenders.POND_CHANNEL,
+            payload: {
+                message: message || 'Unauthorized join request',
+                code: errorCode || 403,
+            }
+        };
+        this._user.socket.send(JSON.stringify(newMessage));
+    }
+    send(event, payload, assigns) {
+        if (this._executed)
+            throw new Error('Response has already been sent');
+        this._executed = true;
+        const newAssigns = this._mergeAssigns(assigns);
+        this._handler(newAssigns, { event: event, payload: payload });
+    }
+    _mergeAssigns(assigns) {
+        return {
+            presence: (assigns === null || assigns === void 0 ? void 0 : assigns.presence) || {},
+            channelData: (assigns === null || assigns === void 0 ? void 0 : assigns.channelData) || {},
+            assigns: Object.assign({}, this._user.assigns, (assigns === null || assigns === void 0 ? void 0 : assigns.assigns) || {}),
+        };
+    }
+}
+exports.PondChannelResponse = PondChannelResponse;
+class EndpointResponse extends PondResponse {
+    constructor(handler) {
+        super();
+        this._handler = handler;
+    }
+    accept(assigns) {
+        this._handler((assigns === null || assigns === void 0 ? void 0 : assigns.assigns) || {}, {});
+    }
+    reject(message, errorCode) {
+        this._handler({}, { error: { message: message || 'Message rejected', code: errorCode || 403 } });
+    }
+    send(event, payload, assigns) {
+        this._handler((assigns === null || assigns === void 0 ? void 0 : assigns.assigns) || {}, { message: { event: event, payload: payload } });
+    }
+}
+exports.EndpointResponse = EndpointResponse;

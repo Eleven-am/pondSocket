@@ -1,20 +1,25 @@
-export declare type Anything<A = any> = A | undefined | void | Promise<void> | null;
 export declare class Subscription {
-    unsubscribe: () => void;
+    unsubscribe(): void;
 }
 
 export declare class Broadcast<T, A> {
+
     /**
      * @desc Subscribe to the broadcast
      * @param handler - The handler to call when the broadcast is published
      */
-    subscribe(handler: (data: T) => Anything<A>): Subscription;
+    subscribe(handler: (data: T) => A): Subscription;
+
+    /**
+     * @desc Gets the number of subscribers
+     */
+    public get subscriberCount(): number;
 
     /**
      * @desc Publish to the broadcast
      * @param data - The data to publish
      */
-    publish(data: T): Anything<A>;
+    publish(data: T): A | undefined;
 }
 
 export declare class Subject<T, A> extends Broadcast<T, A> {
@@ -26,29 +31,26 @@ export declare class Subject<T, A> extends Broadcast<T, A> {
     get value(): T;
 
     /**
-     * @desc Get the list of observers
-     * @returns The list of observers
-     */
-    get observers(): Set<(data: T) => Anything<A>>;
-
-    /**
      * @desc Subscribe to the subject
+     * @param handler - The handler to call when the subject is published
      */
-    subscribe(handler: (data: T) => Anything<A>): Subscription;
+    subscribe(handler: (data: T) => A): Subscription;
 
     /**
      * @desc Publish to the subject
+     * @param data - The data to publish
      */
-    publish(data: T): Anything<A>;
+    publish(data: T): A | undefined;
 }
 
 export declare class EventPubSub<T, A> {
-     /**
+
+    /**
      * @desc Subscribe to the event subject
      * @param event - The event to subscribe to
      * @param handler - The handler to call when the event subject is published
      */
-    subscribe(event: string, handler: (data: T) => Anything<A>): Subscription;
+    subscribe(event: string, handler: (data: T) => A): Subscription;
 
     /**
      * @desc Publish to the event subject
@@ -61,7 +63,7 @@ export declare class EventPubSub<T, A> {
      * @desc Subscribe to all events
      * @param handler - The handler to call when the event subject is published
      */
-    subscribeAll(handler: (event: T) => Anything<A>): Subscription;
+    subscribeAll(handler: (event: T) => A): Subscription;
 
     /**
      * @desc Complete the event subject

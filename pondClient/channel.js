@@ -7,17 +7,17 @@ var pondSocket_1 = require("../pondSocket");
 var pondBase_1 = require("../pondBase");
 var Channel = /** @class */ (function () {
     function Channel(channel, params, socket) {
-        this.subscriptions = [];
-        this.presenceSubject = new rxjs_1.Subject();
+        this._subscriptions = [];
+        this._presenceSubject = new rxjs_1.Subject();
         this.channel = channel;
-        this.params = params;
-        this.socket = socket;
-        this.subject = new rxjs_1.Subject();
-        this.connectedSubject = new pondBase_1.Subject(false);
+        this._params = params;
+        this._socket = socket;
+        this._subject = new rxjs_1.Subject();
+        this._connectedSubject = new pondBase_1.Subject(false);
     }
     Object.defineProperty(Channel.prototype, "isActive", {
         get: function () {
-            return this.connectedSubject.value;
+            return this._connectedSubject.value;
         },
         enumerable: false,
         configurable: true
@@ -27,39 +27,39 @@ var Channel = /** @class */ (function () {
      */
     Channel.prototype.join = function () {
         var _this = this;
-        if (this.connectedSubject.value)
+        if (this._connectedSubject.value)
             return this;
-        var observable = this.init();
+        var observable = this._init();
         var subscription = observable
             .subscribe(function (message) {
-            _this.connectedSubject.publish(true);
+            _this._connectedSubject.publish(true);
             if (message.action === "PRESENCE")
-                _this.presenceSubject.next(message.payload.presence);
+                _this._presenceSubject.next(message.payload.presence);
             else if (message.action === "MESSAGE")
-                _this.subject.next(message);
+                _this._subject.next(message);
             else if (message.event === "KICKED_FROM_CHANNEL")
                 _this.leave();
         });
-        this.subscriptions.push(subscription);
+        this._subscriptions.push(subscription);
         return this;
     };
     /**
      * @desc Disconnects from the channel.
      */
     Channel.prototype.leave = function () {
-        this.connectedSubject.publish(false);
-        this.presenceSubject.complete();
-        this.subscriptions.forEach(function (subscription) { return subscription.unsubscribe(); });
-        this.subscriptions = [];
-        this.subject.complete();
+        void this._connectedSubject.publish(false);
+        this._presenceSubject.complete();
+        this._subscriptions.forEach(function (subscription) { return subscription.unsubscribe(); });
+        this._subscriptions = [];
+        this._subject.complete();
     };
     /**
      * @desc Monitors the presence state of the channel.
      * @param callback - The callback to call when the presence state changes.
      */
     Channel.prototype.onPresenceUpdate = function (callback) {
-        var sub = this.presenceSubject.subscribe(callback);
-        this.subscriptions.push(sub);
+        var sub = this._presenceSubject.subscribe(callback);
+        this._subscriptions.push(sub);
         return sub;
     };
     /**
@@ -67,10 +67,10 @@ var Channel = /** @class */ (function () {
      * @param callback - The callback to call when a message is received.
      */
     Channel.prototype.onMessage = function (callback) {
-        var sub = this.subject
+        var sub = this._subject
             .pipe((0, operators_1.filter)(function (message) { return message.action === "MESSAGE"; }))
             .subscribe(function (message) { return callback(message.event, message.payload); });
-        this.subscriptions.push(sub);
+        this._subscriptions.push(sub);
         return sub;
     };
     /**
@@ -85,7 +85,7 @@ var Channel = /** @class */ (function () {
             event: event,
             action: pondSocket_1.ClientActions.BROADCAST
         };
-        this.socket.next(message);
+        this._socket.next(message);
     };
     /**
      * @desc Broadcasts a message to every other client in the channel except yourself.
@@ -99,14 +99,14 @@ var Channel = /** @class */ (function () {
             event: event,
             action: pondSocket_1.ClientActions.BROADCAST_FROM
         };
-        this.socket.next(message);
+        this._socket.next(message);
     };
     /**
      * @desc Updates the presence state of the current client in the channel.
      * @param presence - The presence state to update.
      */
     Channel.prototype.updatePresence = function (presence) {
-        this.socket.next({
+        this._socket.next({
             action: pondSocket_1.ClientActions.UPDATE_PRESENCE,
             channelName: this.channel,
             event: "PRESENCE",
@@ -128,33 +128,33 @@ var Channel = /** @class */ (function () {
             addresses: addresses,
             action: pondSocket_1.ClientActions.SEND_MESSAGE_TO_USER
         };
-        this.socket.next(message);
+        this._socket.next(message);
     };
     /**
      * @desc Listens for the connections state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
     Channel.prototype.onConnectionChange = function (callback) {
-        var sub = this.connectedSubject.subscribe(callback);
-        this.subscriptions.push(sub);
+        var sub = this._connectedSubject.subscribe(callback);
+        this._subscriptions.push(sub);
         return sub;
     };
     /**
      * @desc Initializes the channel.
      * @private
      */
-    Channel.prototype.init = function () {
+    Channel.prototype._init = function () {
         var _this = this;
-        var observable = this.socket.multiplex(function () { return ({
+        var observable = this._socket.multiplex(function () { return ({
             action: "JOIN_CHANNEL",
             channelName: _this.channel,
             event: "JOIN_CHANNEL",
-            payload: _this.params
+            payload: _this._params
         }); }, function () { return ({
             action: "LEAVE_CHANNEL",
             channelName: _this.channel,
             event: "LEAVE_CHANNEL",
-            payload: _this.params
+            payload: _this._params
         }); }, function (message) { return message.channelName === _this.channel; });
         return observable;
     };

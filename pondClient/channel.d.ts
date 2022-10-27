@@ -62,5 +62,5 @@ export declare class Channel {
      * @desc Listens for the connections state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
-    onConnectionChange(callback: (connected: boolean) => void): any;
+    onConnectionChange(callback: (connected: boolean) => void): import("../pondBase").Subscription;
 }

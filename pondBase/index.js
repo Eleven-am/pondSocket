@@ -15,7 +15,6 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./baseClass"), exports);
-__exportStar(require("./basePromise"), exports);
 __exportStar(require("./pondBase"), exports);
 __exportStar(require("./pubSub"), exports);
 __exportStar(require("./types"), exports);

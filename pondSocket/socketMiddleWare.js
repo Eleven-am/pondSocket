@@ -1,19 +1,19 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SocketMiddleWare = void 0;
-var SocketMiddleWare = /** @class */ (function () {
-    function SocketMiddleWare(server) {
+class SocketMiddleWare {
+    constructor(server) {
         this.middleware = [];
         this._server = server;
         this._initMiddleware();
     }
-    SocketMiddleWare.prototype.use = function (middleware) {
+    use(middleware) {
         this.middleware.push(middleware);
-    };
-    SocketMiddleWare.prototype._execute = function (req, socket, head) {
-        var temp = this.middleware.concat();
-        var next = function () {
-            var middleware = temp.shift();
+    }
+    _execute(req, socket, head) {
+        const temp = this.middleware.concat();
+        const next = () => {
+            const middleware = temp.shift();
             if (middleware)
                 middleware(req, socket, head, next);
             else {
@@ -22,13 +22,11 @@ var SocketMiddleWare = /** @class */ (function () {
             }
         };
         next();
-    };
-    SocketMiddleWare.prototype._initMiddleware = function () {
-        var _this = this;
-        this._server.on('upgrade', function (req, socket, head) {
-            _this._execute(req, socket, head);
+    }
+    _initMiddleware() {
+        this._server.on('upgrade', (req, socket, head) => {
+            this._execute(req, socket, head);
         });
-    };
-    return SocketMiddleWare;
-}());
+    }
+}
 exports.SocketMiddleWare = SocketMiddleWare;

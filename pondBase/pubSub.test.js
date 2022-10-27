@@ -1,42 +1,36 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var pubSub_1 = require("./pubSub");
-describe('Broadcast', function () {
-    it('should be defined', function () {
+const pubSub_1 = require("./pubSub");
+describe('Broadcast', () => {
+    it('should be defined', () => {
         expect(pubSub_1.Broadcast).toBeDefined();
     });
-    it('should be a class', function () {
+    it('should be a class', () => {
         expect(pubSub_1.Broadcast).toBeInstanceOf(Function);
     });
-    it('should have a method called publish', function () {
-        expect(new pubSub_1.Broadcast().publish).toBeDefined();
-    });
-    it('should have a method called subscribe', function () {
-        expect(new pubSub_1.Broadcast().subscribe).toBeDefined();
-    });
     // Functionality tests
-    it('should publish a message to all subscribers', function () {
-        var broadcast = new pubSub_1.Broadcast();
-        var subscriber = jest.fn();
+    it('should publish a message to all subscribers', () => {
+        const broadcast = new pubSub_1.Broadcast();
+        const subscriber = jest.fn();
         broadcast.subscribe(subscriber); // test with one subscriber
         broadcast.publish('Hello');
         expect(subscriber).toHaveBeenCalledWith('Hello');
     });
-    it('should publish a message to all subscribers', function () {
-        var broadcast = new pubSub_1.Broadcast();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+    it('should publish a message to all subscribers', () => {
+        const broadcast = new pubSub_1.Broadcast();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         broadcast.subscribe(subscriber1); // test with two subscribers
         broadcast.subscribe(subscriber2);
         broadcast.publish('Hello');
         expect(subscriber1).toHaveBeenCalledWith('Hello');
         expect(subscriber2).toHaveBeenCalledWith('Hello');
     });
-    it('should publish a message to all subscribers', function () {
+    it('should publish a message to all subscribers', () => {
         // including subscribers that subscribe after the first message is published
-        var broadcast = new pubSub_1.Broadcast();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+        const broadcast = new pubSub_1.Broadcast();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         broadcast.subscribe(subscriber1);
         broadcast.publish('Hello');
         broadcast.subscribe(subscriber2);
@@ -45,14 +39,14 @@ describe('Broadcast', function () {
         expect(subscriber1).toHaveBeenCalledWith('Hello Again');
         expect(subscriber2).toHaveBeenCalledWith('Hello Again');
     });
-    it('should unsubscribe a subscriber and thus not receive new messagea', function () {
-        var broadcast = new pubSub_1.Broadcast();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+    it('should unsubscribe a subscriber and thus not receive new message', () => {
+        const broadcast = new pubSub_1.Broadcast();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         broadcast.subscribe(subscriber1);
         broadcast.subscribe(subscriber2);
         broadcast.publish('Hello');
-        var subscription = broadcast.subscribe(subscriber2);
+        const subscription = broadcast.subscribe(subscriber2);
         subscription.unsubscribe();
         broadcast.publish('Hello Again');
         expect(subscriber1).toHaveBeenCalledWith('Hello');
@@ -60,11 +54,11 @@ describe('Broadcast', function () {
         expect(subscriber2).toHaveBeenCalledWith('Hello');
         expect(subscriber2).not.toHaveBeenCalledWith('Hello Again');
     });
-    it('should stop the broadcast midway if a subscription returns a value', function () {
-        var broadcast = new pubSub_1.Broadcast();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn(function () { return true; });
-        var subscriber3 = jest.fn();
+    it('should stop the broadcast midway if a subscription returns a value', () => {
+        const broadcast = new pubSub_1.Broadcast();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn(() => true);
+        const subscriber3 = jest.fn();
         broadcast.subscribe(subscriber1);
         broadcast.subscribe(subscriber2);
         broadcast.subscribe(subscriber3);
@@ -73,64 +67,58 @@ describe('Broadcast', function () {
         expect(subscriber2).toHaveBeenCalledWith('Hello');
         expect(subscriber3).not.toHaveBeenCalled();
     });
-    it('should throw an error if one of its subscribers throws an error', function () {
-        var broadcast = new pubSub_1.Broadcast();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn(function () {
+    it('should throw an error if one of its subscribers throws an error', () => {
+        const broadcast = new pubSub_1.Broadcast();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn(() => {
             throw new Error('Something went wrong');
         });
-        var subscriber3 = jest.fn();
+        const subscriber3 = jest.fn();
         broadcast.subscribe(subscriber1);
         broadcast.subscribe(subscriber2);
         broadcast.subscribe(subscriber3);
-        expect(function () { return broadcast.publish('Hello'); }).toThrowError('Something went wrong');
+        expect(() => broadcast.publish('Hello')).toThrowError('Something went wrong');
         expect(subscriber1).toHaveBeenCalledWith('Hello');
         expect(subscriber2).toHaveBeenCalledWith('Hello');
         expect(subscriber3).not.toHaveBeenCalled();
     });
 });
-describe('Subject', function () {
-    it('should be defined', function () {
+describe('Subject', () => {
+    it('should be defined', () => {
         expect(pubSub_1.Subject).toBeDefined();
     });
-    it('should be a class', function () {
+    it('should be a class', () => {
         expect(pubSub_1.Subject).toBeInstanceOf(Function);
     });
-    it('should have a method called next', function () {
-        expect(new pubSub_1.Subject('hello').publish).toBeDefined();
-    });
-    it('should have a method called subscribe', function () {
-        expect(new pubSub_1.Subject('hello').subscribe).toBeDefined();
-    });
     // Functionality tests
-    it('should publish a message to all subscribers', function () {
-        var subject = new pubSub_1.Subject('hi');
-        var subscriber = jest.fn();
+    it('should publish a message to all subscribers', () => {
+        const subject = new pubSub_1.Subject('hi');
+        const subscriber = jest.fn();
         subject.subscribe(subscriber); // test with one subscriber
         subject.publish('Hello');
         expect(subscriber).toHaveBeenCalledWith('Hello');
     });
-    it('should publish a message to all subscribers', function () {
-        var subject = new pubSub_1.Subject('hi');
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+    it('should publish a message to all subscribers', () => {
+        const subject = new pubSub_1.Subject('hi');
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         subject.subscribe(subscriber1); // test with two subscribers
         subject.subscribe(subscriber2);
         subject.publish('Hello');
         expect(subscriber1).toHaveBeenCalledWith('Hello');
         expect(subscriber2).toHaveBeenCalledWith('Hello');
     });
-    it('should prvoide the initial value to new subscribers', function () {
-        var subject = new pubSub_1.Subject('hi');
-        var subscriber = jest.fn();
+    it('should provide the initial value to new subscribers', () => {
+        const subject = new pubSub_1.Subject('hi');
+        const subscriber = jest.fn();
         subject.subscribe(subscriber); // test with one subscriber
         expect(subscriber).toHaveBeenCalledWith('hi');
     });
-    it('should publish a message to all subscribers', function () {
+    it('should publish a message to all subscribers', () => {
         // including subscribers that subscribe after the first message is published
-        var subject = new pubSub_1.Subject('hi');
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+        const subject = new pubSub_1.Subject('hi');
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         subject.subscribe(subscriber1);
         subject.publish('Hello');
         subject.subscribe(subscriber2);
@@ -139,20 +127,20 @@ describe('Subject', function () {
         expect(subscriber1).toHaveBeenCalledWith('Hello Again');
         expect(subscriber2).toHaveBeenCalledWith('Hello Again');
     });
-    it('should return the current value when the getter is called', function () {
-        var subject = new pubSub_1.Subject('hi');
+    it('should return the current value when the getter is called', () => {
+        const subject = new pubSub_1.Subject('hi');
         expect(subject.value).toEqual('hi');
     });
-    it('should throw an error if one of its subscribers throws an error', function () {
-        var subject = new pubSub_1.Subject('hi');
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn(function () {
+    it('should throw an error if one of its subscribers throws an error', () => {
+        const subject = new pubSub_1.Subject('hi');
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn(() => {
             throw new Error('Something went wrong');
         });
-        var subscriber3 = jest.fn();
+        const subscriber3 = jest.fn();
         subject.subscribe(subscriber1);
         // because the subject immediately calls the subscriber with the initial value
-        expect(function () { return subject.subscribe(subscriber2); }).toThrowError('Something went wrong');
+        expect(() => subject.subscribe(subscriber2)).toThrowError('Something went wrong');
         subscriber2.mockClear();
         subject.subscribe(subscriber3);
         // since ths subscriber throws an error, the subject should not call it
@@ -162,42 +150,36 @@ describe('Subject', function () {
         expect(subscriber2).not.toHaveBeenCalled();
     });
 });
-describe('EventSubject', function () {
-    it('should be defined', function () {
+describe('EventSubject', () => {
+    it('should be defined', () => {
         expect(pubSub_1.EventPubSub).toBeDefined();
     });
-    it('should be a class', function () {
+    it('should be a class', () => {
         expect(pubSub_1.EventPubSub).toBeInstanceOf(Function);
     });
-    it('should have a method called next', function () {
-        expect(new pubSub_1.EventPubSub().publish).toBeDefined();
-    });
-    it('should have a method called subscribe', function () {
-        expect(new pubSub_1.EventPubSub().subscribe).toBeDefined();
-    });
     // Functionality tests
-    it('should publish a message to all subscribers', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
+    it('should publish a message to all subscribers', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
         subject.subscribe('test', subscriber); // test with one subscriber
         subject.publish('test', 'Hello');
         expect(subscriber).toHaveBeenCalledWith('Hello');
     });
-    it('should publish a message to all subscribers', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+    it('should publish a message to all subscribers', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         subject.subscribe('test', subscriber1); // test with two subscribers
         subject.subscribe('test', subscriber2);
         subject.publish('test', 'Hello');
         expect(subscriber1).toHaveBeenCalledWith('Hello');
         expect(subscriber2).toHaveBeenCalledWith('Hello');
     });
-    it('should publish a message to all subscribers', function () {
+    it('should publish a message to all subscribers', () => {
         // including subscribers that subscribe after the first message is published
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         subject.subscribe('test', subscriber1);
         subject.publish('test', 'Hello');
         subject.subscribe('test', subscriber2);
@@ -206,18 +188,18 @@ describe('EventSubject', function () {
         expect(subscriber1).toHaveBeenCalledWith('Hello Again');
         expect(subscriber2).toHaveBeenCalledWith('Hello Again');
     });
-    it('should not call a function if the event name does not match', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
+    it('should not call a function if the event name does not match', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
         subject.subscribe('test', subscriber);
         subject.publish('test2', 'Hello');
         expect(subscriber).not.toHaveBeenCalled();
     });
-    it('should not call a function if the event name does not match', function () {
+    it('should not call a function if the event name does not match', () => {
         // including subscribers that subscribe after the first message is published
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn();
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
         subject.subscribe('test', subscriber1);
         subject.publish('test', 'Hello');
         expect(subscriber1).toHaveBeenCalledWith('Hello');
@@ -229,26 +211,26 @@ describe('EventSubject', function () {
         expect(subscriber1).not.toHaveBeenCalled();
         expect(subscriber2).toHaveBeenCalledWith('Hello Again');
     });
-    it('should accept a generic subscriber', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
+    it('should accept a generic subscriber', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
         subject.subscribeAll(subscriber);
         subject.publish('test', 'Hello');
         expect(subscriber).toHaveBeenCalledWith('Hello');
     });
-    it('should accept a generic subscriber', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
+    it('should accept a generic subscriber', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
         subject.subscribeAll(subscriber);
         subject.publish('test', 'Hello');
         subject.publish('test2', 'Hello Again');
         expect(subscriber).toHaveBeenCalledWith('Hello');
         expect(subscriber).toHaveBeenCalledWith('Hello Again');
     });
-    it('should be able to unsubscribe from a specific event', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
-        var sub = subject.subscribe('test', subscriber);
+    it('should be able to unsubscribe from a specific event', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
+        const sub = subject.subscribe('test', subscriber);
         subject.publish('test', 'Hello');
         expect(subscriber).toHaveBeenCalledWith('Hello');
         subscriber.mockClear();
@@ -256,11 +238,11 @@ describe('EventSubject', function () {
         subject.publish('test', 'Hello Again');
         expect(subscriber).not.toHaveBeenCalledWith('Hello Again');
     });
-    it('should complete the subscription when unsubscribed', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
-        var subscriber2 = jest.fn();
-        var subscriber3 = jest.fn();
+    it('should complete the subscription when unsubscribed', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
+        const subscriber2 = jest.fn();
+        const subscriber3 = jest.fn();
         subject.subscribe('test', subscriber);
         subject.subscribe('test1', subscriber2);
         subject.subscribe('test2', subscriber3);
@@ -284,25 +266,25 @@ describe('EventSubject', function () {
         subject.publish('test2', 'Hello Again');
         expect(subscriber3).not.toHaveBeenCalledWith('Hello Again');
     });
-    it('should throw an error if one of its subscribers throw an error', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber1 = jest.fn();
-        var subscriber2 = jest.fn(function () {
+    it('should throw an error if one of its subscribers throw an error', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn(() => {
             throw new Error('Something went wrong');
         });
-        var subscriber3 = jest.fn();
+        const subscriber3 = jest.fn();
         subject.subscribeAll(subscriber1);
         subject.subscribeAll(subscriber2);
         subject.subscribe('event', subscriber3);
-        expect(function () { return subject.publish('event', 'Hello'); }).toThrowError('Something went wrong');
+        expect(() => subject.publish('event', 'Hello')).toThrowError('Something went wrong');
         expect(subscriber1).toHaveBeenCalledWith('Hello');
         expect(subscriber2).toHaveBeenCalledWith('Hello');
         expect(subscriber3).not.toHaveBeenCalled();
     });
-    it('should be possible to unsubscribe from a generic subscriber', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
-        var sub = subject.subscribeAll(subscriber);
+    it('should be possible to unsubscribe from a generic subscriber', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
+        const sub = subject.subscribeAll(subscriber);
         subject.publish('test', 'Hello');
         expect(subscriber).toHaveBeenCalledWith('Hello');
         subscriber.mockClear();
@@ -310,10 +292,10 @@ describe('EventSubject', function () {
         subject.publish('test', 'Hello Again');
         expect(subscriber).not.toHaveBeenCalledWith('Hello Again');
     });
-    it('should be able to add an oncomplete callback', function () {
-        var subject = new pubSub_1.EventPubSub();
-        var subscriber = jest.fn();
-        var subscriber2 = jest.fn();
+    it('should be able to add an oncomplete callback', () => {
+        const subject = new pubSub_1.EventPubSub();
+        const subscriber = jest.fn();
+        const subscriber2 = jest.fn();
         subject.onComplete(subscriber2);
         subject.subscribe('test', subscriber);
         subject.publish('test', 'Hello');

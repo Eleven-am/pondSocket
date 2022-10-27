@@ -12,11 +12,6 @@ export declare enum ClientActions {
     BROADCAST = "BROADCAST",
     SEND_MESSAGE_TO_USER = "SEND_MESSAGE_TO_USER"
 }
-export declare enum MessageTypes {
-    BROADCAST = "BROADCAST",
-    BROADCAST_FROM = "BROADCAST_FROM",
-    SEND_MESSAGE_TO_USER = "SEND_MESSAGE_TO_USER"
-}
 export declare enum PondSenders {
     SERVER = "SERVER",
     ENDPOINT = "ENDPOINT",

@@ -1,174 +1,153 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var simpleBase_1 = require("./simpleBase");
-var enums_1 = require("./enums");
-describe('SimpleBase', function () {
-    it('should create a new database', function () {
-        var db = new simpleBase_1.SimpleBase();
-        expect(db.size).toBe(0);
+const simpleBase_1 = require("./simpleBase");
+describe('SimpleBase', () => {
+    it('should ba instantiated', () => {
+        const base = new simpleBase_1.SimpleBase();
+        expect(base).toBeTruthy();
     });
-    it('should get a document', function () {
+    it('should set a value', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        expect(base.size).toBe(1);
+    });
+    it('should get a value', () => {
         var _a;
-        var db = new simpleBase_1.SimpleBase();
-        var doc = db.set('test', { test: 1 });
-        expect((_a = db.get('test')) === null || _a === void 0 ? void 0 : _a.doc).toEqual(doc.doc);
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        expect((_a = base.get('test')) === null || _a === void 0 ? void 0 : _a.doc).toStrictEqual({ name: 'test' });
     });
-    it('should get a document with a default value', function () {
+    it('should upsert a value', () => {
+        var _a, _b;
+        const base = new simpleBase_1.SimpleBase();
+        expect((_a = base.get('test')) === null || _a === void 0 ? void 0 : _a.doc).toBeUndefined();
+        expect(base.size).toBe(0);
+        base.getOrCreate('test', () => ({ name: 'test' }));
+        expect(base.size).toBe(1);
+        expect((_b = base.get('test')) === null || _b === void 0 ? void 0 : _b.doc).toStrictEqual({ name: 'test' });
+    });
+    it('should tell if a document exists', () => {
+        const base = new simpleBase_1.SimpleBase();
+        expect(base.has('test')).toBe(false);
+        base.set('test', { name: 'test' });
+        expect(base.has('test')).toBe(true);
+    });
+    it('should return an array of filtered documents', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        expect(base.filter(doc => doc.name === 'test').map(doc => doc.doc.name)).toEqual(['test']);
+    });
+    it('should return an array of mapped documents', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        expect(base.map(doc => doc.name)).toEqual(['test', 'test2', 'test3']);
+    });
+    it('should return an empty array of  documents', () => {
+        const base = new simpleBase_1.SimpleBase();
+        expect(base.map(doc => doc.name)).toEqual([]);
+        expect(base.filter(doc => doc.name === 'test').map(doc => doc.doc.name)).toEqual([]);
+    });
+    it('should return a document by a query function', () => {
         var _a;
-        var db = new simpleBase_1.SimpleBase();
-        var doc = db.getOrCreate('test', function () { return ({ test: 1 }); });
-        expect((_a = db.get('test')) === null || _a === void 0 ? void 0 : _a.doc).toEqual(doc === null || doc === void 0 ? void 0 : doc.doc);
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        expect((_a = base.find(doc => doc.name === 'test2')) === null || _a === void 0 ? void 0 : _a.doc.name).toBe('test2');
     });
-    it('should get a document with a default value', function () {
-        var _a;
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        var doc = db.getOrCreate('test', function () { return ({ test: 1 }); });
-        expect((_a = db.get('test')) === null || _a === void 0 ? void 0 : _a.doc).toBe(doc === null || doc === void 0 ? void 0 : doc.doc);
+    it('should return null if no document is found by a query function', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        expect(base.find(doc => doc.name === 'test4')).toBeNull();
     });
-    it('should merge two databases', function () {
-        var db1 = new simpleBase_1.SimpleBase();
-        var db2 = new simpleBase_1.SimpleBase();
-        db1.set('test', { test: 1 });
-        db2.set('test2', { test: 2 });
-        db1.merge(db2);
-        expect(db1.size).toBe(2);
+    it('should reduce the pond to a single value', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        expect(base.reduce((acc, doc) => acc + doc.name, '')).toBe('testtest2test3');
     });
-    it('should generate all documents', function () {
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        db.set('test2', { test: 2 });
-        var docs = db.generate();
-        expect(docs.next().value).toEqual({ test: 1 });
-        expect(docs.next().value).toEqual({ test: 2 });
+    it('should return the size of the pond', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        expect(base.size).toBe(3);
     });
-    it('should be able to find a document', function () {
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        db.set('test2', { test: 2 });
-        var doc = db.find(function (doc) { return doc.test === 1; });
-        expect(doc === null || doc === void 0 ? void 0 : doc.doc).toEqual({ test: 1 });
-        var noDoc = db.find(function (doc) { return doc.test === 3; });
-        expect(noDoc).toBeNull();
+    it('should provide an empty document', () => {
+        const base = new simpleBase_1.SimpleBase();
+        const test = base.createGenericDocument();
+        expect(test).toBeInstanceOf(simpleBase_1.PondDocument);
+        expect(test.doc).toBeNull();
     });
-    it('should be able to query documents', function () {
-        var _a;
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        db.set('test2', { test: 2 });
-        var docs = db.query(function (doc) { return doc.test === 1; });
-        expect((_a = docs[0]) === null || _a === void 0 ? void 0 : _a.doc).toEqual({ test: 1 });
+    it('should provide a document with a value', () => {
+        const base = new simpleBase_1.SimpleBase();
+        const test = base.createGenericDocument('test');
+        expect(base.size).toBe(0);
+        expect(test).toBeInstanceOf(simpleBase_1.PondDocument);
+        expect(test.id).toBe('test');
     });
-    it('should be able to reduce documents to a single output', function () {
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        db.set('test2', { test: 2 });
-        var result = db.reduce(function (prev, doc) { return prev + doc.test; }, 0);
-        expect(result).toBe(3);
+    it('should be iterable', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        expect([...base].map(doc => doc.doc.name)).toEqual(['test', 'test2', 'test3']);
     });
-    it('should be able to map documents to a new output', function () {
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        db.set('test2', { test: 2 });
-        var result = db.map(function (doc) { return doc.test; });
-        expect(result).toEqual([1, 2]);
-    });
-    it('should be able convert documents to array', function () {
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        db.set('test2', { test: 2 });
-        var result = db.toArray().map(function (doc) { return doc.doc; });
-        expect(result).toEqual([{ test: 1 }, { test: 2 }]);
-    });
-    it('should be able to delete a document', function () {
-        var db = new simpleBase_1.SimpleBase();
-        var doc = db.set('test', { test: 1 });
-        doc.removeDoc();
-        expect(db.size).toBe(0);
-    });
-    it('should be able to clear the database', function () {
-        var db = new simpleBase_1.SimpleBase();
-        db.set('test', { test: 1 });
-        db.set('test2', { test: 2 });
-        db.clear();
-        expect(db.size).toBe(0);
-    });
-    it('should be able to join databases on a key', function () {
-        var db1 = new simpleBase_1.SimpleBase();
-        var db2 = new simpleBase_1.SimpleBase();
-        db1.set('test', { test: 1 });
-        db2.set('test', { value: 1 });
-        db1.set('test2', { test: 2 });
-        db2.set('test2', { value: 2 });
-        db1.set('test3', { test: 3 });
-        db2.set('test3', { value: 3 });
-        var joinedDocs = db1.join(db2, "test", "value");
-        expect(joinedDocs[0]).toEqual({ test: 1, value: 1 });
-        expect(joinedDocs[1]).toEqual({ test: 2, value: 2 });
-        expect(joinedDocs[2]).toEqual({ test: 3, value: 3 });
-    });
-    it('should allow subscriptions to the pond that return a function to unsubscribe', function () {
-        var pond = new simpleBase_1.SimpleBase();
-        var mock = jest.fn();
-        var sub = pond.subscribe(mock);
-        pond.set('bar', 'RFJPOERFJEPROJP');
-        expect(mock).toBeCalled();
-        sub.unsubscribe();
-        pond.set('baz', 'RFJPOERFJEPROJP');
-        expect(mock).toBeCalledTimes(1);
-    });
-    it('should allow subscriptions to the pond that return a function to unsubscribe 2', function (done) {
-        var pond = new simpleBase_1.SimpleBase();
-        pond.set('eufhuwoefhowiufh', 'bar');
-        pond.set('eufhuwohowiufh', 'chips');
-        function subscriber(data, data2, action) {
-            try {
-                expect(data).toEqual(["bar", "chips", "dog"]);
-                expect(data2).toEqual('dog');
-                expect(action).toEqual(enums_1.PondBaseActions.ADD_TO_POND);
-                done();
-            }
-            catch (error) {
-                done(error);
-            }
+    it('should be iterable with a for of loop', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        const docs = [];
+        for (const doc of base) {
+            docs.push(doc.doc.name);
         }
-        pond.subscribe(subscriber);
-        pond.set('eufhhowiufh', 'dog');
+        expect(docs).toEqual(['test', 'test2', 'test3']);
     });
-    it('should allow subscriptions to the pond that return a function to unsubscribe 3', function (done) {
-        var pond = new simpleBase_1.SimpleBase();
-        var baseUnset = pond.set('1', 'bar');
-        pond.set('2', 'chips');
-        function subscriber(data, data2, action) {
-            try {
-                expect(data).toEqual(["chips"]);
-                expect(data2).toEqual(null);
-                expect(action).toEqual(enums_1.PondBaseActions.REMOVE_FROM_POND);
-                done();
-            }
-            catch (error) {
-                done(error);
-            }
+    it('should be have a generator', () => {
+        const base = new simpleBase_1.SimpleBase();
+        base.set('test', { name: 'test' });
+        base.set('test2', { name: 'test2' });
+        base.set('test3', { name: 'test3' });
+        const docs = [];
+        for (const doc of base.generator()) {
+            docs.push(doc.doc.name);
         }
-        pond.subscribe(subscriber);
-        baseUnset.removeDoc();
+        expect(docs).toEqual(['test', 'test2', 'test3']);
     });
-    it('should allow subscriptions to the pond that return a function to unsubscribe 4', function (done) {
-        var pond = new simpleBase_1.SimpleBase();
-        pond.set('ww', 'bar');
-        var val = pond.set('w2w', 'chips');
-        function subscriber(data, data2, action) {
-            try {
-                expect(data).toEqual(["bar", "dog"]);
-                expect(data2).toEqual('dog');
-                expect(action).toEqual(enums_1.PondBaseActions.UPDATE_IN_POND);
-                done();
-            }
-            catch (error) {
-                done(error);
-            }
-        }
-        pond.subscribe(subscriber);
-        val.updateDoc('dog');
+});
+describe('PondDocument', () => {
+    it('should be able to set a value', () => {
+        var _a;
+        const base = new simpleBase_1.SimpleBase();
+        const test = base.createGenericDocument('test');
+        test.updateDoc({ name: 'test' });
+        expect((_a = base.get('test')) === null || _a === void 0 ? void 0 : _a.doc).toStrictEqual({ name: 'test' });
+    });
+    it('should be able to get a value', () => {
+        const base = new simpleBase_1.SimpleBase();
+        const test = base.createGenericDocument('test');
+        test.updateDoc({ name: 'test' });
+        expect(test.doc).toStrictEqual({ name: 'test' });
+    });
+    it('should be able to delete a value', () => {
+        const base = new simpleBase_1.SimpleBase();
+        const test = base.createGenericDocument('test');
+        test.updateDoc({ name: 'test' });
+        expect(base.size).toBe(1);
+        test.removeDoc();
+        expect(base.size).toBe(0);
+    });
+    it('should be able to get the id', () => {
+        const base = new simpleBase_1.SimpleBase();
+        const test = base.createGenericDocument('test');
+        expect(test.id).toBe('test');
     });
 });

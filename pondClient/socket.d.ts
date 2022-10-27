@@ -1,4 +1,5 @@
 import {Channel, ChannelParams} from "./channel";
+import {default_t} from "../pondBase";
 
 declare type PondParams = {
     [key: string]: string;
@@ -6,6 +7,7 @@ declare type PondParams = {
 declare type PondState = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED";
 
 export declare class PondClient {
+
     constructor(endpoint: string, params?: PondParams);
 
     /**
@@ -29,7 +31,7 @@ export declare class PondClient {
      * @desc An event that is triggered when the socket receives a message.
      * @param callback - The callback to be called when the event is triggered.
      */
-    onMessage(callback: (event: string, message: any) => void): void;
+    onMessage(callback: (event: string, message: default_t) => void): void;
 
     /**
      * @desc Disconnects the socket from the server.

@@ -34,7 +34,7 @@ var PondClient = /** @class */ (function () {
             return (0, rxjs_1.pipe)((0, operators_1.retryWhen)(function (attempts) {
                 var observableForRetries = (0, rxjs_1.zip)((0, rxjs_1.range)(1, maxTries), attempts)
                     .pipe((0, operators_1.map)(function (_a) {
-                    var _b = __read(_a, 2), elemFromRange = _b[0], _ = _b[1];
+                    var _b = __read(_a, 1), elemFromRange = _b[0];
                     return elemFromRange;
                 }), (0, operators_1.map)(function (i) { return i * i; }), (0, rxjs_1.switchMap)(function (i) { return (0, rxjs_1.timer)(i * ms); }));
                 var observableForFailure = (0, rxjs_1.throwError)(new Error("Could not connect to server"))
@@ -100,12 +100,10 @@ var PondClient = /** @class */ (function () {
      * @param params - The params to send to the server.
      */
     PondClient.prototype.createChannel = function (channel, params) {
-        var channelDoc = this.channels.find(function (c) { return c.channel === channel; });
-        if (channelDoc)
-            return channelDoc.doc;
-        var newChannel = new channel_1.Channel(channel, params || {}, this.socket);
-        this.channels.set(newChannel);
-        return newChannel;
+        var _this = this;
+        return this.channels.getOrCreate(channel, function () {
+            return new channel_1.Channel(channel, params || {}, _this.socket);
+        }).doc;
     };
     /**
      * @desc An event that is triggered when the socket receives a message.

@@ -9,6 +9,7 @@ import internal from "stream";
 import {NextFunction} from "./socketMiddleWare";
 
 export declare class PondSocket extends BaseClass {
+
     constructor(server?: HTTPServer, socketServer?: WebSocketServer);
 
     /**
@@ -16,7 +17,7 @@ export declare class PondSocket extends BaseClass {
      * @param port - the port to listen on
      * @param callback - the callback to call when the server is listening
      */
-    listen(port: number, callback: (port?: number) => void): HTTPServer;
+    listen(port: number, callback: (port?: number) => void): HTTPServer<typeof IncomingMessage, typeof import("http").ServerResponse>;
 
     /**
      * @desc adds a middleware to the server
