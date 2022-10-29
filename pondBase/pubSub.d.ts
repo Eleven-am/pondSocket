@@ -5,21 +5,26 @@ export declare class Subscription {
 export declare class Broadcast<T, A> {
 
     /**
+     * @desc Gets the number of subscribers
+     */
+    get subscriberCount(): number;
+
+    /**
      * @desc Subscribe to the broadcast
      * @param handler - The handler to call when the broadcast is published
      */
     subscribe(handler: (data: T) => A): Subscription;
 
     /**
-     * @desc Gets the number of subscribers
-     */
-    public get subscriberCount(): number;
-
-    /**
      * @desc Publish to the broadcast
      * @param data - The data to publish
      */
     publish(data: T): A | undefined;
+
+    /**
+     * @dec clears all subscribers
+     */
+    clear(): void;
 }
 
 export declare class Subject<T, A> extends Broadcast<T, A> {

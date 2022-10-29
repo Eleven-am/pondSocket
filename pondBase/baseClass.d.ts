@@ -49,5 +49,7 @@ export declare class BaseClass {
      * /api/id?name=abc should return { name: 'abc' }
      * /api/id?name=abc&age=123 should return { name: 'abc', age: '123' }
      */
-    protected _parseQueries(path: string): default_t<string>;
+    protected _parseQueries(path: string): {
+        [p: string]: string;
+    };
 }

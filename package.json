@@ -28,7 +28,6 @@
     "url": "git+https://github.com/Eleven-am/pondSocket.git"
   },
   "dependencies": {
-    "rxjs": "^7.5.6",
     "ws": "^8.8.1"
   },
   "devDependencies": {

@@ -1,22 +1,46 @@
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EndpointResponse = exports.PondChannelResponse = exports.ChannelResponse = exports.PondResponse = void 0;
-const enums_1 = require("./enums");
-class PondResponse {
-}
+var enums_1 = require("./enums");
+var PondResponse = /** @class */ (function () {
+    function PondResponse() {
+    }
+    return PondResponse;
+}());
 exports.PondResponse = PondResponse;
-class ChannelResponse extends PondResponse {
-    constructor(clientId, channel, resolver) {
-        super();
-        this._clientId = clientId;
-        this._channel = channel;
-        this._resolver = resolver;
-        this._hasExecuted = false;
+var ChannelResponse = /** @class */ (function (_super) {
+    __extends(ChannelResponse, _super);
+    function ChannelResponse(clientId, channel, resolver) {
+        var _this = _super.call(this) || this;
+        _this._clientId = clientId;
+        _this._channel = channel;
+        _this._resolver = resolver;
+        _this._hasExecuted = false;
+        return _this;
     }
-    get hasExecuted() {
-        return this._hasExecuted;
-    }
-    accept(assigns) {
+    Object.defineProperty(ChannelResponse.prototype, "hasExecuted", {
+        get: function () {
+            return this._hasExecuted;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    ChannelResponse.prototype.accept = function (assigns) {
         if (this._hasExecuted)
             throw new Error('Response has already been sent');
         this._hasExecuted = true;
@@ -27,8 +51,8 @@ class ChannelResponse extends PondResponse {
             this._channel.data = assigns.channelData || {};
         }
         this._resolver(false);
-    }
-    reject(message, errorCode) {
+    };
+    ChannelResponse.prototype.reject = function (message, errorCode) {
         if (this._hasExecuted)
             throw new Error('Response has already been sent');
         this._hasExecuted = true;
@@ -38,8 +62,8 @@ class ChannelResponse extends PondResponse {
             throw new Error('Cannot reject a message sent by the server');
         this._channel.respondToClient('error', { message: message, code: errorCode }, this._clientId, enums_1.ServerActions.ERROR);
         this._resolver(true);
-    }
-    send(event, payload, assigns) {
+    };
+    ChannelResponse.prototype.send = function (event, payload, assigns) {
         if (this._hasExecuted)
             throw new Error('Response has already been sent');
         this._hasExecuted = true;
@@ -51,31 +75,38 @@ class ChannelResponse extends PondResponse {
         }
         this._channel.respondToClient(event, payload, this._clientId);
         this._resolver(false);
-    }
-}
+    };
+    return ChannelResponse;
+}(PondResponse));
 exports.ChannelResponse = ChannelResponse;
-class PondChannelResponse extends PondResponse {
-    constructor(user, handler) {
-        super();
-        this._handler = handler;
-        this._user = user;
-        this._executed = false;
+var PondChannelResponse = /** @class */ (function (_super) {
+    __extends(PondChannelResponse, _super);
+    function PondChannelResponse(user, handler) {
+        var _this = _super.call(this) || this;
+        _this._handler = handler;
+        _this._user = user;
+        _this._executed = false;
+        return _this;
     }
-    get isResolved() {
-        return this._executed;
-    }
-    accept(assigns) {
+    Object.defineProperty(PondChannelResponse.prototype, "isResolved", {
+        get: function () {
+            return this._executed;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    PondChannelResponse.prototype.accept = function (assigns) {
         if (this._executed)
             throw new Error('Response has already been sent');
         this._executed = true;
-        const newAssigns = this._mergeAssigns(assigns);
+        var newAssigns = this._mergeAssigns(assigns);
         this._handler(newAssigns);
-    }
-    reject(message, errorCode) {
+    };
+    PondChannelResponse.prototype.reject = function (message, errorCode) {
         if (this._executed)
             throw new Error('Response has already been sent');
         this._executed = true;
-        const newMessage = {
+        var newMessage = {
             action: enums_1.ServerActions.ERROR,
             event: "JOIN_REQUEST_ERROR",
             channelName: enums_1.PondSenders.POND_CHANNEL,
@@ -85,36 +116,40 @@ class PondChannelResponse extends PondResponse {
             }
         };
         this._user.socket.send(JSON.stringify(newMessage));
-    }
-    send(event, payload, assigns) {
+    };
+    PondChannelResponse.prototype.send = function (event, payload, assigns) {
         if (this._executed)
             throw new Error('Response has already been sent');
         this._executed = true;
-        const newAssigns = this._mergeAssigns(assigns);
+        var newAssigns = this._mergeAssigns(assigns);
         this._handler(newAssigns, { event: event, payload: payload });
-    }
-    _mergeAssigns(assigns) {
+    };
+    PondChannelResponse.prototype._mergeAssigns = function (assigns) {
         return {
             presence: (assigns === null || assigns === void 0 ? void 0 : assigns.presence) || {},
             channelData: (assigns === null || assigns === void 0 ? void 0 : assigns.channelData) || {},
             assigns: Object.assign({}, this._user.assigns, (assigns === null || assigns === void 0 ? void 0 : assigns.assigns) || {}),
         };
-    }
-}
+    };
+    return PondChannelResponse;
+}(PondResponse));
 exports.PondChannelResponse = PondChannelResponse;
-class EndpointResponse extends PondResponse {
-    constructor(handler) {
-        super();
-        this._handler = handler;
+var EndpointResponse = /** @class */ (function (_super) {
+    __extends(EndpointResponse, _super);
+    function EndpointResponse(handler) {
+        var _this = _super.call(this) || this;
+        _this._handler = handler;
+        return _this;
     }
-    accept(assigns) {
+    EndpointResponse.prototype.accept = function (assigns) {
         this._handler((assigns === null || assigns === void 0 ? void 0 : assigns.assigns) || {}, {});
-    }
-    reject(message, errorCode) {
+    };
+    EndpointResponse.prototype.reject = function (message, errorCode) {
         this._handler({}, { error: { message: message || 'Message rejected', code: errorCode || 403 } });
-    }
-    send(event, payload, assigns) {
+    };
+    EndpointResponse.prototype.send = function (event, payload, assigns) {
         this._handler((assigns === null || assigns === void 0 ? void 0 : assigns.assigns) || {}, { message: { event: event, payload: payload } });
-    }
-}
+    };
+    return EndpointResponse;
+}(PondResponse));
 exports.EndpointResponse = EndpointResponse;

@@ -1,9 +1,4 @@
 export declare class PondDocument<T> {
-    private readonly _id;
-    private readonly _getDoc;
-    private readonly _removeDoc;
-    private readonly _updateDoc;
-
     constructor(id: string, removeDoc: () => void, updateDoc: (value: T) => PondDocument<T>, getDoc: () => T);
 
     get id(): string;

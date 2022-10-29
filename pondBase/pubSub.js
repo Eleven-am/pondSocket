@@ -1,79 +1,135 @@
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var __values = (this && this.__values) || function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EventPubSub = exports.Subject = exports.Broadcast = void 0;
-class Broadcast {
-    constructor() {
+var Broadcast = /** @class */ (function () {
+    function Broadcast() {
         this._subscribers = new Set();
     }
     /**
      * @desc Subscribe to the broadcast
      * @param handler - The handler to call when the broadcast is published
      */
-    subscribe(handler) {
+    Broadcast.prototype.subscribe = function (handler) {
+        var _this = this;
         this._subscribers.add(handler);
         return {
             /**
              * @desc Unsubscribe from the broadcast
              */
-            unsubscribe: () => {
-                this._subscribers.delete(handler);
+            unsubscribe: function () {
+                _this._subscribers.delete(handler);
             }
         };
-    }
-    /**
-     * @desc Gets the number of subscribers
-     */
-    get subscriberCount() {
-        return this._subscribers.size;
-    }
+    };
+    Object.defineProperty(Broadcast.prototype, "subscriberCount", {
+        /**
+         * @desc Gets the number of subscribers
+         */
+        get: function () {
+            return this._subscribers.size;
+        },
+        enumerable: false,
+        configurable: true
+    });
     /**
      * @desc Publish to the broadcast
      * @param data - The data to publish
      */
-    publish(data) {
-        let result;
-        for (const subscriber of this._subscribers) {
-            result = subscriber(data);
-            if (result)
-                break;
+    Broadcast.prototype.publish = function (data) {
+        var e_1, _a;
+        var result;
+        try {
+            for (var _b = __values(this._subscribers), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var subscriber = _c.value;
+                result = subscriber(data);
+                if (result)
+                    break;
+            }
+        }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_1) throw e_1.error; }
         }
         return result;
-    }
-}
-exports.Broadcast = Broadcast;
-class Subject extends Broadcast {
-    constructor(value) {
-        super();
-        this._value = value;
-    }
+    };
     /**
-     * @desc Get the current value of the subject
+     * @dec clears all subscribers
      */
-    get value() {
-        return this._value;
+    Broadcast.prototype.clear = function () {
+        this._subscribers.clear();
+    };
+    return Broadcast;
+}());
+exports.Broadcast = Broadcast;
+var Subject = /** @class */ (function (_super) {
+    __extends(Subject, _super);
+    function Subject(value) {
+        var _this = _super.call(this) || this;
+        _this._value = value;
+        return _this;
     }
+    Object.defineProperty(Subject.prototype, "value", {
+        /**
+         * @desc Get the current value of the subject
+         */
+        get: function () {
+            return this._value;
+        },
+        enumerable: false,
+        configurable: true
+    });
     /**
      * @desc Subscribe to the subject
      * @param handler - The handler to call when the subject is published
      */
-    subscribe(handler) {
+    Subject.prototype.subscribe = function (handler) {
         void handler(this._value);
-        return super.subscribe(handler);
-    }
+        return _super.prototype.subscribe.call(this, handler);
+    };
     /**
      * @desc Publish to the subject
      * @param data - The data to publish
      */
-    publish(data) {
+    Subject.prototype.publish = function (data) {
         if (this._value !== data) {
             this._value = data;
-            return super.publish(data);
+            return _super.prototype.publish.call(this, data);
         }
-    }
-}
+    };
+    return Subject;
+}(Broadcast));
 exports.Subject = Subject;
-class EventPubSub {
-    constructor() {
+var EventPubSub = /** @class */ (function () {
+    function EventPubSub() {
         this._subscribers = new Set();
     }
     /**
@@ -81,8 +137,9 @@ class EventPubSub {
      * @param event - The event to subscribe to
      * @param handler - The handler to call when the event subject is published
      */
-    subscribe(event, handler) {
-        const subscriber = (eventData) => {
+    EventPubSub.prototype.subscribe = function (event, handler) {
+        var _this = this;
+        var subscriber = function (eventData) {
             if (eventData.type === event)
                 return handler(eventData.data);
             return undefined;
@@ -92,27 +149,39 @@ class EventPubSub {
             /**
              * @desc Unsubscribe from the event subject
              */
-            unsubscribe: () => {
-                this._subscribers.delete(subscriber);
+            unsubscribe: function () {
+                _this._subscribers.delete(subscriber);
             }
         };
-    }
+    };
     /**
      * @desc Publish to the event subject
      * @param event - The event to publish
      * @param data - The data to publish
      */
-    publish(event, data) {
-        for (const subscriber of this._subscribers) {
-            void subscriber({ type: event, data });
+    EventPubSub.prototype.publish = function (event, data) {
+        var e_2, _a;
+        try {
+            for (var _b = __values(this._subscribers), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var subscriber = _c.value;
+                void subscriber({ type: event, data: data });
+            }
         }
-    }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
+    };
     /**
      * @desc Subscribe to all events
      * @param handler - The handler to call when the event subject is published
      */
-    subscribeAll(handler) {
-        const subscriber = (eventData) => {
+    EventPubSub.prototype.subscribeAll = function (handler) {
+        var _this = this;
+        var subscriber = function (eventData) {
             return handler(eventData.data);
         };
         this._subscribers.add(subscriber);
@@ -120,25 +189,26 @@ class EventPubSub {
             /**
              * @desc Unsubscribe from the event subject
              */
-            unsubscribe: () => {
-                this._subscribers.delete(subscriber);
+            unsubscribe: function () {
+                _this._subscribers.delete(subscriber);
             }
         };
-    }
+    };
     /**
      * @desc Complete the event subject
      */
-    complete() {
+    EventPubSub.prototype.complete = function () {
         this._subscribers.clear();
         if (this._onComplete)
             this._onComplete();
-    }
+    };
     /**
      * @desc Subscribe to the event subject completion
      * @param handler - The handler to call when the event subject is completed
      */
-    onComplete(handler) {
+    EventPubSub.prototype.onComplete = function (handler) {
         this._onComplete = handler;
-    }
-}
+    };
+    return EventPubSub;
+}());
 exports.EventPubSub = EventPubSub;

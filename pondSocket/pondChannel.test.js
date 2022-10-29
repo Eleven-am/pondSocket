@@ -1,34 +1,34 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const pondChannel_1 = require("./pondChannel");
-const channel_test_1 = require("./channel.test");
-const enums_1 = require("./enums");
-const channel_1 = require("./channel");
-const pondBase_1 = require("../pondBase");
-const createPondChannel = (path, handler) => {
+var pondChannel_1 = require("./pondChannel");
+var channel_test_1 = require("./channel.test");
+var enums_1 = require("./enums");
+var channel_1 = require("./channel");
+var pondBase_1 = require("../pondBase");
+var createPondChannel = function (path, handler) {
     path = path || "/pond";
     handler = handler || jest.fn();
     return new pondChannel_1.PondChannel(path, handler);
 };
-describe('PondChannel', () => {
-    it('should exists', () => {
+describe('PondChannel', function () {
+    it('should exists', function () {
         expect(pondChannel_1.PondChannel).toBeDefined();
     });
-    it('should be a class', () => {
+    it('should be a class', function () {
         expect(pondChannel_1.PondChannel).toBeInstanceOf(Function);
     });
-    it('should be able to get the info of a channel', () => {
-        const pondChannel = createPondChannel();
-        const { channel } = (0, channel_test_1.createChannel)('/channel');
+    it('should be able to get the info of a channel', function () {
+        var pondChannel = createPondChannel();
+        var channel = (0, channel_test_1.createChannel)('/channel').channel;
         // Because we want to get the info of the channel, we need to add it to the pondChannel
         // for testing purposes
         pondChannel['_channels'].set(channel.name, channel);
         expect(pondChannel.info).toEqual([channel.info]);
     });
-    it('should be able ot add a user', () => {
-        const pondChannel = createPondChannel('/test');
-        expect(() => pondChannel.getChannelInfo('/test')).toThrow(); // This throws an error because the channel does not exist anymore
-        const testUser = {
+    it('should be able ot add a user', function () {
+        var pondChannel = createPondChannel('/test');
+        expect(function () { return pondChannel.getChannelInfo('/test'); }).toThrow(); // This throws an error because the channel does not exist anymore
+        var testUser = {
             clientId: 'test', assigns: {}, socket: {
                 send: jest.fn(), on: jest.fn(),
             }
@@ -37,25 +37,25 @@ describe('PondChannel', () => {
         // /balls !== /test so we expect an error message to be sent to the client from the pond channel
         expect(testUser.socket.send).toBeCalledWith(JSON.stringify({
             action: enums_1.ServerActions.ERROR, event: "JOIN_REQUEST_ERROR", channelName: enums_1.PondSenders.POND_CHANNEL, payload: {
-                message: `Invalid channel name: /balls`, code: 403,
+                message: "Invalid channel name: /balls", code: 403,
             }
         }));
         expect(pondChannel.getChannel('/test')).toBeNull(); // The channel does not exist yet
-        expect(() => pondChannel.addUser(testUser, '/test', {}))
+        expect(function () { return pondChannel.addUser(testUser, '/test', {}); })
             .toThrow(); // handler function does not act on the incoming connection, it is just a jest mock function
         // /test === /test so we expect the user to be added to the channel
         // if the channel does not exist, it will be created
         expect(pondChannel.getChannel('/test')).toBeNull(); // The channel does not exist yet
-        const newPondChannel = new pondChannel_1.PondChannel('/test', (_, res) => {
+        var newPondChannel = new pondChannel_1.PondChannel('/test', function (_, res) {
             res.accept(); // here we accept the connection
         });
         newPondChannel.addUser(testUser, '/test', {});
         expect(newPondChannel.getChannel('/test')).not.toBeNull(); // The channel does exist now
-        const newChannel = newPondChannel.getChannel('/test');
+        var newChannel = newPondChannel.getChannel('/test');
         expect(newChannel).toBeDefined();
         expect(newChannel).toBeInstanceOf(channel_1.Channel);
         expect(newChannel === null || newChannel === void 0 ? void 0 : newChannel.name).toBe('/test');
-        const rejectPondChannel = new pondChannel_1.PondChannel('/:test', (req, res) => {
+        var rejectPondChannel = new pondChannel_1.PondChannel('/:test', function (req, res) {
             if (req.params.test === 'balls')
                 res.reject(); // here we reject the connection
             else if (req.params.test === 'rejectWithMessage')
@@ -66,24 +66,24 @@ describe('PondChannel', () => {
         expect(rejectPondChannel.getChannel('/rejectWithMessage')).toBeNull(); // The channel does not exist as it rejects the connection and deletes itself
         expect(testUser.socket.send).toBeCalledWith(JSON.stringify({
             action: enums_1.ServerActions.ERROR, event: "JOIN_REQUEST_ERROR", channelName: enums_1.PondSenders.POND_CHANNEL, payload: {
-                message: `test`, code: 69420,
+                message: "test", code: 69420,
             }
         }));
         rejectPondChannel.addUser(testUser, '/balls', {});
         expect(rejectPondChannel.getChannel('/balls')).toBeNull(); // The channel does not exist as it rejects the connection and deletes itself
         expect(testUser.socket.send).toBeCalledWith(JSON.stringify({
             action: enums_1.ServerActions.ERROR, event: "JOIN_REQUEST_ERROR", channelName: enums_1.PondSenders.POND_CHANNEL, payload: {
-                message: `Unauthorized join request`, code: 403,
+                message: "Unauthorized join request", code: 403,
             }
         }));
-        const acceptPondChannel = new pondChannel_1.PondChannel('/:test', (_, res) => {
+        var acceptPondChannel = new pondChannel_1.PondChannel('/:test', function (_, res) {
             res.send('test', {
                 test: 'test'
             }); // here we send a message after accepting the connection
         });
         testUser.socket.send.mockClear(); // Clear the mock function
-        const messages = [];
-        testUser.socket.send = (message) => {
+        var messages = [];
+        testUser.socket.send = function (message) {
             messages.push(JSON.parse(message));
         };
         acceptPondChannel.addUser(testUser, '/test', {});
@@ -97,18 +97,18 @@ describe('PondChannel', () => {
                 }
             }]);
     });
-    it('should be able to receive subscriptions', () => {
-        const pond = new pondChannel_1.PondChannel('/:test', (_, res) => {
+    it('should be able to receive subscriptions', function () {
+        var pond = new pondChannel_1.PondChannel('/:test', function (_, res) {
             res.accept();
         });
         //when events are added, they are added sequentially
         // this means the first handler is called first, and the second handler is called second...
         // so if a regex handler should be added last so everything else can be tried first
-        let narrowedMessageCount = 0;
-        pond.on('event:test', (req, res) => {
+        var narrowedMessageCount = 0;
+        pond.on('event:test', function (req, res) {
             narrowedMessageCount++;
             if (req.params.test === 'balls')
-                expect(() => res.reject()).toThrow(); // this would throw an error because the sender is the pond channel itself
+                expect(function () { return res.reject(); }).toThrow(); // this would throw an error because the sender is the pond channel itself
             // we know this because we wrote the test that way, to confirm who the sender is you can check the req.client property
             else if (req.params.test === 'rejectWithMessage')
                 res.reject('test', 69420); // here we reject the connection with a message and a status code
@@ -149,8 +149,8 @@ describe('PondChannel', () => {
                     }
                 });
         });
-        let encompassingMessageCount = 0;
-        pond.on(/(.*?)/, (req, res) => {
+        var encompassingMessageCount = 0;
+        pond.on(/(.*?)/, function (req, res) {
             console.log(req.event);
             expect(req.params).toEqual({});
             // with all encompassing regex, the params should be empty
@@ -161,8 +161,8 @@ describe('PondChannel', () => {
                 message: 'This is a fallback route'
             });
         });
-        let userMessageCount = 0;
-        const sender = () => {
+        var userMessageCount = 0;
+        var sender = function () {
             userMessageCount++;
         };
         // we add two users to the pond on ethe channel /pond
@@ -207,7 +207,7 @@ describe('PondChannel', () => {
         encompassingMessageCount = 0;
         userMessageCount = 0;
         narrowedMessageCount = 0;
-        const channel = pond.getChannel('/pond');
+        var channel = pond.getChannel('/pond');
         expect(channel).toBeInstanceOf(channel_1.Channel);
         expect(channel).not.toBeNull();
         // since the PondChannel has no way to send messages on behalf of a client we get the channel from the pond and send the message directly to the channel
@@ -339,12 +339,12 @@ describe('PondChannel', () => {
             assigns: [{}],
         });
     });
-    it('should be capable of removing a user from a channel', () => {
-        const pond = new pondChannel_1.PondChannel('/test', (_, res) => {
+    it('should be capable of removing a user from a channel', function () {
+        var pond = new pondChannel_1.PondChannel('/test', function (_, res) {
             res.accept(); // here we accept the connection
         });
-        let userMessageCount = 0;
-        const sender = () => {
+        var userMessageCount = 0;
+        var sender = function () {
             userMessageCount++;
         };
         pond.addUser({

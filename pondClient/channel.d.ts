@@ -1,17 +1,16 @@
-import {Subscription} from "rxjs";
-import {PondAssigns, PondMessage, PondPresence} from "../pondSocket";
+import {ClientMessage, PondAssigns, PondMessage, PondPresence, ServerMessage} from "../pondSocket";
+import {Broadcast, Subscription} from "../pondBase";
 
 export declare type ChannelParams = PondAssigns;
 
 export declare class Channel {
-    readonly channel: string;
 
-    get isActive(): boolean;
+    constructor(name: string, receiver: Broadcast<ServerMessage, void>, broadcaster: Broadcast<ClientMessage, void>, params?: ChannelParams);
 
     /**
      * @desc Connects to the channel.
      */
-    join(): this;
+    join(): void;
 
     /**
      * @desc Disconnects from the channel.
@@ -19,16 +18,11 @@ export declare class Channel {
     leave(): void;
 
     /**
-     * @desc Monitors the presence state of the channel.
-     * @param callback - The callback to call when the presence state changes.
-     */
-    onPresenceUpdate(callback: (presence: PondPresence[]) => void): Subscription;
-
-    /**
      * @desc Monitors the channel for messages.
+     * @param event - The event to monitor.
      * @param callback - The callback to call when a message is received.
      */
-    onMessage(callback: (event: string, message: PondMessage) => void): Subscription;
+    onMessage(event: string, callback: (message: PondMessage) => void): Subscription;
 
     /**
      * @desc Broadcasts a message to the channel, including yourself.
@@ -45,12 +39,6 @@ export declare class Channel {
     broadcastFrom(event: string, payload: PondMessage): void;
 
     /**
-     * @desc Updates the presence state of the current client in the channel.
-     * @param presence - The presence state to update.
-     */
-    updatePresence(presence: PondPresence): void;
-
-    /**
      * @desc Sends a message to specific clients in the channel.
      * @param event - The event to send.
      * @param payload - The message to send.
@@ -59,8 +47,20 @@ export declare class Channel {
     sendMessage(event: string, payload: PondMessage, recipient: string[]): void;
 
     /**
-     * @desc Listens for the connections state of the channel.
+     * @desc Updates the presence state of the current client in the channel.
+     * @param presence - The presence state to update.
+     */
+    updatePresence(presence: PondPresence): void;
+
+    /**
+     * @desc Monitors the presence state of the channel.
+     * @param callback - The callback to call when the presence state changes.
+     */
+    onPresence(callback: (change: PondPresence | null, presence: PondPresence[]) => void): Subscription;
+
+    /**
+     * @desc Monitors the connection state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
-    onConnectionChange(callback: (connected: boolean) => void): import("../pondBase").Subscription;
+    onConnectionChange(callback: (connected: boolean) => void): Subscription;
 }
