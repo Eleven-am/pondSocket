@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PondClient = void 0;
-var channel_1 = require("./channel");
-var pondBase_1 = require("../pondBase");
-var pondSocket_1 = require("../pondSocket");
-var PondClient = /** @class */ (function () {
-    function PondClient(endpoint, params) {
-        var address;
+const channel_1 = require("./channel");
+const pondBase_1 = require("../pondBase");
+const pondSocket_1 = require("../pondSocket");
+class PondClient {
+    constructor(endpoint, params) {
+        let address;
         try {
             address = new URL(endpoint);
         }
@@ -14,9 +14,9 @@ var PondClient = /** @class */ (function () {
             address = new URL(window.location.toString());
             address.pathname = endpoint;
         }
-        var query = new URLSearchParams(params);
+        const query = new URLSearchParams(params);
         address.search = query.toString();
-        var protocol = address.protocol === "https:" ? "wss:" : "ws:";
+        const protocol = address.protocol === "https:" ? "wss:" : "ws:";
         if (address.protocol !== "wss:" && address.protocol !== "ws:")
             address.protocol = protocol;
         this.address = address;
@@ -28,74 +28,71 @@ var PondClient = /** @class */ (function () {
     /**
      * @desc Returns the current state of the socket.
      */
-    PondClient.prototype.getState = function () {
+    getState() {
         return this._socketState;
-    };
+    }
     /**
      * @desc Connects to the server and returns the socket.
      */
-    PondClient.prototype.connect = function (backoff) {
-        var _this = this;
-        if (backoff === void 0) { backoff = 1; }
-        var socket = new WebSocket(this.address.toString());
-        var sub = this._receiver.subscribe(function (message) {
+    connect(backoff = 1) {
+        const socket = new WebSocket(this.address.toString());
+        const sub = this._receiver.subscribe((message) => {
             socket.send(JSON.stringify(message));
         });
-        socket.onopen = function () {
-            _this._socketState = "OPEN";
+        socket.onopen = () => {
+            this._socketState = "OPEN";
         };
-        socket.onclose = function () {
-            _this._socketState = "CLOSED";
+        socket.onclose = () => {
+            this._socketState = "CLOSED";
             sub.unsubscribe();
         };
-        socket.onmessage = function (message) {
-            var data = JSON.parse(message.data);
-            _this._broadcaster.publish(data);
+        socket.onmessage = (message) => {
+            const data = JSON.parse(message.data);
+            this._broadcaster.publish(data);
         };
-        socket.onerror = function () {
-            _this._socketState = "CLOSED";
+        socket.onerror = () => {
+            this._socketState = "CLOSED";
             sub.unsubscribe();
-            setTimeout(function () {
-                _this.connect(backoff * 2);
+            setTimeout(() => {
+                this.connect(backoff * 2);
             }, backoff * 1000);
         };
         this._socket = socket;
-    };
+    }
     /**
      * @desc Disconnects the socket from the server.
      */
-    PondClient.prototype.disconnect = function () {
+    disconnect() {
         var _a;
-        Object.values(this._channels).forEach(function (channel) { return channel.leave(); });
+        Object.values(this._channels).forEach(channel => channel.leave());
         this._socketState = "CLOSED";
         this._broadcaster.clear();
         this._receiver.clear();
         (_a = this._socket) === null || _a === void 0 ? void 0 : _a.close();
         this._channels = {};
-    };
+    }
     /**
      * @desc An event that is triggered when the socket receives a message.
      * @param event - The event to subscribe to.
      * @param callback - The callback to be called when the event is triggered.
      */
-    PondClient.prototype.onMessage = function (event, callback) {
-        return this._broadcaster.subscribe(function (data) {
+    onMessage(event, callback) {
+        return this._broadcaster.subscribe(data => {
             if (data.action === pondSocket_1.ServerActions.MESSAGE && data.event === event)
                 callback(data.payload);
         });
-    };
+    }
     /**
      * @desc Creates a channel with the given name and params.
      * @param name - The name of the channel.
      * @param params - The params to send to the server.
      */
-    PondClient.prototype.createChannel = function (name, params) {
+    createChannel(name, params) {
         if (this._channels[name])
             return this._channels[name];
-        var channel = new channel_1.Channel(name, this._broadcaster, this._receiver, params);
+        const channel = new channel_1.Channel(name, this._broadcaster, this._receiver, params);
         this._channels[name] = channel;
         return channel;
-    };
-    return PondClient;
-}());
+    }
+}
 exports.PondClient = PondClient;

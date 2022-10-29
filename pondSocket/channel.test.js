@@ -1,23 +1,12 @@
 "use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createChannel = void 0;
-var channel_1 = require("./channel");
-var channelMiddleWare_1 = require("./channelMiddleWare");
-var pondBase_1 = require("../pondBase");
-var enums_1 = require("./enums");
-var createChannel = function (name) {
-    var user = {
+const channel_1 = require("./channel");
+const channelMiddleWare_1 = require("./channelMiddleWare");
+const pondBase_1 = require("../pondBase");
+const enums_1 = require("./enums");
+const createChannel = (name) => {
+    const user = {
         client: {
             clientId: 'test',
             socket: {
@@ -32,24 +21,24 @@ var createChannel = function (name) {
         assigns: {},
         channelData: {}
     };
-    var removeDoc = jest.fn();
-    var middleware = new channelMiddleWare_1.ChannelMiddleware();
-    var channel = new channel_1.Channel(name, middleware, removeDoc);
-    return { channel: channel, removeDoc: removeDoc, user: user };
+    const removeDoc = jest.fn();
+    const middleware = new channelMiddleWare_1.ChannelMiddleware();
+    const channel = new channel_1.Channel(name, middleware, removeDoc);
+    return { channel, removeDoc, user };
 };
 exports.createChannel = createChannel;
-describe('Channel', function () {
-    it('should exist', function () {
+describe('Channel', () => {
+    it('should exist', () => {
         expect(channel_1.Channel).toBeDefined();
     });
-    it('should be a class', function () {
+    it('should be a class', () => {
         expect(channel_1.Channel).toBeInstanceOf(Function);
     });
     // Functionality tests
-    it('should add a user to the channel', function () {
-        var lastSeenDate = new Date();
-        var channel = (0, exports.createChannel)('test').channel;
-        var user = {
+    it('should add a user to the channel', () => {
+        const lastSeenDate = new Date();
+        const { channel } = (0, exports.createChannel)('test');
+        const user = {
             client: {
                 clientId: 'test',
                 socket: {
@@ -74,17 +63,17 @@ describe('Channel', function () {
             assigns: {},
         });
     });
-    it('should remove a user from the channel', function () {
-        var lastSeenDate = new Date();
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
+    it('should remove a user from the channel', () => {
+        const lastSeenDate = new Date();
+        const { channel, user } = (0, exports.createChannel)('test');
         user.presence.lastSeenDate = lastSeenDate;
         channel.addUser(user);
         channel.removeUser('test');
         expect(channel.getUserInfo('test')).toBeNull();
     });
-    it('should update a user in the channel', function () {
-        var lastSeenDate = new Date();
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
+    it('should update a user in the channel', () => {
+        const lastSeenDate = new Date();
+        const { channel, user } = (0, exports.createChannel)('test');
         user.presence.lastSeenDate = lastSeenDate;
         channel.addUser(user);
         expect(channel.getUserInfo('test')).toEqual({
@@ -140,19 +129,19 @@ describe('Channel', function () {
             },
         });
     });
-    it('should throw when you add a user with an existing id', function () {
-        var lastSeenDate = new Date();
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
+    it('should throw when you add a user with an existing id', () => {
+        const lastSeenDate = new Date();
+        const { channel, user } = (0, exports.createChannel)('test');
         user.presence.lastSeenDate = lastSeenDate;
         channel.addUser(user);
-        expect(function () { return channel.addUser(user); }).toThrow();
+        expect(() => channel.addUser(user)).toThrow();
     });
-    it('should broadcast a message when a user is added', function () {
-        var lastSeenDate = new Date();
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
+    it('should broadcast a message when a user is added', () => {
+        const lastSeenDate = new Date();
+        const { channel, user } = (0, exports.createChannel)('test');
         user.presence.lastSeenDate = lastSeenDate.toString();
-        var messages = [];
-        channel.onPresenceChange(function (message) {
+        const messages = [];
+        channel.onPresenceChange((message) => {
             messages.push(message.event);
         });
         channel.addUser(user);
@@ -161,8 +150,8 @@ describe('Channel', function () {
         expect(messages).toHaveLength(2);
         expect(messages).toEqual([pondBase_1.PondBaseActions.ADD_TO_POND, pondBase_1.PondBaseActions.REMOVE_FROM_POND]);
     });
-    it('should set and get the channel data', function () {
-        var channel = (0, exports.createChannel)('test').channel;
+    it('should set and get the channel data', () => {
+        const { channel } = (0, exports.createChannel)('test');
         channel.data = {
             test: 'test'
         };
@@ -170,8 +159,8 @@ describe('Channel', function () {
             test: 'test'
         });
     });
-    it('should get channel info', function () {
-        var channel = (0, exports.createChannel)('test').channel;
+    it('should get channel info', () => {
+        const { channel } = (0, exports.createChannel)('test');
         channel.addUser({
             client: {
                 clientId: 'test1',
@@ -211,8 +200,8 @@ describe('Channel', function () {
             }
         });
     });
-    it('should get the presence of all the users in the class', function () {
-        var channel = (0, exports.createChannel)('test').channel;
+    it('should get the presence of all the users in the class', () => {
+        const { channel } = (0, exports.createChannel)('test');
         expect(channel.presence).toStrictEqual([]);
         channel.addUser({
             client: {
@@ -229,28 +218,28 @@ describe('Channel', function () {
             }
         ]);
     });
-    it('should be possible to remove multiple users at once', function () {
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
-        var user1 = __assign({}, user);
+    it('should be possible to remove multiple users at once', () => {
+        const { channel, user } = (0, exports.createChannel)('test');
+        const user1 = Object.assign({}, user);
         user1.client.clientId = 'test1';
         channel.addUser(user1);
-        var user2 = __assign({}, user);
+        const user2 = Object.assign({}, user);
         user2.client.clientId = 'test2';
         channel.addUser(user2);
         expect(channel.info.presence.length).toBe(2);
         channel.removeUser(['test1', 'test2']);
         expect(channel.info.presence.length).toBe(0);
     });
-    it('should broadcast a message to all users in the channel except the sender', function () {
-        var channel = (0, exports.createChannel)('test').channel;
-        var addresses = [];
+    it('should broadcast a message to all users in the channel except the sender', () => {
+        const { channel } = (0, exports.createChannel)('test');
+        let addresses = [];
         // mock of a socket connection subscribed to the channel
         // in a real world scenario, addresses.push = socket.send
         // _message is the message to be JSON.stringified and sent to the socket
-        var sub = channel.subscribeToMessages('test1', function (_message) {
+        const sub = channel.subscribeToMessages('test1', (_message) => {
             addresses.push('test1');
         });
-        var user1 = {
+        const user1 = {
             client: {
                 clientId: 'test1',
             },
@@ -258,7 +247,7 @@ describe('Channel', function () {
             assigns: {},
             channelData: {}
         };
-        var user2 = {
+        const user2 = {
             client: {
                 clientId: 'test2',
             },
@@ -271,7 +260,7 @@ describe('Channel', function () {
         // unlike a normal subscription, this subscription will receive messages when the channel's presence is updated
         // this is useful for the client to know when a user joins / leaves the channel
         // This subscribers cannot block the channel from broadcasting messages
-        var sub2 = channel.subscribeToMessages('test2', function () {
+        const sub2 = channel.subscribeToMessages('test2', () => {
             addresses.push('test2');
         });
         channel.addUser(user2);
@@ -283,55 +272,55 @@ describe('Channel', function () {
         expect(addresses[0]).toBe('test2'); // the message was sent to the second user only: test1
         // when your broadcastFrom is called with a user that is not in the channel,
         // An error will be thrown
-        expect(function () {
+        expect(() => {
             channel.broadcastFrom('testEvent', { test: 'test' }, 'test3');
-        }).toThrowError("Client with clientId test3 does not exist in channel test");
+        }).toThrowError(`Client with clientId test3 does not exist in channel test`);
         // when your broadcast is called with a user that is not in the channel,
         // An error will be thrown
-        expect(function () {
+        expect(() => {
             channel.broadcast('testEvent', { test: 'test' }, 'test3');
-        }).toThrowError("Client with clientId test3 does not exist in channel test");
+        }).toThrowError(`Client with clientId test3 does not exist in channel test`);
         sub.unsubscribe();
         sub2.unsubscribe();
     });
-    it('should provide an onMessage callback', function () {
-        var channel = (0, exports.createChannel)('test').channel;
-        var messages = [];
-        channel.onMessage(function (message) {
+    it('should provide an onMessage callback', () => {
+        const { channel } = (0, exports.createChannel)('test');
+        const messages = [];
+        channel.onMessage((message) => {
             messages.push(message.event);
         });
-        expect(function () { return channel.broadcast('testEvent', { test: 'test' }, 'test1'); }).toThrow();
+        expect(() => channel.broadcast('testEvent', { test: 'test' }, 'test1')).toThrow();
         expect(messages).toHaveLength(0);
     });
-    it('should be able to hook up to the onMessage callback', function () {
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
-        var messages = [];
+    it('should be able to hook up to the onMessage callback', () => {
+        const { channel, user } = (0, exports.createChannel)('test');
+        const messages = [];
         channel.addUser(user);
-        channel.onMessage(function (req, res) {
+        channel.onMessage((req, res) => {
             expect(req.client.clientId).toEqual(enums_1.PondSenders.POND_CHANNEL);
             if (req.event === 'testEvent') {
                 messages.push(req.event);
                 res.send('test', { test: 'test' });
             }
         });
-        channel.subscribeToMessages('test1', function (message) {
+        channel.subscribeToMessages('test1', (message) => {
             messages.push(message.event);
         });
-        expect(function () { return channel.broadcast('testEvent', { test: 'test' }); }).toThrow(); // the handler always replies to a testEvent message
+        expect(() => channel.broadcast('testEvent', { test: 'test' })).toThrow(); // the handler always replies to a testEvent message
         // since the sender is the channel itself, the send function throws an error
         expect(messages).toHaveLength(1);
         expect(messages).toEqual(['testEvent']); // this is because the broadcaster is the channel itself
     });
-    it('should be able to hook up to the onMessage callback and send a message to the sender', function () {
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
-        var messages = [];
+    it('should be able to hook up to the onMessage callback and send a message to the sender', () => {
+        const { channel, user } = (0, exports.createChannel)('test');
+        const messages = [];
         channel.addUser(user);
-        channel.onMessage(function (req, res) {
+        channel.onMessage((req, res) => {
             expect(req.client.clientId).toEqual('test');
             if (req.event === 'testEvent')
                 res.send('test', { test: 'test' });
         });
-        channel.subscribeToMessages('test', function (message) {
+        channel.subscribeToMessages('test', (message) => {
             messages.push(message.event);
         });
         channel.broadcast('testEvent', { test: 'test' }, 'test');
@@ -339,23 +328,23 @@ describe('Channel', function () {
         expect(messages).toEqual(['test', 'testEvent']); // this is because the broadcast is made on behalf of the user
         // the message sent in the handler always gets to the user before the message sent by the broadcaster
     });
-    it('should not call further onMessage callbacks if the callback rejects', function (done) {
-        var _a = (0, exports.createChannel)('test'), channel = _a.channel, user = _a.user;
-        var messages = [];
+    it('should not call further onMessage callbacks if the callback rejects', (done) => {
+        const { channel, user } = (0, exports.createChannel)('test');
+        let messages = [];
         channel.addUser(user);
-        channel.onMessage(function (req, res) {
+        channel.onMessage((req, res) => {
             if (req.event === 'testEvent')
                 return;
             messages.push(req.event);
             res.reject('error message', 213);
         });
-        channel.onMessage(function (req, res) {
+        channel.onMessage((req, res) => {
             if (req.event === 'testEvent') {
                 messages.push(req.event);
                 res.send('test', { test: 'onMessage' });
             }
         });
-        channel.subscribeToMessages('test', function (message) {
+        channel.subscribeToMessages('test', (message) => {
             messages.push(message.event);
         });
         channel.sendTo('test', { test: 'test' }, 'test', ['test']);
@@ -371,17 +360,17 @@ describe('Channel', function () {
         // The user receives the message because the message was not rejected
         // however, the user also receives a second message because the second callback sends a message as well
         // 1 on message callback , 1 initial message, 1 message from the callback
-        setTimeout(function () {
+        setTimeout(() => {
             expect(messages).toHaveLength(3); // Sometimes because of the async nature of the tests, the messages are not received in the correct order
             expect(messages).toEqual(['testEvent', 'test', 'testEvent']);
             done();
         }, 10);
         // when sendTo is called for a user that is not in the channel,
         // An error will be thrown
-        expect(function () {
+        expect(() => {
             channel.sendTo('testEvent', { test: 'test' }, 'test3', ['test']);
         }).toThrow();
-        expect(function () {
+        expect(() => {
             channel.sendTo('testEvent', { test: 'test' }, 'test', ['test3']);
         }).toThrow();
     });
