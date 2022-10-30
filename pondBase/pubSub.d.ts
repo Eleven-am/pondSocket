@@ -5,11 +5,6 @@ export declare class Subscription {
 export declare class Broadcast<T, A> {
 
     /**
-     * @desc Gets the number of subscribers
-     */
-    get subscriberCount(): number;
-
-    /**
      * @desc Subscribe to the broadcast
      * @param handler - The handler to call when the broadcast is published
      */
@@ -36,16 +31,20 @@ export declare class Subject<T, A> extends Broadcast<T, A> {
     get value(): T;
 
     /**
+     * @desc Get the list of observers
+     * @returns The list of observers
+     */
+    get observers(): Set<(data: T) => Anything<A>>;
+
+    /**
      * @desc Subscribe to the subject
-     * @param handler - The handler to call when the subject is published
      */
     subscribe(handler: (data: T) => A): Subscription;
 
     /**
      * @desc Publish to the subject
-     * @param data - The data to publish
      */
-    publish(data: T): A | undefined;
+    publish(data: T): Anything<A>;
 }
 
 export declare class EventPubSub<T, A> {
@@ -55,7 +54,7 @@ export declare class EventPubSub<T, A> {
      * @param event - The event to subscribe to
      * @param handler - The handler to call when the event subject is published
      */
-    subscribe(event: string, handler: (data: T) => A): Subscription;
+    subscribe(event: string, handler: (data: T) => Anything<A>): Subscription;
 
     /**
      * @desc Publish to the event subject

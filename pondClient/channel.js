@@ -10,15 +10,16 @@ class Channel {
         this._broadcaster = broadcaster;
         this._connection = new pondBase_1.Subject(false);
         this._receiver = new pondBase_1.Broadcast();
+        this._presence = new pondBase_1.Subject({
+            action: pondBase_1.PondBaseActions.REMOVE_FROM_POND,
+            change: null,
+            presence: []
+        });
         this._subscription = receiver.subscribe(data => {
             if (data.channelName === name) {
                 this._receiver.publish(data);
                 this._connection.publish(true);
             }
-        });
-        this._presence = new pondBase_1.Subject({
-            change: null,
-            presence: []
         });
     }
     /**
@@ -33,7 +34,13 @@ class Channel {
         };
         this._receiver.subscribe(data => {
             if (data.action === pondSocket_1.ServerActions.PRESENCE) {
-                this._presence.publish(data.payload);
+                const event = data.event;
+                const presenceData = data.payload;
+                this._presence.publish({
+                    action: event,
+                    change: presenceData.change,
+                    presence: presenceData.presence
+                });
             }
         });
         this._broadcaster.publish(joinMessage);
@@ -118,13 +125,34 @@ class Channel {
         this._broadcaster.publish(message);
     }
     /**
-     * @desc Monitors the presence state of the channel.
-     * @param callback - The callback to call when the presence state changes.
+     * @desc Detects when clients join the channel.
+     * @param callback - The callback to call when a client joins the channel.
      */
-    onPresence(callback) {
+    onJoin(callback) {
         return this._presence.subscribe(data => {
-            callback(data.change, data.presence);
+            if (data.action === pondBase_1.PondBaseActions.ADD_TO_POND)
+                callback(data.change);
         });
+    }
+    /**
+     * @desc Detects when clients leave the channel.
+     * @param callback - The callback to call when a client leaves the channel.
+     */
+    onLeave(callback) {
+        let presence = [];
+        return this._presence.subscribe(data => {
+            if (data.action === pondBase_1.PondBaseActions.REMOVE_FROM_POND) {
+                const missing = presence.filter(p => !data.presence.find(x => x.id === p.id));
+                missing.forEach(p => callback(p));
+            }
+            presence = data.presence;
+        });
+    }
+    /**
+     * @desc Gets the current presence state of the channel.
+     */
+    get presence() {
+        return this._presence.value.presence;
     }
     /**
      * @desc Monitors the connection state of the channel.

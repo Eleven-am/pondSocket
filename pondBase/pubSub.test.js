@@ -163,6 +163,15 @@ describe('Subject', () => {
         expect(subscriber3).toHaveBeenCalledWith('Hello');
         expect(subscriber2).not.toHaveBeenCalled();
     });
+    it('should provide the current list of observers', () => {
+        const subject = new pubSub_1.Subject('hi');
+        const subscriber1 = jest.fn();
+        const subscriber2 = jest.fn();
+        subject.subscribe(subscriber1);
+        subject.subscribe(subscriber2);
+        const set = new Set([subscriber1, subscriber2]);
+        expect(subject.observers).toEqual(set);
+    });
 });
 describe('EventSubject', () => {
     it('should be defined', () => {

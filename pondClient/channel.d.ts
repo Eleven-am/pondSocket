@@ -8,6 +8,11 @@ export declare class Channel {
     constructor(name: string, receiver: Broadcast<ServerMessage, void>, broadcaster: Broadcast<ClientMessage, void>, params?: ChannelParams);
 
     /**
+     * @desc Gets the current presence state of the channel.
+     */
+    get presence(): PondPresence[];
+
+    /**
      * @desc Connects to the channel.
      */
     join(): void;
@@ -53,10 +58,16 @@ export declare class Channel {
     updatePresence(presence: PondPresence): void;
 
     /**
-     * @desc Monitors the presence state of the channel.
-     * @param callback - The callback to call when the presence state changes.
+     * @desc Detects when clients join the channel.
+     * @param callback - The callback to call when a client joins the channel.
      */
-    onPresence(callback: (change: PondPresence | null, presence: PondPresence[]) => void): Subscription;
+    onJoin(callback: (presence: PondPresence) => void): Subscription;
+
+    /**
+     * @desc Detects when clients leave the channel.
+     * @param callback - The callback to call when a client leaves the channel.
+     */
+    onLeave(callback: (presence: PondPresence) => void): Subscription;
 
     /**
      * @desc Monitors the connection state of the channel.

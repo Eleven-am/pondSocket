@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PondClient = void 0;
 const channel_1 = require("./channel");
-const pondBase_1 = require("../pondBase");
 const pondSocket_1 = require("../pondSocket");
+const pondBase_1 = require("../pondBase");
 class PondClient {
     constructor(endpoint, params) {
         let address;

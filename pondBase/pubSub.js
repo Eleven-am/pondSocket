@@ -21,21 +21,20 @@ class Broadcast {
         };
     }
     /**
-     * @desc Gets the number of subscribers
-     */
-    get subscriberCount() {
-        return this._subscribers.size;
-    }
-    /**
      * @desc Publish to the broadcast
      * @param data - The data to publish
      */
     publish(data) {
         let result;
         for (const subscriber of this._subscribers) {
-            result = subscriber(data);
-            if (result)
-                break;
+            try {
+                result = subscriber(data);
+                if (result)
+                    break;
+            }
+            catch (e) {
+                throw e;
+            }
         }
         return result;
     }
@@ -59,16 +58,21 @@ class Subject extends Broadcast {
         return this._value;
     }
     /**
+     * @desc Get the list of observers
+     * @returns The list of observers
+     */
+    get observers() {
+        return this._subscribers;
+    }
+    /**
      * @desc Subscribe to the subject
-     * @param handler - The handler to call when the subject is published
      */
     subscribe(handler) {
-        void handler(this._value);
+        handler(this._value);
         return super.subscribe(handler);
     }
     /**
      * @desc Publish to the subject
-     * @param data - The data to publish
      */
     publish(data) {
         if (this._value !== data) {
@@ -91,7 +95,6 @@ class EventPubSub {
         const subscriber = (eventData) => {
             if (eventData.type === event)
                 return handler(eventData.data);
-            return undefined;
         };
         this._subscribers.add(subscriber);
         return {
@@ -110,7 +113,12 @@ class EventPubSub {
      */
     publish(event, data) {
         for (const subscriber of this._subscribers) {
-            void subscriber({ type: event, data });
+            try {
+                subscriber({ type: event, data });
+            }
+            catch (e) {
+                throw e;
+            }
         }
     }
     /**

@@ -99,7 +99,7 @@ class Channel extends pondBase_1.BaseClass {
             this.removeChannel();
     }
     /**
-     * @desc Subscribes to the presence changes occuring in the channel
+     * @desc Subscribes to the presence changes occurring in the channel
      * @param callback - The callback to call when a presence change occurs
      */
     onPresenceChange(callback) {
@@ -114,7 +114,7 @@ class Channel extends pondBase_1.BaseClass {
         });
     }
     /**
-     * @desc Subscribes to the message events occuring in the channel
+     * @desc Subscribes to the message events occurring in the channel
      * @param callback - The callback to call when a message event occurs
      */
     onMessage(callback) {
