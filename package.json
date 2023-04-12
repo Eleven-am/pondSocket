@@ -40,11 +40,8 @@
   },
   "typesVersions": {
     "*": {
-      "express/*": [
-        "dist/express/*"
-      ],
-      "client/*": [
-        "dist/client/*"
+      "*": [
+        "dist/*"
       ]
     }
   },
