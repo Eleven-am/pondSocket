@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -40,8 +40,12 @@
   },
   "typesVersions": {
     "*": {
-      "express/*": ["dist/express/*"],
-      "client/*": ["dist/client/*"]
+      "express/*": [
+        "dist/express/*"
+      ],
+      "client/*": [
+        "dist/client/*"
+      ]
     }
   },
   "devDependencies": {
