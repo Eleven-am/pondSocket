@@ -5,9 +5,10 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 import { ConnectionResponse, PondConnectionResponseHandler } from './connectionResponse';
 import { PondMessage } from '../abstracts/abstractResponse';
-import { ChannelEngine, ChannelEvent } from '../channel/channelEngine';
+import { ChannelEngine, ChannelEvent, ServerActions, ChannelReceivers } from '../channel/channelEngine';
 import { PondChannel, PondChannelManager, RequestCache, SocketCache } from '../pondChannel/pondChannel';
 import { MatchPattern, PondPath, Resolver } from '../utils/matchPattern';
+
 
 interface PondChannelData {
     path: PondPath;
@@ -33,7 +34,7 @@ export type ClientMessage = {
     channelName: string;
     event: string;
     payload: Record<string, any>;
-    addresses?: string[];
+    addresses?: ChannelReceivers;
 }
 
 export type EndpointHandler = (req: IncomingConnection, res: ConnectionResponse) => void;
@@ -90,9 +91,12 @@ export class Endpoint {
      */
     public broadcast (event: string, payload: PondMessage) {
         this._sockets.forEach(({ socket }) => {
-            const message: ChannelEvent = { event,
+            const message: ChannelEvent = {
+                event,
                 payload,
-                channelName: 'SERVER' };
+                action: ServerActions.BROADCAST,
+                channelName: 'SERVER',
+            };
 
             this._sendMessage(socket, message);
         });
@@ -152,6 +156,7 @@ export class Endpoint {
                         event: data.message.event,
                         channelName: 'SERVER',
                         payload: data.message.payload,
+                        action: ServerActions.SYSTEM,
                     };
 
                     this._sendMessage(ws, newMessage);
@@ -247,17 +252,17 @@ export class Endpoint {
      */
     private _handleMessage (cache: SocketCache, message: ClientMessage) {
         switch (message.action) {
-            case 'JOIN_CHANNEL':
+            case ClientActions.JOIN_CHANNEL:
                 this._joinChannel(message.channelName, cache, message.payload);
                 break;
 
-            case 'LEAVE_CHANNEL':
+            case ClientActions.LEAVE_CHANNEL:
                 this._execute(message.channelName, (channel) => {
                     channel.removeUser(cache.clientId);
                 });
                 break;
 
-            case 'BROADCAST':
+            case ClientActions.BROADCAST:
                 this._execute(message.channelName, (channel) => {
                     channel.broadcastMessage(cache.clientId, message);
                 });
@@ -276,6 +281,7 @@ export class Endpoint {
     private _readMessage (cache: SocketCache, message: string) {
         const errorMessage: ChannelEvent = {
             event: 'error',
+            action: ServerActions.ERROR,
             channelName: 'ENDPOINT',
             payload: {},
         };

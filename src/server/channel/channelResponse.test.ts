@@ -1,4 +1,4 @@
-import { ChannelEngine, InternalChannelEvent } from './channelEngine';
+import { ChannelEngine, InternalChannelEvent, ServerActions } from './channelEngine';
 import { createParentEngine } from './channelEngine.test';
 import { EventResponse } from './eventResponse';
 
@@ -15,6 +15,7 @@ export const createChannelEvent = () => {
             payload: 'payload',
         },
         sender: 'sender',
+        action: ServerActions.BROADCAST,
         recipients: ['recipient'],
     };
 
@@ -59,7 +60,7 @@ describe('ChannelResponse', () => {
         jest.spyOn(channelEngine, 'sendMessage');
         response.reject();
         expect(response.responseSent).toEqual(true);
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', [event.sender], 'error_channel', { message: 'Unauthorized request',
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', [event.sender], ServerActions.ERROR, 'error_channel', { message: 'Unauthorized request',
             code: 403 });
     });
 
@@ -69,7 +70,7 @@ describe('ChannelResponse', () => {
         jest.spyOn(channelEngine, 'sendMessage');
         response.send('event', { payload: 'payload' });
         expect(response.responseSent).toEqual(true);
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', [event.sender], 'event', { payload: 'payload' });
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', [event.sender], ServerActions.SYSTEM, 'event', { payload: 'payload' });
     });
 
     it('should broadcast a message', () => {
@@ -77,7 +78,7 @@ describe('ChannelResponse', () => {
 
         jest.spyOn(channelEngine, 'sendMessage');
         response.broadcast('event', { payload: 'payload' });
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', 'all_users', 'event', { payload: 'payload' });
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', 'all_users', ServerActions.BROADCAST, 'event', { payload: 'payload' });
     });
 
     it('should broadcastFromUser a message', () => {
@@ -85,7 +86,7 @@ describe('ChannelResponse', () => {
 
         jest.spyOn(channelEngine, 'sendMessage');
         response.broadcastFromUser('event', { payload: 'payload' });
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', 'all_except_sender', 'event', { payload: 'payload' });
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', 'all_except_sender', ServerActions.BROADCAST, 'event', { payload: 'payload' });
     });
 
     it('should sendToUsers a message', () => {
@@ -94,7 +95,7 @@ describe('ChannelResponse', () => {
         jest.spyOn(channelEngine, 'sendMessage');
         channelEngine.addUser('recipient', { assign: 'assign' }, () => {});
         response.sendToUsers('event', { payload: 'payload' }, ['recipient']);
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', ['recipient'], 'event', { payload: 'payload' });
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', ['recipient'], ServerActions.BROADCAST, 'event', { payload: 'payload' });
     });
 
     it('should track a trackPresence', () => {
@@ -122,7 +123,7 @@ describe('ChannelResponse', () => {
         response.trackPresence({ status: 'online' });
         response.unTrackPresence();
         response.unTrackPresence();
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', ['sender'], 'error_channel', {
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', ['sender'], ServerActions.ERROR, 'error_channel', {
             message: 'PresenceEngine: Presence with key sender does not exist',
             code: 500,
         });

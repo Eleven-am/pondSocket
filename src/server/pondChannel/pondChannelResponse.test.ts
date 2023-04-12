@@ -1,5 +1,6 @@
 import { JoinResponse } from './joinResponse';
 import { SocketCache } from './pondChannel';
+import { ServerActions } from '../channel/channelEngine';
 import { createChannelEngine } from '../channel/channelResponse.test';
 
 
@@ -71,6 +72,7 @@ describe('pondChannelResponse', () => {
                 code: 403,
             },
             channelName: 'test',
+            action: ServerActions.ERROR,
         }));
     });
 
@@ -90,6 +92,7 @@ describe('pondChannelResponse', () => {
 
         // also check if the socket was sent a message
         expect(socket.socket.send).toHaveBeenCalledWith(JSON.stringify({
+            action: ServerActions.SYSTEM,
             event: 'POND_MESSAGE',
             payload: {
                 message: 'message',
@@ -117,20 +120,20 @@ describe('pondChannelResponse', () => {
         response.accept().sendToUsers('hello_everyone', { message: 'hello' }, ['user2']);
 
         // check if the message was sent
-        expect(broadcast).toHaveBeenCalledWith('sender', ['user2'], 'hello_everyone', { message: 'hello' });
+        expect(broadcast).toHaveBeenCalledWith('sender', ['user2'], ServerActions.BROADCAST, 'hello_everyone', { message: 'hello' });
 
         // clear the spy
         broadcast.mockClear();
 
         // send a message to all users
         response.broadcast('hello_everyone', { message: 'hello' });
-        expect(broadcast).toHaveBeenCalledWith('sender', 'all_users', 'hello_everyone', { message: 'hello' });
+        expect(broadcast).toHaveBeenCalledWith('sender', 'all_users', ServerActions.BROADCAST, 'hello_everyone', { message: 'hello' });
 
         // clear the spy
         broadcast.mockClear();
 
         // send a message to all users except the sender
         response.broadcastFromUser('hello_everyone', { message: 'hello' });
-        expect(broadcast).toHaveBeenCalledWith('sender', 'all_except_sender', 'hello_everyone', { message: 'hello' });
+        expect(broadcast).toHaveBeenCalledWith('sender', 'all_except_sender', ServerActions.BROADCAST, 'hello_everyone', { message: 'hello' });
     });
 });

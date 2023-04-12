@@ -4,6 +4,7 @@ import request from 'superwstest';
 import { Server } from 'ws';
 
 import { PondSocket } from './pondSocket';
+import { ServerActions } from '../channel/channelEngine';
 import { Endpoint } from '../endpoint/endpoint';
 
 
@@ -134,6 +135,7 @@ describe('server', () => {
                 event: 'testEvent',
                 channelName: 'SERVER',
                 payload: { test: 'test' },
+                action: ServerActions.SYSTEM,
             })
             .close()
             .expectClosed();

@@ -1,5 +1,5 @@
-import { EndpointHandler, Endpoint } from '../endpoint/endpoint';
-import { PondPath } from '../utils/matchPattern';
+import { EndpointHandler, Endpoint } from '../server/endpoint/endpoint';
+import { PondPath } from '../server/utils/matchPattern';
 
 declare global {
     namespace Express {

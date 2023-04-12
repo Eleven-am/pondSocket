@@ -1,6 +1,6 @@
 import { SocketCache } from './pondChannel';
 import { PondMessage, PondResponse } from '../abstracts/abstractResponse';
-import { ChannelEngine, PondAssigns } from '../channel/channelEngine';
+import { ChannelEngine, PondAssigns, ChannelEvent, ServerActions } from '../channel/channelEngine';
 import { PondPresence } from '../presence/presenceEngine';
 
 export class JoinResponse extends PondResponse {
@@ -45,12 +45,17 @@ export class JoinResponse extends PondResponse {
         this._hasExecuted = true;
         const text = `Request to join channel ${this._engine.name} rejected: ${message || 'Unauthorized request'}`;
 
-        this._user.socket.send(JSON.stringify({
+        const errorMessage: ChannelEvent = {
             event: 'POND_ERROR',
-            payload: { message: text,
-                code: errorCode || 403 },
+            payload: {
+                message: text,
+                code: errorCode || 403,
+            },
             channelName: this._engine.name,
-        }));
+            action: ServerActions.ERROR,
+        };
+
+        this._user.socket.send(JSON.stringify(errorMessage));
 
         return this;
     }
@@ -63,7 +68,7 @@ export class JoinResponse extends PondResponse {
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
         this.accept(assigns);
-        this._engine.sendMessage('channel', [this._user.clientId], event, payload);
+        this._engine.sendMessage('channel', [this._user.clientId], ServerActions.SYSTEM, event, payload);
 
         return this;
     }
@@ -74,7 +79,7 @@ export class JoinResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcast (event: string, payload: PondMessage): JoinResponse {
-        this._engine.sendMessage(this._user.clientId, 'all_users', event, payload);
+        this._engine.sendMessage(this._user.clientId, 'all_users', ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -85,7 +90,7 @@ export class JoinResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcastFromUser (event: string, payload: PondMessage): JoinResponse {
-        this._engine.sendMessage(this._user.clientId, 'all_except_sender', event, payload);
+        this._engine.sendMessage(this._user.clientId, 'all_except_sender', ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -97,7 +102,7 @@ export class JoinResponse extends PondResponse {
      * @param userIds - the ids of the clients to send the message to
      */
     public sendToUsers (event: string, payload: PondMessage, userIds: string[]): JoinResponse {
-        this._engine.sendMessage(this._user.clientId, userIds, event, payload);
+        this._engine.sendMessage(this._user.clientId, userIds, ServerActions.BROADCAST, event, payload);
 
         return this;
     }

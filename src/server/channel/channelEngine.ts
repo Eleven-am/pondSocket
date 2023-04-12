@@ -3,7 +3,13 @@ import { EventResponse } from './eventResponse';
 import { PondMessage } from '../abstracts/abstractResponse';
 import { MiddlewareFunction } from '../abstracts/middleware';
 import { ClientMessage } from '../endpoint/endpoint';
-import { PondPresence, PresenceEngine, UserPresences } from '../presence/presenceEngine';
+import {
+    PondPresence,
+    PresenceEngine,
+    UserPresences,
+    PresenceEventTypes,
+    PresencePayload,
+} from '../presence/presenceEngine';
 import { Subject } from '../utils/subjectUtils';
 
 export type PondAssigns = Record<string, any>;
@@ -15,13 +21,31 @@ export type InternalChannelEvent = {
     payload: PondMessage;
     event: string;
     recipients: string[];
+    action: ServerActions;
 }
 
-export interface ChannelEvent {
+export enum ServerActions {
+    PRESENCE = 'PRESENCE',
+    SYSTEM = 'SYSTEM',
+    BROADCAST = 'BROADCAST',
+    ERROR = 'ERROR',
+}
+
+interface Event {
+    action: 'SYSTEM' | 'BROADCAST' | 'ERROR';
     event: string;
     payload: PondMessage;
     channelName: string;
 }
+
+interface PresenceEvent {
+    action: 'PRESENCE';
+    event: PresenceEventTypes;
+    channelName: string;
+    payload: PresencePayload;
+}
+
+export type ChannelEvent = Event | PresenceEvent;
 
 export interface UserAssigns {
     [userId: string]: PondAssigns;
@@ -101,12 +125,12 @@ export class ChannelEngine {
      * @param reason - The reason for kicking the user
      */
     public kickUser (userId: string, reason: string) {
-        this.sendMessage('channel', [userId], 'kicked_out', {
+        this.sendMessage('channel', [userId], ServerActions.SYSTEM, 'kicked_out', {
             message: 'You have been kicked out of the channel',
             reason,
         });
         this.removeUser(userId);
-        this.sendMessage('channel', 'all_users', 'kicked', {
+        this.sendMessage('channel', 'all_users', ServerActions.SYSTEM, 'kicked', {
             userId,
             reason,
         });
@@ -117,7 +141,7 @@ export class ChannelEngine {
      * @param reason - The reason for self-destructing the channel
      */
     public destroy (reason: string) {
-        this.sendMessage('channel', 'all_users', 'destroyed', {
+        this.sendMessage('channel', 'all_users', ServerActions.ERROR, 'destroyed', {
             message: 'Channel has been destroyed',
             reason,
         });
@@ -141,7 +165,9 @@ export class ChannelEngine {
         }
 
         this._presenceEngine.trackPresence(userId, presence, (change) => {
-            this.sendMessage('channel', [userId], 'presence_change', change);
+            const { type, ...rest } = change;
+
+            this.sendMessage('channel', [userId], ServerActions.PRESENCE, type, rest);
         });
     }
 
@@ -239,42 +265,20 @@ export class ChannelEngine {
      * @desc Sends a message to a specified set of users, from a specified sender
      * @param sender - The sender of the message
      * @param recipient - The users to send the message to
+     * @param action - The action of the message
      * @param event - The event name
      * @param payload - The payload of the message
      * @private
      */
-    public sendMessage (sender: ChannelSenders, recipient: ChannelReceivers, event: string, payload: PondMessage) {
+    public sendMessage (sender: ChannelSenders, recipient: ChannelReceivers, action: ServerActions, event: string, payload: PondMessage) {
         if (!this._users.has(sender) && sender !== 'channel') {
             throw new Error(`ChannelEngine: User with id ${sender} does not exist in channel ${this.name}`);
         }
 
-        const allUsers = Array.from(this._users.keys());
-        let users: string[];
-
-        switch (recipient) {
-            case 'all_users':
-                users = allUsers;
-                break;
-            case 'all_except_sender':
-                if (sender === 'channel') {
-                    throw new Error('ChannelEngine: Cannot send to all users except sender when sender is channel');
-                }
-
-                users = allUsers.filter((user) => user !== sender);
-                break;
-            default:
-                const absentUsers = recipient.filter((user) => !allUsers.includes(user));
-
-                if (absentUsers.length > 0) {
-                    throw new Error(`ChannelEngine: Users ${absentUsers.join(', ')} are not in channel ${this.name}`);
-                }
-
-                users = recipient;
-        }
-
         this._receiver.next({
             sender,
-            recipients: users,
+            recipients: this._getUsersFromRecipients(recipient, sender),
+            action,
             payload,
             event,
         });
@@ -293,15 +297,16 @@ export class ChannelEngine {
         const responseEvent: InternalChannelEvent = {
             event: message.event,
             payload: message.payload,
+            action: ServerActions.BROADCAST,
             sender: userId,
-            recipients: [],
+            recipients: this._getUsersFromRecipients(message.addresses || 'all_users', userId),
         };
 
         const request = new EventRequest(responseEvent, this);
         const response = new EventResponse(responseEvent, this);
 
         this._parentEngine.execute(request, response, () => {
-            this.sendMessage('channel', [userId], 'error_no_handler', {
+            this.sendMessage('channel', [userId], ServerActions.ERROR, 'error_no_handler', {
                 message: 'A handler did not respond to the event',
                 code: 404,
             });
@@ -318,11 +323,41 @@ export class ChannelEngine {
         this._receiver.subscribe(userId, (event) => {
             if (event.recipients.includes(userId)) {
                 onMessage({
+                    action: event.action,
                     event: event.event,
                     payload: event.payload,
                     channelName: this.name,
-                });
+                } as ChannelEvent);
             }
         });
+    }
+
+    private _getUsersFromRecipients (recipients: ChannelReceivers, sender: ChannelSenders): string[] {
+        const allUsers = Array.from(this._users.keys());
+        let users: string[];
+
+        switch (recipients) {
+            case 'all_users':
+                users = allUsers;
+                break;
+            case 'all_except_sender':
+                if (sender === 'channel') {
+                    throw new Error('ChannelEngine: Cannot send to all users except sender when sender is channel');
+                }
+
+                users = allUsers.filter((user) => user !== sender);
+                break;
+            default:
+                const absentUsers = recipients.filter((user) => !allUsers.includes(user));
+
+                if (absentUsers.length > 0) {
+                    throw new Error(`ChannelEngine: Users ${absentUsers.join(', ')} are not in channel ${this.name}`);
+                }
+
+                users = recipients;
+                break;
+        }
+
+        return users;
     }
 }

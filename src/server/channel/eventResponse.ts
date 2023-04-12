@@ -1,4 +1,4 @@
-import { ChannelEngine, InternalChannelEvent, PondAssigns } from './channelEngine';
+import { ChannelEngine, InternalChannelEvent, PondAssigns, ServerActions } from './channelEngine';
 import { PondMessage, PondResponse } from '../abstracts/abstractResponse';
 import { PondPresence } from '../presence/presenceEngine';
 
@@ -43,7 +43,7 @@ export class EventResponse extends PondResponse {
         this._manageAssigns(assigns);
         const text = message || 'Unauthorized request';
 
-        this._engine.sendMessage('channel', [this._event.sender], 'error_channel', { message: text,
+        this._engine.sendMessage('channel', [this._event.sender], ServerActions.ERROR, 'error_channel', { message: text,
             code: errorCode || 403 });
         this._hasExecuted = true;
 
@@ -57,7 +57,7 @@ export class EventResponse extends PondResponse {
      * @param assigns - the data to assign to the client
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
-        this._engine.sendMessage('channel', [this._event.sender], event, payload);
+        this._engine.sendMessage('channel', [this._event.sender], ServerActions.SYSTEM, event, payload);
 
         return this.accept(assigns);
     }
@@ -68,7 +68,7 @@ export class EventResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcast (event: string, payload: PondMessage): EventResponse {
-        this._engine.sendMessage(this._event.sender, 'all_users', event, payload);
+        this._engine.sendMessage(this._event.sender, 'all_users', ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -79,7 +79,7 @@ export class EventResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcastFromUser (event: string, payload: PondMessage): EventResponse {
-        this._engine.sendMessage(this._event.sender, 'all_except_sender', event, payload);
+        this._engine.sendMessage(this._event.sender, 'all_except_sender', ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -91,7 +91,7 @@ export class EventResponse extends PondResponse {
      * @param userIds - the ids of the clients to send the message to
      */
     public sendToUsers (event: string, payload: PondMessage, userIds: string[]): EventResponse {
-        this._engine.sendMessage(this._event.sender, userIds, event, payload);
+        this._engine.sendMessage(this._event.sender, userIds, ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -127,7 +127,7 @@ export class EventResponse extends PondResponse {
         try {
             this._engine.unTrackPresence(userId);
         } catch (e: any) {
-            this._engine.sendMessage('channel', [userId], 'error_channel', { message: e.message,
+            this._engine.sendMessage('channel', [userId], ServerActions.ERROR, 'error_channel', { message: e.message,
                 code: 500 });
         }
 

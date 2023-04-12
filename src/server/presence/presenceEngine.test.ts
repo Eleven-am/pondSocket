@@ -1,4 +1,4 @@
-import { PondPresence, PresenceEngine, PresenceEvent } from './presenceEngine';
+import { PondPresence, PresenceEngine, PresenceEvent, PresenceEventTypes } from './presenceEngine';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 
@@ -30,7 +30,7 @@ describe('PresenceEngine', () => {
             // @ts-ignore
             expect(presenceEngine._insertPresence).toHaveBeenCalledWith(presenceKey, presence);
             expect(onPresenceChange).toHaveBeenCalledWith({
-                type: 'join',
+                type: PresenceEventTypes.JOIN,
                 changed: presence,
                 presence: [presence],
             });
@@ -44,7 +44,7 @@ describe('PresenceEngine', () => {
             // @ts-ignore
             expect(presenceEngine._subscribe).toHaveBeenCalledWith(presenceKey, onPresenceChange);
             expect(onPresenceChange).toHaveBeenCalledWith({
-                type: 'join',
+                type: PresenceEventTypes.JOIN,
                 changed: presence,
                 presence: [presence],
             });
@@ -69,9 +69,11 @@ describe('PresenceEngine', () => {
 
             presenceEngine.updatePresence(presenceKey, newPresence);
             expect(onPresenceChange).toHaveBeenCalledWith({
-                type: 'update',
-                changed: { ...presence,
-                    ...newPresence },
+                type: PresenceEventTypes.UPDATE,
+                changed: {
+                    ...presence,
+                    ...newPresence,
+                },
                 presence: [newPresence],
             });
         });
@@ -88,7 +90,7 @@ describe('PresenceEngine', () => {
                 key: 'presence2' }, onPresenceChange);
             presenceEngine.removePresence(presenceKey);
             expect(onPresenceChange).toHaveBeenCalledWith({
-                type: 'leave',
+                type: PresenceEventTypes.LEAVE,
                 changed: presence,
                 presence: [
                     { ...presence,

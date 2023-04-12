@@ -1,12 +1,20 @@
 import { BehaviorSubject } from '../utils/subjectUtils';
 
-type PresenceEventTypes = 'join' | 'leave' | 'update';
 export type PondPresence = Record<string, any>;
 
-export interface PresenceEvent {
-    type: PresenceEventTypes;
+export enum PresenceEventTypes {
+    JOIN = 'JOIN',
+    LEAVE = 'LEAVE',
+    UPDATE = 'UPDATE'
+}
+
+export interface PresencePayload {
     changed: PondPresence;
     presence: PondPresence[];
+}
+
+export interface PresenceEvent extends PresencePayload {
+    type: PresenceEventTypes;
 }
 
 export interface UserPresences {
@@ -55,7 +63,7 @@ export class PresenceEngine {
             this._presenceMap.delete(presenceKey);
             if (this._presenceMap.size > 0) {
                 this._presence.next({
-                    type: 'leave',
+                    type: PresenceEventTypes.LEAVE,
                     changed: presence,
                     presence: Array.from(this._presenceMap.values()),
                 });
@@ -76,9 +84,11 @@ export class PresenceEngine {
         if (oldPresence) {
             this._presenceMap.set(presenceKey, presence);
             this._presence.next({
-                type: 'update',
-                changed: { ...oldPresence,
-                    ...presence },
+                type: PresenceEventTypes.UPDATE,
+                changed: {
+                    ...oldPresence,
+                    ...presence,
+                },
                 presence: Array.from(this._presenceMap.values()),
             });
         } else {
@@ -108,7 +118,7 @@ export class PresenceEngine {
         if (!this._presenceMap.has(presenceKey)) {
             this._presenceMap.set(presenceKey, presence);
             this._presence.next({
-                type: 'join',
+                type: PresenceEventTypes.JOIN,
                 changed: presence,
                 presence: Array.from(this._presenceMap.values()),
             });
