@@ -41,10 +41,10 @@
   "typesVersions": {
     "*": {
       "express/*": [
-        "dist/express/index.d.ts"
+        "dist/express/*"
       ],
       "client/*": [
-        "dist/client/index.d.ts"
+        "dist/client/*"
       ]
     }
   },
