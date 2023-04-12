@@ -40,9 +40,8 @@
   },
   "typesVersions": {
     "*": {
-      "dist/*": [
-        "dist/*"
-      ]
+      "express/*": ["dist/express/*"],
+      "client/*": ["dist/client/*"]
     }
   },
   "devDependencies": {
