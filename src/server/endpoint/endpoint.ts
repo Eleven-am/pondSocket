@@ -126,7 +126,7 @@ export class Endpoint {
      * @param handler - The handler to use to authenticate the client
      */
     public _authoriseConnection (request: IncomingMessage, socket: internal.Duplex, head: Buffer, data: Resolver, handler: EndpointHandler) {
-        const clientId = this._generateClientId();
+        const clientId = request.headers['sec-websocket-key'] as string;
         const req: IncomingConnection = {
             headers: request.headers,
             ...data,
@@ -331,20 +331,5 @@ export class Endpoint {
      */
     private _isObjectEmpty (obj: Record<string, any>) {
         return Object.keys(obj).length === 0;
-    }
-
-    /**
-     * @desc Generates a new client ID
-     * @private
-     */
-    private _generateClientId () {
-        let id = '';
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-        for (let i = 0; i < 21; i++) {
-            id += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-
-        return id;
     }
 }

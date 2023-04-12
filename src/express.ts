@@ -48,6 +48,7 @@ const PondSocket = (app: Express): PondSocketExpressApp => {
     const pondSocket = new PondSocketServer(server);
 
     app.upgrade = (path: PondPath, handler: EndpointHandler) => pondSocket.createEndpoint(path, handler);
+    app.listen = (...args: any[]) => server.listen(...args);
 
     return app as PondSocketExpressApp;
 };

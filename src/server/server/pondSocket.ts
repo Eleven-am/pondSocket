@@ -21,8 +21,8 @@ export class PondSocket {
 
     constructor (server?: HTTPServer, socketServer?: WebSocketServer) {
         this._matcher = new MatchPattern();
-        this._server = server || new HTTPServer();
-        this._socketServer = socketServer || new WebSocketServer({ noServer: true });
+        this._server = server ?? new HTTPServer();
+        this._socketServer = socketServer ?? new WebSocketServer({ noServer: true });
         this._init();
     }
 
@@ -31,7 +31,7 @@ export class PondSocket {
      * @param port - the port to listen on
      * @param callback - the callback to call when the server is listening
      */
-    public listen (port: number, callback: (port?: number) => void) {
+    public listen (port: number, callback?: (port?: number) => void) {
         return this._server.listen(port, callback);
     }
 

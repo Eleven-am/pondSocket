@@ -62,9 +62,7 @@ describe('server', () => {
             destroy: jest.fn(),
         };
 
-        socket.listen(3001, () => {
-            console.log('server listening');
-        });
+        socket.listen(3001);
         server.emit('upgrade', {}, socketClient);
         server.close();
 
@@ -75,14 +73,9 @@ describe('server', () => {
 
     it('should be able to accept a socket if a handler is provided', async () => {
         const socket = new PondSocket();
-        const server = socket.listen(3001, () => {
-            console.log('server listening');
-        });
+        const server = socket.listen(3001);
 
         expect(server).toBeDefined();
-        socket.createEndpoint('/api/hello', () => {
-            console.log('server listening');
-        });
         socket.createEndpoint('/api/:path', (req, res) => {
             expect(req.params.path).toBe('socket');
             res.accept();
@@ -99,9 +92,7 @@ describe('server', () => {
 
     it('should be able to reject a socket if the handler rejects', async () => {
         const socket = new PondSocket();
-        const server = socket.listen(3001, () => {
-            console.log('server listening');
-        });
+        const server = socket.listen(3001);
 
         expect(server).toBeDefined();
         socket.createEndpoint('/api/:path', (req, res) => {
@@ -118,9 +109,7 @@ describe('server', () => {
 
     it('should be able to send a message after connection', async () => {
         const socket = new PondSocket();
-        const server = socket.listen(3001, () => {
-            console.log('server listening');
-        });
+        const server = socket.listen(3001);
 
         expect(server).toBeDefined();
         socket.createEndpoint('/api/:path', (req, res) => {
