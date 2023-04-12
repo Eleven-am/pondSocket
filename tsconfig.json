@@ -1,31 +1,12 @@
 {
-  "compilerOptions": {                       /* Enable incremental compilation */
-    "target": "es6",
+  "compilerOptions": {
+    "target": "es2015",
     "module": "commonjs",
-    "downlevelIteration": true,
-    "strict": true,
-    "noImplicitAny": true,                       /* Raise error on expressions and declarations with an implied 'any' type. */
-    "strictNullChecks": true,                    /* Enable strict null checks. */
-    "strictFunctionTypes": true,                 /* Enable strict checking of function types. */
-    "alwaysStrict": true,                        /* Parse in strict mode and emit "use strict" for each source file. */
-    "noUnusedLocals": true,                      /* Report errors on unused locals. */
-    "noUnusedParameters": true,                  /* Report errors on unused parameters. */
-    "noImplicitReturns": false,                   /* Report error when not all code paths in function return a value. */
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "composite": true,
+    "declaration": false,
     "outDir": "./dist",
-    "declaration": true,
-    /* Disallow inconsistently-cased references to the same file. */
-    "lib": [
-      "dom",
-      "es5",
-      "scripthost",
-      "es2015.generator",
-      "es2015.collection"
-    ]
+    "esModuleInterop": true,
+    "strict": true,
   },
-  "include": ["src/"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src"],
+  "exclude": ["node_modules", "**/__tests__/*"]
 }
