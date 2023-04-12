@@ -3,9 +3,18 @@ import { createServer } from 'http';
 // eslint-disable-next-line import/no-unresolved
 import { Express } from 'express';
 
-import { EndpointHandler, Endpoint } from '../server/endpoint/endpoint';
-import { PondSocket as PondSocketServer } from '../server/server/pondSocket';
-import { PondPath } from '../server/utils/matchPattern';
+import { EndpointHandler, Endpoint } from './server/endpoint/endpoint';
+import { PondSocket as PondSocketServer } from './server/server/pondSocket';
+import { PondPath } from './server/utils/matchPattern';
+
+declare global {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
+    namespace Express {
+        export interface Application {
+            upgrade(path: PondPath, handler: EndpointHandler): Endpoint;
+        }
+    }
+}
 
 
 interface PondSocketExpressApp extends Express {

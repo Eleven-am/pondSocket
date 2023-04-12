@@ -1,10 +1,16 @@
-import { PondState } from './index';
-import { PondMessage } from '../server/abstracts/abstractResponse';
-import { ChannelEvent, ServerActions, ChannelReceivers } from '../server/channel/channelEngine';
-import { ClientMessage, ClientActions } from '../server/endpoint/endpoint';
-import { JoinParams } from '../server/pondChannel/joinRequest';
-import { PondPresence, PresenceEventTypes, PresencePayload } from '../server/presence/presenceEngine';
+import { PondState } from '../client';
+import { PresenceEventTypes, ServerActions, ClientActions } from '../enums';
 import { SimpleSubject, SimpleBehaviorSubject, Unsubscribe } from '../server/utils/subjectUtils';
+import {
+    PondPresence,
+    PresencePayload,
+    ChannelEvent,
+    ChannelReceivers,
+    JoinParams,
+    ClientMessage,
+    PondMessage,
+// eslint-disable-next-line import/no-unresolved
+} from '../types';
 
 type Publisher = (data: ClientMessage) => void;
 

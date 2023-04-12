@@ -1,8 +1,7 @@
-import { Channel } from './channel';
-import { ChannelEvent } from '../server/channel/channelEngine';
-import { ClientMessage } from '../server/endpoint/endpoint';
-import { JoinParams } from '../server/pondChannel/joinRequest';
-import { SimpleSubject, SimpleBehaviorSubject } from '../server/utils/subjectUtils';
+import { Channel } from './client/channel';
+import { SimpleSubject, SimpleBehaviorSubject } from './server/utils/subjectUtils';
+// eslint-disable-next-line import/no-unresolved
+import { ChannelEvent, JoinParams, ClientMessage } from './types';
 
 export type PondState = 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED';
 
@@ -46,7 +45,7 @@ export default class PondClient {
     /**
      * @desc Connects to the server and returns the socket.
      */
-    connect (backoff = 1) {
+    public connect (backoff = 1) {
         const socket = new WebSocket(this.address.toString());
 
         socket.onopen = () => {
@@ -72,14 +71,14 @@ export default class PondClient {
     /**
      * @desc Returns the current state of the socket.
      */
-    getState () {
+    public getState () {
         return this._connectionState.value;
     }
 
     /**
      * @desc Disconnects the socket.
      */
-    disconnect () {
+    public disconnect () {
         Object.values(this._channels).forEach((channel) => channel.leave());
         this._socket?.close();
         this._channels = {};
@@ -90,7 +89,7 @@ export default class PondClient {
      * @param name - The name of the channel.
      * @param params - The params to send to the server.
      */
-    createChannel (name: string, params?: JoinParams) {
+    public createChannel (name: string, params?: JoinParams) {
         if (this._channels[name] && !this._channels[name].hasClosed()) {
             return this._channels[name];
         }
