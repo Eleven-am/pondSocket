@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -23,7 +23,9 @@
   "license": "GPL-3.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist/**/*"],
+  "files": [
+    "dist/**/*"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Eleven-am/pondSocket.git"
