@@ -1,6 +1,7 @@
 import request from 'superwstest';
 
 import { ClientActions, ClientMessage } from './endpoint';
+import { ServerActions, PresenceEventTypes } from '../../enums';
 import { PondChannel } from '../pondChannel/pondChannel';
 import { PondSocket } from '../server/pondSocket';
 
@@ -102,6 +103,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'Hello',
                 channelName: 'SERVER',
+                action: ServerActions.SYSTEM,
                 payload: {
                     room: 'socket',
                 },
@@ -109,6 +111,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'TEST',
                 channelName: 'SERVER',
+                action: ServerActions.BROADCAST,
                 payload: {
                     message: 'Hello everyone',
                 },
@@ -122,6 +125,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'Hello',
                 channelName: 'SERVER',
+                action: ServerActions.SYSTEM,
                 payload: {
                     room: 'secondSocket',
                 },
@@ -129,6 +133,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'TEST',
                 channelName: 'SERVER',
+                action: ServerActions.BROADCAST,
                 payload: {
                     message: 'Hello everyone',
                 },
@@ -246,6 +251,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'error',
                 channelName: 'ENDPOINT',
+                action: ServerActions.ERROR,
                 payload: {
                     message: 'GatewayEngine: Channel /socket/socket does not exist',
                 },
@@ -303,6 +309,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'error_channel',
                 channelName: '/test/socket',
+                action: ServerActions.ERROR,
                 payload: {
                     message: 'Unauthorized request',
                     code: 403,
@@ -317,6 +324,7 @@ describe('endpoint', () => {
                 payload: {},
                 event: 'TEST',
                 channelName: '/test/socket',
+                action: ServerActions.BROADCAST,
             })
             .sendJson({
                 ...message,
@@ -326,6 +334,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'error_channel',
                 channelName: '/test/socket',
+                action: ServerActions.ERROR,
                 payload: {
                     message: 'choke on my balls',
                     code: 403,
@@ -369,10 +378,10 @@ describe('endpoint', () => {
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .sendJson(message)
             .expectJson({
-                event: 'presence_change',
+                event: PresenceEventTypes.JOIN,
                 channelName: '/test/socket',
+                action: ServerActions.PRESENCE,
                 payload: {
-                    type: 'join',
                     changed: {
                         status: 'online',
                     },
@@ -421,6 +430,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'error',
                 channelName: 'ENDPOINT',
+                action: ServerActions.ERROR,
                 payload: {
                     message: 'GatewayEngine: Channel /test/socket does not exist',
                 },
@@ -433,6 +443,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'TEST',
                 channelName: '/test/socket',
+                action: ServerActions.SYSTEM,
                 payload: {
                     test: 'test',
                 },
@@ -472,6 +483,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'TEST',
                 channelName: 'SERVER',
+                action: ServerActions.SYSTEM,
                 payload: {
                     test: 'test',
                 },
@@ -484,6 +496,7 @@ describe('endpoint', () => {
             .expectJson({
                 event: 'TEST',
                 channelName: 'SERVER',
+                action: ServerActions.SYSTEM,
                 payload: {
                     test: 'test',
                 },
