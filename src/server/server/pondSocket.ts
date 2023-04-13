@@ -28,11 +28,10 @@ export class PondSocket {
 
     /**
      * @desc Specifies the port to listen on
-     * @param port - the port to listen on
-     * @param callback - the callback to call when the server is listening
+     * @param args - the arguments to pass to the server
      */
-    public listen (port: number, callback?: (port?: number) => void) {
-        return this._server.listen(port, callback);
+    public listen (...args: any[]) {
+        return this._server.listen(...args);
     }
 
     /**
