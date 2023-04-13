@@ -176,8 +176,8 @@ describe('endpoint', () => {
             });
         });
 
-        endpoint.useChannel('/test/:room', testPond);
-        endpoint.useChannel('/socket/:room', socketPond);
+        endpoint.addChannel('/test/:room', testPond);
+        endpoint.addChannel('/socket/:room', socketPond);
 
         await request(server)
             .ws('/api/socket')
@@ -220,7 +220,7 @@ describe('endpoint', () => {
             });
         });
 
-        endpoint.useChannel('/test/:room', testPond);
+        endpoint.addChannel('/test/:room', testPond);
 
         const message: ClientMessage = {
             action: ClientActions.JOIN_CHANNEL,
@@ -282,7 +282,7 @@ describe('endpoint', () => {
             res.accept();
         });
 
-        endpoint.useChannel('/test/:room', channel);
+        endpoint.addChannel('/test/:room', channel);
 
         const message: ClientMessage = {
             action: ClientActions.JOIN_CHANNEL,
@@ -355,7 +355,7 @@ describe('endpoint', () => {
             });
         });
 
-        endpoint.useChannel('/test/:room', channel);
+        endpoint.addChannel('/test/:room', channel);
 
         const message: ClientMessage = {
             action: ClientActions.JOIN_CHANNEL,
@@ -405,7 +405,7 @@ describe('endpoint', () => {
             res.send('TEST', { test: 'test' });
         });
 
-        endpoint.useChannel('/test/:room', channel);
+        endpoint.addChannel('/test/:room', channel);
 
         const message: ClientMessage = {
             action: ClientActions.LEAVE_CHANNEL,

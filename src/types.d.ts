@@ -392,7 +392,7 @@ declare class PondChannel {
      * @example
      * const pond = new PondChannelEngine();
      * pond.onJoinRequest((request, response) => {
-     *     if (request.event.assigns.admin)
+     *     if (request.user.assigns.admin)
      *          response.accept();
      *     else
      *         response.reject('You are not an admin', 403);
@@ -407,11 +407,25 @@ declare class PondChannel {
      * @example
      * pond.onEvent('echo', (request, response) => {
      *     response.send('echo', {
-     *         message: request.payload,
+     *         message: request.event.payload,
      *     });
      * });
      */
     onEvent (event: PondPath, handler: (request: EventRequest, response: EventResponse) => void | Promise<void>): void;
+
+    /**
+     * @desc Broadcasts a message to all users in a channel
+     * @param event - The event to broadcast
+     * @param payload - The payload to send
+     * @param channelName - The channel to broadcast to (if not specified, broadcast to all channels)
+     * @example
+     * pond.broadcast('echo', {
+     *    message: 'Hello World',
+     *    timestamp: Date.now(),
+     *    channel: 'my_channel',
+     *});
+     */
+    broadcast (event: string, payload: PondMessage, channelName?: string): void;
 }
 
 declare class ConnectionResponse {
@@ -446,7 +460,7 @@ export declare class Endpoint {
      * @example
      * endpoint.useChannel('/chat', pondChannelInstance);
      */
-    useChannel (path: PondPath, channel: PondChannel): void;
+    addChannel (path: PondPath, channel: PondChannel): void;
 
     /**
      * @desc List all clients connected to this endpoint

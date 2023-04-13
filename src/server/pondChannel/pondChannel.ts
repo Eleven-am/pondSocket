@@ -2,6 +2,8 @@ import { WebSocket } from 'ws';
 
 import { JoinRequest } from './joinRequest';
 import { JoinResponse } from './joinResponse';
+import { ServerActions } from '../../enums';
+import { PondMessage } from '../abstracts/abstractResponse';
 import { Middleware } from '../abstracts/middleware';
 import { ChannelEngine, ParentEngine, PondAssigns } from '../channel/channelEngine';
 import { EventRequest } from '../channel/eventRequest';
@@ -49,7 +51,7 @@ export class PondChannel {
      * @example
      * const pond = new PondChannelEngine();
      * pond.onJoinRequest((request, response) => {
-     *     if (request.event.assigns.admin)
+     *     if (request.user.assigns.admin)
      *          response.accept();
      *     else
      *         response.reject('You are not an admin', 403);
@@ -66,7 +68,7 @@ export class PondChannel {
      * @example
      * pond.onEvent('echo', (request, response) => {
      *     response.send('echo', {
-     *         message: request.payload,
+     *         message: request.event.payload,
      *     });
      * });
      */
@@ -78,6 +80,30 @@ export class PondChannel {
 
             next();
         });
+    }
+
+    /**
+     * @desc Broadcasts a message to all users in a channel
+     * @param event - The event to broadcast
+     * @param payload - The payload to send
+     * @param channelName - The channel to broadcast to (if not specified, broadcast to all channels)
+     * @example
+     * pond.broadcast('echo', {
+     *    message: 'Hello World',
+     *    timestamp: Date.now(),
+     *    channel: 'my_channel',
+     *});
+     */
+    public broadcast (event: string, payload: PondMessage, channelName?: string) {
+        if (channelName) {
+            const channel = this._getChannel(channelName) || this._createChannel(channelName);
+
+            channel.sendMessage('channel', 'all_users', ServerActions.SYSTEM, event, payload);
+        } else {
+            this._channels.forEach((channel) => {
+                channel.sendMessage('channel', 'all_users', ServerActions.SYSTEM, event, payload);
+            });
+        }
     }
 
     /**

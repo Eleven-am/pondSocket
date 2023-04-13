@@ -61,9 +61,9 @@ export class Endpoint {
      * @param channel - The channel to add
      *
      * @example
-     * endpoint.useChannel('/chat', pondChannelInstance);
+     * endpoint.addChannel('/chat', pondChannelInstance);
      */
-    public useChannel (path: PondPath, channel: PondChannel) {
+    public addChannel (path: PondPath, channel: PondChannel) {
         const manager = channel._buildManager();
 
         this._channels.push({ path,
