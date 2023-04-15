@@ -6,15 +6,15 @@ import { ChannelEvent, JoinParams, ClientMessage } from './types';
 export type PondState = 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED';
 
 export default class PondClient {
-    private readonly address: URL;
+    protected readonly _address: URL;
 
-    private _socket: WebSocket | undefined;
+    protected _socket: WebSocket | any | undefined;
 
-    private _channels: Record<string, Channel>;
+    protected _channels: Record<string, Channel>;
 
-    private readonly _broadcaster: SimpleSubject<ChannelEvent>;
+    protected readonly _broadcaster: SimpleSubject<ChannelEvent>;
 
-    private readonly _connectionState: SimpleBehaviorSubject<PondState>;
+    protected readonly _connectionState: SimpleBehaviorSubject<PondState>;
 
     constructor (endpoint: string, params: Record<string, any> = {}) {
         let address: URL;
@@ -35,7 +35,7 @@ export default class PondClient {
             address.protocol = protocol;
         }
 
-        this.address = address;
+        this._address = address;
         this._channels = {};
 
         this._broadcaster = new SimpleSubject<ChannelEvent>();
@@ -46,7 +46,7 @@ export default class PondClient {
      * @desc Connects to the server and returns the socket.
      */
     public connect (backoff = 1) {
-        const socket = new WebSocket(this.address.toString());
+        const socket = new WebSocket(this._address.toString());
 
         socket.onopen = () => {
             this._connectionState.publish('OPEN');

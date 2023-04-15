@@ -132,6 +132,12 @@ export declare class Channel {
     public onMessage(event: string, callback: (message: PondMessage) => void): Unsubscribe;
 
     /**
+     * @desc Monitors the channel for messages.
+     * @param callback - The callback to call when a message is received.
+     */
+    public onMessageEvent(callback: (event: string, message: PondMessage) => void): Unsubscribe;
+
+    /**
      * @desc Monitors the connection state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
@@ -182,7 +188,6 @@ export declare class Channel {
      */
     public isConnected(): boolean;
 
-
     /**
      * @desc check is the channel has been closed.
      */
@@ -200,7 +205,7 @@ export declare class Channel {
     public onUsersChange(callback: (users: PondPresence[]) => void): Unsubscribe;
 }
 
-export declare class PondSocketClient {
+declare class PondSocketClient {
     constructor(endpoint: string, params?: Record<string, any>);
 
     /**
@@ -451,14 +456,14 @@ declare class ConnectionResponse {
     send (event: string, payload: PondMessage, assigns?: PondAssigns): void;
 }
 
-export declare class Endpoint {
+declare class Endpoint {
     /**
      * @desc Adds a new PondChannel to this path on this endpoint
      * @param path - The path to add the channel to
      * @param channel - The channel to add
      *
      * @example
-     * endpoint.useChannel('/chat', pondChannelInstance);
+     * endpoint.addChannel('/chat', pondChannelInstance);
      */
     addChannel (path: PondPath, channel: PondChannel): void;
 
@@ -486,7 +491,7 @@ export declare class Endpoint {
     closeConnection (clientIds: string | string[]): void;
 }
 
-export declare class PondSocket {
+declare class PondSocket {
     constructor (server?: HTTPServer, socketServer?: WebSocketServer);
 
     /**
@@ -532,5 +537,5 @@ export declare class PondSocket {
  * @param app - The Express app to be used by the server
  * @constructor
  */
-export declare const PondSocketFromExpress: (app: Express) => PondSocketExpressApp;
+declare const PondSocketFromExpress: (app: Express) => PondSocketExpressApp;
 

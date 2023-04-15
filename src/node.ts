@@ -1,0 +1,33 @@
+import { WebSocket } from 'ws';
+
+import PondSocketClient from './client';
+// eslint-disable-next-line import/no-unresolved
+import { ChannelEvent } from './types';
+
+export default class PondClient extends PondSocketClient {
+    /**
+     * @desc Connects to the server and returns the socket.
+     */
+    public connect (backoff = 1) {
+        const socket = new WebSocket(this._address.toString());
+
+        socket.onopen = () => {
+            this._connectionState.publish('OPEN');
+        };
+
+        socket.onmessage = (message) => {
+            const data = JSON.parse(message.data as string) as ChannelEvent;
+
+            this._broadcaster.publish(data);
+        };
+
+        socket.onerror = () => {
+            this._connectionState.publish('CLOSED');
+            setTimeout(() => {
+                this.connect(backoff * 2);
+            }, backoff * 1000);
+        };
+
+        this._socket = socket;
+    }
+}

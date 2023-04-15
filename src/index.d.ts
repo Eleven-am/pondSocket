@@ -1,4 +1,4 @@
-import { PondSocket, PondChannel as Channel } from './types';
+import { PondSocket, PondChannel } from './types';
 
 export default PondSocket;
-export { Channel };
+export { PondChannel };
