@@ -31,21 +31,21 @@ export class Channel {
 
     private _queue: ClientMessage[];
 
-    private _presence: SimpleBehaviorSubject<PondPresence[]>;
+    private _presence: PondPresence[];
 
     private readonly _presenceSub: Unsubscribe;
 
     constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<PondState>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams = {}) {
         this._name = name;
         this._queue = [];
+        this._presence = [];
         this._finished = false;
         this._joinParams = params;
-        this._receiver = receiver;
         this._publisher = publisher;
         this._clientState = clientState;
+        this._receiver = new SimpleSubject<ChannelEvent>();
         this._joinState = new SimpleBehaviorSubject<boolean>(false);
-        this._presence = new SimpleBehaviorSubject<PondPresence[]>([]);
-        this._presenceSub = this._init();
+        this._presenceSub = this._init(receiver);
     }
 
     /**
@@ -84,25 +84,25 @@ export class Channel {
 
     /**
      * @desc Monitors the channel for messages.
-     * @param event - The event to monitor.
      * @param callback - The callback to call when a message is received.
      */
-    public onMessageEvent (event: string, callback: (message: PondMessage) => void) {
+    public onMessage (callback: (event: string, message: PondMessage) => void) {
         return this._receiver.subscribe((data) => {
-            if (data.action === ServerActions.BROADCAST && data.event === event && data.channelName === this._name) {
-                return callback(data.payload);
+            if (data.action !== ServerActions.PRESENCE) {
+                return callback(data.event, data.payload);
             }
         });
     }
 
     /**
      * @desc Monitors the channel for messages.
+     * @param event - The event to monitor.
      * @param callback - The callback to call when a message is received.
      */
-    public onMessage (callback: (event: string, message: PondMessage) => void) {
-        return this._receiver.subscribe((data) => {
-            if (data.action === ServerActions.BROADCAST && data.channelName === this._name) {
-                return callback(data.event, data.payload);
+    public onMessageEvent (event: string, callback: (message: PondMessage) => void) {
+        return this.onMessage((eventReceived, message) => {
+            if (eventReceived === event) {
+                return callback(message);
             }
         });
     }
@@ -122,9 +122,9 @@ export class Channel {
      * @param callback - The callback to call when a client joins the channel.
      */
     public onJoin (callback: (presence: PondPresence) => void) {
-        return this._receiver.subscribe((data) => {
-            if (data.action === ServerActions.PRESENCE && data.event === PresenceEventTypes.JOIN && data.channelName === this._name) {
-                return callback(data.payload.changed);
+        return this._subscribeToPresence((event, payload) => {
+            if (event === PresenceEventTypes.JOIN) {
+                return callback(payload.changed);
             }
         });
     }
@@ -134,9 +134,9 @@ export class Channel {
      * @param callback - The callback to call when a client leaves the channel.
      */
     public onLeave (callback: (presence: PondPresence) => void) {
-        return this._receiver.subscribe((data) => {
-            if (data.action === ServerActions.PRESENCE && data.event === PresenceEventTypes.LEAVE && data.channelName === this._name) {
-                return callback(data.payload.changed);
+        return this._subscribeToPresence((event, payload) => {
+            if (event === PresenceEventTypes.LEAVE) {
+                return callback(payload.changed);
             }
         });
     }
@@ -146,9 +146,9 @@ export class Channel {
      * @param callback - The callback to call when a client changes their presence in the channel.
      */
     public onPresenceChange (callback: (presence: PresencePayload) => void) {
-        return this._receiver.subscribe((data) => {
-            if (data.action === ServerActions.PRESENCE && data.event === PresenceEventTypes.UPDATE && data.channelName === this._name) {
-                return callback(data.payload);
+        return this._subscribeToPresence((event, payload) => {
+            if (event === PresenceEventTypes.UPDATE) {
+                return callback(payload);
             }
         });
     }
@@ -199,7 +199,7 @@ export class Channel {
      * @desc Gets the current presence of the channel.
      */
     public getPresence (): PondPresence[] {
-        return this._presence.value;
+        return this._presence;
     }
 
     /**
@@ -207,9 +207,7 @@ export class Channel {
      * @param callback - The callback to call when the presence changes.
      */
     public onUsersChange (callback: (users: PondPresence[]) => void) {
-        return this._presence.subscribe((data) => {
-            callback(data);
-        });
+        return this._subscribeToPresence((event, payload) => callback(payload.presence));
     }
 
     private _send (event: string, payload: PondMessage, receivers: ChannelReceivers = 'all_users') {
@@ -225,18 +223,36 @@ export class Channel {
     }
 
     private _publish (data: ClientMessage) {
-        if (!this._joinState.value || this._clientState.value !== 'OPEN') {
-            this._queue.push(data);
+        if (this._joinState.value && this._clientState.value !== 'OPEN') {
+            this._publisher(data);
 
             return;
         }
 
-        this._publisher(data);
+        this._queue.push(data);
     }
 
-    private _init (): Unsubscribe {
+    private _subscribeToPresence (callback: (event: PresenceEventTypes, payload: PresencePayload) => void) {
+        return this._receiver.subscribe((data) => {
+            if (data.action === ServerActions.PRESENCE) {
+                return callback(data.event, data.payload);
+            }
+        });
+    }
+
+    private _init (receiver: SimpleSubject<ChannelEvent>): Unsubscribe {
+        const unsubMessages = receiver.subscribe((data) => {
+            if (data.channelName === this._name) {
+                if (!this._joinState.value) {
+                    this._joinState.publish(true);
+                }
+
+                this._receiver.publish(data);
+            }
+        });
+
         const unsubStateChange = this._clientState.subscribe((state) => {
-            if (state === 'OPEN') {
+            if (state === 'OPEN' && this._queue.length > 0) {
                 const joinMessage: ClientMessage = {
                     action: ClientActions.JOIN_CHANNEL,
                     channelName: this._name,
@@ -249,18 +265,20 @@ export class Channel {
                 this._queue.forEach((message) => {
                     this._publisher(message);
                 });
+                this._joinState.publish(true);
 
                 this._queue = [];
+            } else if (state !== 'OPEN') {
+                this._joinState.publish(false);
             }
         });
 
-        const unsubPresence = this._receiver.subscribe((data) => {
-            if (data.action === ServerActions.PRESENCE && data.channelName === this._name) {
-                this._presence.publish(data.payload.presence);
-            }
+        const unsubPresence = this._subscribeToPresence((_, payload) => {
+            this._presence = payload.presence;
         });
 
         return () => {
+            unsubMessages();
             unsubStateChange();
             unsubPresence();
         };
