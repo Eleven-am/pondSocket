@@ -24,4 +24,9 @@ export abstract class PondResponse {
      * @param assigns - the data to assign to the client
      */
     public abstract accept(assigns?: PondAssigns): void
+
+    /**
+     * @desc Resolves the request as sent with no further action
+     */
+    public abstract end(): void
 }

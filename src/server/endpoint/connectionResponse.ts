@@ -42,8 +42,12 @@ export class ConnectionResponse extends PondResponse {
         }
 
         this._hasExecuted = true;
-        this._handler({}, { error: { message: message || 'Message rejected',
-            code: errorCode || 403 } });
+        this._handler({}, {
+            error: {
+                message: message || 'Message rejected',
+                code: errorCode || 403,
+            },
+        });
     }
 
     /**
@@ -58,7 +62,18 @@ export class ConnectionResponse extends PondResponse {
         }
 
         this._hasExecuted = true;
-        this._handler(assigns || {}, { message: { event,
-            payload } });
+        this._handler(assigns || {}, {
+            message: {
+                event,
+                payload,
+            },
+        });
+    }
+
+    /**
+     * @desc Resolves the request as sent with no further action
+     */
+    public end (): void {
+        throw new Error('EndpointResponse: Cannot end a connection response');
     }
 }

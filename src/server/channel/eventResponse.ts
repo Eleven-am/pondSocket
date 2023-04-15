@@ -154,6 +154,13 @@ export class EventResponse extends PondResponse {
     }
 
     /**
+     * @desc Resolves the request as sent with no further action
+     */
+    public end (): void {
+        this._hasExecuted = true;
+    }
+
+    /**
      * @desc Gets the event that triggered the response
      * @param assigns - the data to assign to the client
      * @private

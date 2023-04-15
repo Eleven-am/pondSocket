@@ -332,6 +332,11 @@ declare class EventResponse {
      * @param reason - the reason for closing the channel
      */
     closeChannel (reason: string): void;
+
+    /**
+     * @desc Resolves the request as sent with no further action
+     */
+    end (): void;
 }
 
 declare class JoinRequest extends AbstractRequest {
@@ -393,6 +398,11 @@ declare class JoinResponse {
      * @param presence - the presence data to track
      */
     trackPresence (presence: PondPresence): JoinResponse;
+
+    /**
+     * @desc Resolves the request as sent with no further action
+     */
+    end (): void;
 }
 
 declare class PondChannel {
@@ -459,6 +469,11 @@ declare class ConnectionResponse {
      * @param assigns - the data to assign to the client
      */
     send (event: string, payload: PondMessage, assigns?: PondAssigns): void;
+
+    /**
+     * @desc Resolves the request as sent with no further action
+     */
+    end (): void;
 }
 
 declare class Endpoint {

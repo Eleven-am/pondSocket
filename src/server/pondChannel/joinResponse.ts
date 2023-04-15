@@ -116,4 +116,12 @@ export class JoinResponse extends PondResponse {
 
         return this;
     }
+
+
+    /**
+     * @desc Resolves the request as sent with no further action
+     */
+    public end (): void {
+        this._hasExecuted = true;
+    }
 }
