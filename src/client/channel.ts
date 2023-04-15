@@ -67,8 +67,6 @@ export class Channel {
         } else {
             this._queue.push(joinMessage);
         }
-
-        this._publish(joinMessage);
     }
 
     /**
@@ -267,9 +265,11 @@ export class Channel {
 
                 this._publisher(joinMessage);
 
-                this._queue.forEach((message) => {
-                    this._publisher(message);
-                });
+                this._queue
+                    .filter((message) => message.action !== ClientActions.JOIN_CHANNEL)
+                    .forEach((message) => {
+                        this._publisher(message);
+                    });
 
                 this._joinState.publish(true);
 
