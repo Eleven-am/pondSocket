@@ -1,4 +1,5 @@
 import PondSocketClient from './client';
+import { PondState } from './enums';
 // eslint-disable-next-line import/no-unresolved
 import { ChannelEvent } from './types';
 
@@ -13,7 +14,7 @@ export default class PondClient extends PondSocketClient {
         const socket = new WebSocket(this._address.toString());
 
         socket.onopen = () => {
-            this._connectionState.publish('OPEN');
+            this._connectionState.publish(PondState.OPEN);
         };
 
         socket.onmessage = (message) => {
@@ -23,7 +24,7 @@ export default class PondClient extends PondSocketClient {
         };
 
         socket.onerror = () => {
-            this._connectionState.publish('CLOSED');
+            this._connectionState.publish(PondState.CLOSED);
             setTimeout(() => {
                 this.connect(backoff * 2);
             }, backoff * 1000);

@@ -1,5 +1,4 @@
-import { PondState } from '../client';
-import { PresenceEventTypes, ServerActions, ClientActions } from '../enums';
+import { PresenceEventTypes, ServerActions, ClientActions, PondState } from '../enums';
 import { SimpleSubject, SimpleBehaviorSubject, Unsubscribe } from '../server/utils/subjectUtils';
 import {
     PondPresence,
@@ -63,7 +62,7 @@ export class Channel {
             payload: this._joinParams,
         };
 
-        if (this._clientState.value === 'OPEN') {
+        if (this._clientState.value === PondState.OPEN) {
             this._publisher(joinMessage);
         } else {
             this._queue.push(joinMessage);
@@ -229,7 +228,7 @@ export class Channel {
     }
 
     private _publish (data: ClientMessage) {
-        if (this._joinState.value && this._clientState.value !== 'OPEN') {
+        if (this._joinState.value && this._clientState.value !== PondState.OPEN) {
             this._publisher(data);
 
             return;
@@ -258,7 +257,7 @@ export class Channel {
         });
 
         const unsubStateChange = this._clientState.subscribe((state) => {
-            if (state === 'OPEN' && this._queue.length > 0) {
+            if (state === PondState.OPEN && this._queue.length > 0) {
                 const joinMessage: ClientMessage = {
                     action: ClientActions.JOIN_CHANNEL,
                     channelName: this._name,
@@ -275,7 +274,7 @@ export class Channel {
                 this._joinState.publish(true);
 
                 this._queue = [];
-            } else if (state !== 'OPEN') {
+            } else if (state !== PondState.OPEN) {
                 this._joinState.publish(false);
             }
         });

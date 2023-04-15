@@ -1,9 +1,8 @@
 import { Channel } from './client/channel';
+import { PondState } from './enums';
 import { SimpleSubject, SimpleBehaviorSubject } from './server/utils/subjectUtils';
 // eslint-disable-next-line import/no-unresolved
 import { ChannelEvent, JoinParams, ClientMessage } from './types';
-
-export type PondState = 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED';
 
 export default class PondClient {
     protected readonly _address: URL;
@@ -39,7 +38,7 @@ export default class PondClient {
         this._channels = {};
 
         this._broadcaster = new SimpleSubject<ChannelEvent>();
-        this._connectionState = new SimpleBehaviorSubject<PondState>('CLOSED');
+        this._connectionState = new SimpleBehaviorSubject<PondState>(PondState.CLOSED);
     }
 
     /**
@@ -49,7 +48,7 @@ export default class PondClient {
         const socket = new WebSocket(this._address.toString());
 
         socket.onopen = () => {
-            this._connectionState.publish('OPEN');
+            this._connectionState.publish(PondState.OPEN);
         };
 
         socket.onmessage = (message) => {
@@ -59,7 +58,7 @@ export default class PondClient {
         };
 
         socket.onerror = () => {
-            this._connectionState.publish('CLOSED');
+            this._connectionState.publish(PondState.CLOSED);
             setTimeout(() => {
                 this.connect(backoff * 2);
             }, backoff * 1000);
@@ -113,7 +112,7 @@ export default class PondClient {
 
     private _createPublisher () {
         return (message: ClientMessage) => {
-            if (this._socket?.readyState === 1) {
+            if (this._connectionState.value === PondState.OPEN) {
                 this._socket.send(JSON.stringify(message));
             }
         };
