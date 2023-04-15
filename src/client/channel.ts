@@ -63,6 +63,12 @@ export class Channel {
             payload: this._joinParams,
         };
 
+        if (this._clientState.value === 'OPEN') {
+            this._publisher(joinMessage);
+        } else {
+            this._queue.push(joinMessage);
+        }
+
         this._publish(joinMessage);
     }
 
@@ -265,6 +271,7 @@ export class Channel {
                 this._queue.forEach((message) => {
                     this._publisher(message);
                 });
+
                 this._joinState.publish(true);
 
                 this._queue = [];
