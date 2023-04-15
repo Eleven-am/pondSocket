@@ -103,9 +103,17 @@ export default class PondClient {
         return channel;
     }
 
+    /**
+     * @desc Subscribes to the connection state.
+     * @param callback - The callback to call when the state changes.
+     */
+    public onConnectionChange (callback: (state: PondState) => void) {
+        return this._connectionState.subscribe(callback);
+    }
+
     private _createPublisher () {
         return (message: ClientMessage) => {
-            if (this._socket?.readyState === WebSocket.OPEN) {
+            if (this._socket?.readyState === 1) {
                 this._socket.send(JSON.stringify(message));
             }
         };

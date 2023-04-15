@@ -40,9 +40,9 @@ export class Channel {
         this._queue = [];
         this._finished = false;
         this._joinParams = params;
+        this._receiver = receiver;
         this._publisher = publisher;
         this._clientState = clientState;
-        this._receiver = new SimpleSubject<ChannelEvent>();
         this._joinState = new SimpleBehaviorSubject<boolean>(false);
         this._presence = new SimpleBehaviorSubject<PondPresence[]>([]);
         this._presenceSub = this._init();

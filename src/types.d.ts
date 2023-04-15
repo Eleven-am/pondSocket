@@ -18,7 +18,6 @@ type SocketCache = Pick<RequestCache, 'socket' | 'clientId' | 'assigns'>;
 type AuthorizeMiddleware = (request: JoinRequest, response: JoinResponse) => void | Promise<void>;
 type SocketMiddlewareFunction = (req: IncomingMessage, socket: internal.Duplex, head: Buffer, next: NextFunction) => void;
 export type ChannelReceivers = 'all_users' | 'all_except_sender' | string[];
-export type ChannelSenders = 'channel' | string;
 export type ChannelEvent = Event | PresenceEvent;
 
 interface Event {
@@ -229,6 +228,12 @@ declare class PondSocketClient {
      * @param params - The params to send to the server.
      */
     public createChannel(name: string, params?: JoinParams): Channel;
+
+    /**
+     * @desc Subscribes to the connection state.
+     * @param callback - The callback to call when the state changes.
+     */
+    public onConnectionChange (callback: (state: PondState) => void): Unsubscribe;
 }
 
 declare class AbstractRequest {

@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket",
-  "version": "0.1.23",
+  "version": "0.1.30",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -28,12 +28,14 @@
     "url": "git+https://github.com/Eleven-am/pondSocket.git"
   },
   "dependencies": {
+    "websocket": "^1.0.34",
     "ws": "^8.12.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.14",
     "@types/jest": "^29.5.0",
     "@types/node": "^16.10.3",
+    "@types/websocket": "^1.0.5",
     "@types/ws": "^8.5.3",
     "@typescript-eslint/eslint-plugin": "^5.58.0",
     "eslint": "^8.38.0",
