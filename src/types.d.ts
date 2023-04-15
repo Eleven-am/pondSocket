@@ -129,13 +129,13 @@ export declare class Channel {
      * @param event - The event to monitor.
      * @param callback - The callback to call when a message is received.
      */
-    public onMessage(event: string, callback: (message: PondMessage) => void): Unsubscribe;
+    public onMessageEvent(event: string, callback: (message: PondMessage) => void): Unsubscribe;
 
     /**
      * @desc Monitors the channel for messages.
      * @param callback - The callback to call when a message is received.
      */
-    public onMessageEvent(callback: (event: string, message: PondMessage) => void): Unsubscribe;
+    public onMessage(callback: (event: string, message: PondMessage) => void): Unsubscribe;
 
     /**
      * @desc Monitors the connection state of the channel.

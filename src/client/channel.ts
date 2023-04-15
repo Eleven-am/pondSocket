@@ -87,7 +87,7 @@ export class Channel {
      * @param event - The event to monitor.
      * @param callback - The callback to call when a message is received.
      */
-    public onMessage (event: string, callback: (message: PondMessage) => void) {
+    public onMessageEvent (event: string, callback: (message: PondMessage) => void) {
         return this._receiver.subscribe((data) => {
             if (data.action === ServerActions.BROADCAST && data.event === event && data.channelName === this._name) {
                 return callback(data.payload);
@@ -99,7 +99,7 @@ export class Channel {
      * @desc Monitors the channel for messages.
      * @param callback - The callback to call when a message is received.
      */
-    public onMessageEvent (callback: (event: string, message: PondMessage) => void) {
+    public onMessage (callback: (event: string, message: PondMessage) => void) {
         return this._receiver.subscribe((data) => {
             if (data.action === ServerActions.BROADCAST && data.channelName === this._name) {
                 return callback(data.event, data.payload);
