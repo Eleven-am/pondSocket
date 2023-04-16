@@ -13,6 +13,14 @@ export class MatchPattern {
      * @param address - the address to resolve
      */
     public parseEvent (path: PondPath, address: string): Resolver | null {
+        if (path === '*') {
+            return {
+                params: {},
+                address,
+                query: this._parseQueries(address),
+            };
+        }
+
         const match = this._matchStringToPattern(address, path);
 
         if (match) {
