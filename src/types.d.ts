@@ -166,7 +166,7 @@ export declare class Channel {
      * @param payload - The message to send.
      * @param recipient - The clients to send the message to.
      */
-    public sendMessage(event: string, payload: PondMessage, recipient?: string[]): void;
+    public sendMessage(event: string, payload: PondMessage, recipient: string[]): void;
 
     /**
      * @desc Broadcasts a message to every other client in the channel except yourself.

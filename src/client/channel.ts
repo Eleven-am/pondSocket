@@ -162,7 +162,7 @@ export class Channel {
      * @param payload - The message to send.
      * @param recipient - The clients to send the message to.
      */
-    public sendMessage (event: string, payload: PondMessage, recipient?: string[]) {
+    public sendMessage (event: string, payload: PondMessage, recipient: string[]) {
         this._send(event, payload, recipient);
     }
 

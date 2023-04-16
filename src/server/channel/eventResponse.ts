@@ -28,6 +28,7 @@ export class EventResponse extends PondResponse {
      */
     public accept (assigns?: PondAssigns): EventResponse {
         this._manageAssigns(assigns);
+        this._engine.sendMessage('channel', [this._event.sender], this._event.action, this._event.event, this._event.payload);
         this._hasExecuted = true;
 
         return this;
