@@ -1,5 +1,5 @@
 import { Channel } from './client/channel';
-import { PondState } from './enums';
+import { PondState, ChannelState } from './enums';
 import { SimpleSubject, SimpleBehaviorSubject } from './server/utils/subjectUtils';
 // eslint-disable-next-line import/no-unresolved
 import { ChannelEvent, JoinParams, ClientMessage } from './types';
@@ -89,7 +89,7 @@ export default class PondClient {
      * @param params - The params to send to the server.
      */
     public createChannel (name: string, params?: JoinParams) {
-        if (this._channels[name] && !this._channels[name].hasClosed()) {
+        if (this._channels[name]?.channelState !== ChannelState.CLOSED) {
             return this._channels[name];
         }
 
