@@ -5,7 +5,7 @@ import internal from 'stream';
 import { Express } from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
 
-import { ClientActions, PresenceEventTypes } from './enums';
+import { ClientActions, PresenceEventTypes, ChannelState } from './enums';
 
 export type PondPath = string | RegExp;
 type NextFunction = () => void;
@@ -140,7 +140,7 @@ export declare class Channel {
      * @desc Monitors the connection state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
-    public onConnectionChange(callback: (connected: boolean) => void): Unsubscribe;
+    public onConnectionChange(callback: (connected: ChannelState) => void): Unsubscribe;
 
     /**
      * @desc Detects when clients join the channel.
@@ -185,12 +185,7 @@ export declare class Channel {
     /**
      * @desc Gets the current connection state of the channel.
      */
-    public isConnected(): boolean;
-
-    /**
-     * @desc check is the channel has been closed.
-     */
-    public hasClosed(): boolean;
+    public channelState: ChannelState;
 
     /**
      * @desc Gets the current presence of the channel.

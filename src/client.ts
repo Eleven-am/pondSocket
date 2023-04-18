@@ -89,7 +89,7 @@ export default class PondClient {
      * @param params - The params to send to the server.
      */
     public createChannel (name: string, params?: JoinParams) {
-        if (this._channels[name]?.channelState !== ChannelState.CLOSED) {
+        if (this._channels[name] && this._channels[name].channelState !== ChannelState.CLOSED) {
             return this._channels[name];
         }
 
