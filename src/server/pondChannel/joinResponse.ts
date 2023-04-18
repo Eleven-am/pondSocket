@@ -1,4 +1,5 @@
 import { SocketCache } from './pondChannel';
+import { ErrorTypes, SystemSender } from '../../enums';
 import { PondMessage, PondResponse } from '../abstracts/abstractResponse';
 import { ChannelEngine, PondAssigns, ChannelEvent, ServerActions } from '../channel/channelEngine';
 import { PondPresence } from '../presence/presenceEngine';
@@ -27,8 +28,10 @@ export class JoinResponse extends PondResponse {
      */
     public accept (assigns?: PondAssigns): JoinResponse {
         this._hasExecuted = true;
-        assigns = { ...assigns,
-            ...this._user.assigns };
+        assigns = {
+            ...assigns,
+            ...this._user.assigns,
+        };
         this._engine.addUser(this._user.clientId, assigns!, (event) => {
             this._user.socket.send(JSON.stringify(event));
         });
@@ -46,7 +49,7 @@ export class JoinResponse extends PondResponse {
         const text = `Request to join channel ${this._engine.name} rejected: ${message || 'Unauthorized request'}`;
 
         const errorMessage: ChannelEvent = {
-            event: 'POND_ERROR',
+            event: ErrorTypes.UNAUTHORIZED_JOIN_REQUEST,
             payload: {
                 message: text,
                 code: errorCode || 403,
@@ -68,7 +71,7 @@ export class JoinResponse extends PondResponse {
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
         this.accept(assigns);
-        this._engine.sendMessage('channel', [this._user.clientId], ServerActions.SYSTEM, event, payload);
+        this._engine.sendMessage(SystemSender.CHANNEL, [this._user.clientId], ServerActions.SYSTEM, event, payload);
 
         return this;
     }

@@ -57,7 +57,7 @@ export class SimpleSubject<T> {
         return () => this._observers.delete(observer);
     }
 
-    publish (message: T) {
+    next (message: T) {
         this._observers.forEach((observer) => observer(message));
     }
 }
@@ -76,9 +76,9 @@ export class SimpleBehaviorSubject<T> extends SimpleSubject<T> {
         return this._lastMessage;
     }
 
-    publish (message: T) {
+    next (message: T) {
         this._lastMessage = message;
-        super.publish(message);
+        super.next(message);
     }
 
     subscribe (observer: Subscriber<T>): Unsubscribe {

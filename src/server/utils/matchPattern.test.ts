@@ -84,4 +84,18 @@ describe('BaseClass', () => {
 
         expect(baseClass.parseEvent(pattern, unMatchingString)).toEqual(null);
     });
+
+    it('should match any string if the path is *', () => {
+        const pattern = '*';
+        const string = 'pondSockethello?test=5&test2=6';
+
+        expect(baseClass.parseEvent(pattern, string)).toEqual({
+            address: string,
+            params: {},
+            query: {
+                test: '5',
+                test2: '6',
+            },
+        });
+    });
 });

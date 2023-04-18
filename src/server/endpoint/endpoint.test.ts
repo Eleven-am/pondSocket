@@ -1,14 +1,22 @@
 import request from 'superwstest';
 
-import { ClientActions, ClientMessage } from './endpoint';
-import { ServerActions, PresenceEventTypes } from '../../enums';
+import { ServerActions, PresenceEventTypes, ClientActions, SystemSender, ErrorTypes } from '../../enums';
+// eslint-disable-next-line import/no-unresolved
+import { ClientMessage as Message } from '../../types';
 import { PondChannel } from '../pondChannel/pondChannel';
 import { PondSocket } from '../server/pondSocket';
+
+type ClientMessage = Message & {
+    [key: string]: any;
+}
 
 const createPondSocket = () => {
     const mock = jest.fn();
     const socket = new PondSocket();
-    const server = socket.listen(3001, mock);
+
+    // GET RANDOM PORT FROM 6000 - 50000
+    const port = Math.floor(Math.random() * (50000 - 6000 + 1) + 6000);
+    const server = socket.listen(port, mock);
 
     const createPondChannel = () => new PondChannel();
 
@@ -102,7 +110,7 @@ describe('endpoint', () => {
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .expectJson({
                 event: 'Hello',
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
                 action: ServerActions.SYSTEM,
                 payload: {
                     room: 'socket',
@@ -110,7 +118,7 @@ describe('endpoint', () => {
             })
             .expectJson({
                 event: 'TEST',
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
                 action: ServerActions.BROADCAST,
                 payload: {
                     message: 'Hello everyone',
@@ -124,7 +132,7 @@ describe('endpoint', () => {
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .expectJson({
                 event: 'Hello',
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
                 action: ServerActions.SYSTEM,
                 payload: {
                     room: 'secondSocket',
@@ -132,7 +140,7 @@ describe('endpoint', () => {
             })
             .expectJson({
                 event: 'TEST',
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
                 action: ServerActions.BROADCAST,
                 payload: {
                     message: 'Hello everyone',
@@ -249,8 +257,8 @@ describe('endpoint', () => {
                 channelName: '/socket/socket', // This channel handler does not exist
             })
             .expectJson({
-                event: 'error',
-                channelName: 'ENDPOINT',
+                event: ErrorTypes.INTERNAL_SERVER_ERROR,
+                channelName: SystemSender.ENDPOINT,
                 action: ServerActions.ERROR,
                 payload: {
                     message: 'GatewayEngine: Channel /socket/socket does not exist',
@@ -276,7 +284,8 @@ describe('endpoint', () => {
 
         channel.onEvent(':room', (req, res) => {
             if (req.event.params.room === 'TEST') {
-                res.accept().broadcast(req.event.event, req.event.payload);
+                res.accept()
+                    .broadcast(req.event.event, req.event.payload);
             } else if (req.event.params.room === 'TEST2') {
                 res.reject();
             } else {
@@ -300,21 +309,7 @@ describe('endpoint', () => {
         await request(server)
             .ws('/api/socket')
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
-            .sendJson(message)
-            .sendJson({
-                ...message,
-                event: 'TEST2',
-                action: ClientActions.BROADCAST,
-            })
-            .expectJson({
-                event: 'error_channel',
-                channelName: '/test/socket',
-                action: ServerActions.ERROR,
-                payload: {
-                    message: 'Unauthorized request',
-                    code: 403,
-                },
-            })
+            .sendJson(message) // Join the channel
             .sendJson({
                 ...message,
                 channelName: '/test/socket',
@@ -326,19 +321,41 @@ describe('endpoint', () => {
                 channelName: '/test/socket',
                 action: ServerActions.BROADCAST,
             })
+            .expectJson({
+                payload: {},
+                event: 'TEST',
+                channelName: '/test/socket',
+                action: ServerActions.BROADCAST,
+            })
             .sendJson({
                 ...message,
-                event: 'TEST3',
+                event: 'TEST2',
+                channelName: '/test/socket',
                 action: ClientActions.BROADCAST,
             })
             .expectJson({
-                event: 'error_channel',
-                channelName: '/test/socket',
                 action: ServerActions.ERROR,
+                event: ErrorTypes.UNAUTHORIZED_BROADCAST,
+                payload: {
+                    message: 'Unauthorized request',
+                    code: 403,
+                },
+                channelName: '/test/socket',
+            })
+            .sendJson({
+                ...message,
+                event: 'TEST3',
+                channelName: '/test/socket',
+                action: ClientActions.BROADCAST,
+            })
+            .expectJson({
+                action: ServerActions.ERROR,
+                event: ErrorTypes.UNAUTHORIZED_BROADCAST,
                 payload: {
                     message: 'choke on my balls',
                     code: 403,
                 },
+                channelName: '/test/socket',
             })
             .close()
             .expectClosed();
@@ -428,7 +445,7 @@ describe('endpoint', () => {
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .sendJson(message)
             .expectJson({
-                event: 'error',
+                event: ErrorTypes.INTERNAL_SERVER_ERROR,
                 channelName: 'ENDPOINT',
                 action: ServerActions.ERROR,
                 payload: {
@@ -482,7 +499,7 @@ describe('endpoint', () => {
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .expectJson({
                 event: 'TEST',
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
                 action: ServerActions.SYSTEM,
                 payload: {
                     test: 'test',
@@ -495,12 +512,14 @@ describe('endpoint', () => {
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .expectJson({
                 event: 'TEST',
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
                 action: ServerActions.SYSTEM,
                 payload: {
                     test: 'test',
                 },
             })
             .expectClosed();
+
+        server.close();
     });
 });

@@ -1,4 +1,3 @@
-
 export enum PresenceEventTypes {
     JOIN = 'JOIN',
     LEAVE = 'LEAVE',
@@ -23,4 +22,27 @@ export enum PondState {
     OPEN = 'OPEN',
     CLOSING = 'CLOSING',
     CLOSED = 'CLOSED',
+}
+
+export enum ChannelState {
+    IDLE = 'IDLE',
+    JOINING = 'JOINING',
+    JOINED = 'JOINED',
+    STALLED = 'STALLED',
+    CLOSED = 'CLOSED',
+}
+
+export enum ErrorTypes {
+    UNAUTHORIZED_JOIN_REQUEST = 'UNAUTHORIZED_JOIN_REQUEST',
+    UNAUTHORIZED_BROADCAST = 'UNAUTHORIZED_BROADCAST',
+    INVALID_MESSAGE = 'INVALID_MESSAGE',
+    HANDLER_NOT_FOUND = 'HANDLER_NOT_FOUND',
+    PRESENCE_LEAVE_FAILED = 'PRESENCE_LEAVE_FAILED',
+    INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
+}
+
+export enum SystemSender {
+    SERVER = 'SERVER',
+    ENDPOINT = 'ENDPOINT',
+    CHANNEL = 'CHANNEL',
 }

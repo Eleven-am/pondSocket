@@ -1,5 +1,6 @@
 import { JoinResponse } from './joinResponse';
 import { SocketCache } from './pondChannel';
+import { ErrorTypes } from '../../enums';
 import { ServerActions } from '../channel/channelEngine';
 import { createChannelEngine } from '../channel/channelResponse.test';
 
@@ -66,7 +67,7 @@ describe('pondChannelResponse', () => {
 
         // also check if the socket was sent a message
         expect(socket.socket.send).toHaveBeenCalledWith(JSON.stringify({
-            event: 'POND_ERROR',
+            event: ErrorTypes.UNAUTHORIZED_JOIN_REQUEST,
             payload: {
                 message: 'Request to join channel test rejected: Unauthorized request',
                 code: 403,

@@ -1,4 +1,5 @@
 import { ChannelEngine, InternalChannelEvent, PondAssigns, ServerActions } from './channelEngine';
+import { ErrorTypes, SystemSender } from '../../enums';
 import { PondMessage, PondResponse } from '../abstracts/abstractResponse';
 import { PondPresence } from '../presence/presenceEngine';
 
@@ -28,7 +29,7 @@ export class EventResponse extends PondResponse {
      */
     public accept (assigns?: PondAssigns): EventResponse {
         this._manageAssigns(assigns);
-        this._engine.sendMessage('channel', [this._event.sender], this._event.action, this._event.event, this._event.payload);
+        this._engine.sendMessage(this._event.sender, this._event.recipients, this._event.action, this._event.event, this._event.payload);
         this._hasExecuted = true;
 
         return this;
@@ -44,8 +45,11 @@ export class EventResponse extends PondResponse {
         this._manageAssigns(assigns);
         const text = message || 'Unauthorized request';
 
-        this._engine.sendMessage('channel', [this._event.sender], ServerActions.ERROR, 'error_channel', { message: text,
-            code: errorCode || 403 });
+        this._engine.sendMessage(SystemSender.CHANNEL, [this._event.sender], ServerActions.ERROR, ErrorTypes.UNAUTHORIZED_BROADCAST, {
+            message: text,
+            code: errorCode || 403,
+        });
+
         this._hasExecuted = true;
 
         return this;
@@ -58,7 +62,7 @@ export class EventResponse extends PondResponse {
      * @param assigns - the data to assign to the client
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
-        this._engine.sendMessage('channel', [this._event.sender], ServerActions.SYSTEM, event, payload);
+        this._engine.sendMessage(SystemSender.CHANNEL, [this._event.sender], ServerActions.SYSTEM, event, payload);
 
         return this.accept(assigns);
     }
@@ -128,8 +132,10 @@ export class EventResponse extends PondResponse {
         try {
             this._engine.unTrackPresence(userId);
         } catch (e: any) {
-            this._engine.sendMessage('channel', [userId], ServerActions.ERROR, 'error_channel', { message: e.message,
-                code: 500 });
+            this._engine.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.ERROR, ErrorTypes.PRESENCE_LEAVE_FAILED, {
+                message: e.message,
+                code: 500,
+            });
         }
 
         return this;

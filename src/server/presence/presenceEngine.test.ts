@@ -1,4 +1,5 @@
-import { PondPresence, PresenceEngine, PresenceEvent, PresenceEventTypes } from './presenceEngine';
+import { PondPresence, PresenceEngine, PresenceEvent } from './presenceEngine';
+import { PresenceEventTypes } from '../../enums';
 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 

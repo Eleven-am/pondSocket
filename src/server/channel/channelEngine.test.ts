@@ -1,5 +1,5 @@
 import { ChannelEngine, ServerActions } from './channelEngine';
-import { PresenceEventTypes } from '../presence/presenceEngine';
+import { PresenceEventTypes, SystemSender } from '../../enums';
 
 export const createParentEngine = () => {
     const parentEngine = {
@@ -340,7 +340,7 @@ describe('ChannelEngine', () => {
 
         channelEngine.addUser('test', { test: 1 }, onMessage);
         channelEngine.addUser('test2', { test: 1 }, onMessage);
-        channelEngine.sendMessage('channel', 'all_users', ServerActions.BROADCAST, 'test', { test: 2 });
+        channelEngine.sendMessage(SystemSender.CHANNEL, 'all_users', ServerActions.BROADCAST, 'test', { test: 2 });
 
         expect(onMessage.mock.calls[0][0]).toStrictEqual({
             action: ServerActions.BROADCAST,
@@ -396,7 +396,7 @@ describe('ChannelEngine', () => {
 
         // when sender is channel itself it throws an error
         expect(() => {
-            channelEngine.sendMessage('channel', 'all_except_sender', ServerActions.BROADCAST, 'test', { test: 3 });
+            channelEngine.sendMessage(SystemSender.CHANNEL, 'all_except_sender', ServerActions.BROADCAST, 'test', { test: 3 });
         }).toThrow('ChannelEngine: Cannot send to all users except sender when sender is channel');
     });
 

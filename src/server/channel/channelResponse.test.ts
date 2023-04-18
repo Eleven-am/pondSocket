@@ -1,6 +1,7 @@
 import { ChannelEngine, InternalChannelEvent, ServerActions } from './channelEngine';
 import { createParentEngine } from './channelEngine.test';
 import { EventResponse } from './eventResponse';
+import { ErrorTypes, SystemSender } from '../../enums';
 
 export const createChannelEngine = () => {
     const parentEngine = createParentEngine();
@@ -27,12 +28,15 @@ const createChannelResponse = () => {
     const event = createChannelEvent();
 
     channelEngine.addUser(event.sender, { assign: 'assign' }, () => {});
+    channelEngine.addUser(event.recipients[0], { assign: 'assign' }, () => {});
     const response = new EventResponse(event, channelEngine);
 
 
-    return { channelEngine,
+    return {
+        channelEngine,
         event,
-        response };
+        response,
+    };
 };
 
 describe('ChannelResponse', () => {
@@ -41,6 +45,7 @@ describe('ChannelResponse', () => {
 
         expect(response).toBeDefined();
     });
+
     it('should return the responseSent', () => {
         const { response } = createChannelResponse();
 
@@ -60,7 +65,7 @@ describe('ChannelResponse', () => {
         jest.spyOn(channelEngine, 'sendMessage');
         response.reject();
         expect(response.responseSent).toEqual(true);
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', [event.sender], ServerActions.ERROR, 'error_channel', { message: 'Unauthorized request',
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith(SystemSender.CHANNEL, [event.sender], ServerActions.ERROR, ErrorTypes.UNAUTHORIZED_BROADCAST, { message: 'Unauthorized request',
             code: 403 });
     });
 
@@ -70,7 +75,7 @@ describe('ChannelResponse', () => {
         jest.spyOn(channelEngine, 'sendMessage');
         response.send('event', { payload: 'payload' });
         expect(response.responseSent).toEqual(true);
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', [event.sender], ServerActions.SYSTEM, 'event', { payload: 'payload' });
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith(SystemSender.CHANNEL, [event.sender], ServerActions.SYSTEM, 'event', { payload: 'payload' });
     });
 
     it('should broadcast a message', () => {
@@ -93,9 +98,21 @@ describe('ChannelResponse', () => {
         const { response, channelEngine } = createChannelResponse();
 
         jest.spyOn(channelEngine, 'sendMessage');
-        channelEngine.addUser('recipient', { assign: 'assign' }, () => {});
         response.sendToUsers('event', { payload: 'payload' }, ['recipient']);
         expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', ['recipient'], ServerActions.BROADCAST, 'event', { payload: 'payload' });
+    });
+
+    it('should fail to send to non existing users', () => {
+        const { event, response, channelEngine } = createChannelResponse();
+
+        jest.spyOn(channelEngine, 'sendMessage');
+        event.recipients = ['non_existing_user'];
+
+        expect(() => response.accept()).toThrowError(new Error('ChannelEngine: Users non_existing_user are not in channel test'));
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith(event.sender, ['non_existing_user'], ServerActions.BROADCAST, event.event, event.payload);
+
+        expect(() => response.sendToUsers('event', { payload: 'payload' }, ['non_existing_user']))
+            .toThrowError(new Error('ChannelEngine: Users non_existing_user are not in channel test'));
     });
 
     it('should track a trackPresence', () => {
@@ -123,7 +140,7 @@ describe('ChannelResponse', () => {
         response.trackPresence({ status: 'online' });
         response.unTrackPresence();
         response.unTrackPresence();
-        expect(channelEngine.sendMessage).toHaveBeenCalledWith('channel', ['sender'], ServerActions.ERROR, 'error_channel', {
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith(SystemSender.CHANNEL, ['sender'], ServerActions.ERROR, ErrorTypes.PRESENCE_LEAVE_FAILED, {
             message: 'PresenceEngine: Presence with key sender does not exist',
             code: 500,
         });
@@ -162,5 +179,31 @@ describe('ChannelResponse', () => {
         response.closeChannel('recipient');
         expect(channelEngine.destroy).toHaveBeenCalledWith('recipient');
         expect(response.responseSent).toEqual(true);
+    });
+
+    it('should set hasResponseSent to true when calling send, accept, reject, end', () => {
+        const { response } = createChannelResponse();
+
+        expect(response.responseSent).toEqual(false);
+        response.send('event', { payload: 'payload' });
+        expect(response.responseSent).toEqual(true);
+
+        const { response: response2 } = createChannelResponse();
+
+        expect(response2.responseSent).toEqual(false);
+        response2.accept();
+        expect(response2.responseSent).toEqual(true);
+
+        const { response: response3 } = createChannelResponse();
+
+        expect(response3.responseSent).toEqual(false);
+        response3.reject();
+        expect(response3.responseSent).toEqual(true);
+
+        const { response: response4 } = createChannelResponse();
+
+        expect(response4.responseSent).toEqual(false);
+        response4.end();
+        expect(response4.responseSent).toEqual(true);
     });
 });

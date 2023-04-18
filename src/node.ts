@@ -14,17 +14,17 @@ export default class PondClient extends PondSocketClient {
         const socket = new WebSocket(this._address.toString());
 
         socket.onopen = () => {
-            this._connectionState.publish(PondState.OPEN);
+            this._connectionState.next(PondState.OPEN);
         };
 
         socket.onmessage = (message) => {
             const data = JSON.parse(message.data as string) as ChannelEvent;
 
-            this._broadcaster.publish(data);
+            this._broadcaster.next(data);
         };
 
         socket.onerror = () => {
-            this._connectionState.publish(PondState.CLOSED);
+            this._connectionState.next(PondState.CLOSED);
             setTimeout(() => {
                 this.connect(backoff * 2);
             }, backoff * 1000);

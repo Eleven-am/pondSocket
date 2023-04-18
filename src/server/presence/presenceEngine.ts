@@ -1,12 +1,8 @@
+import { PresenceEventTypes } from '../../enums';
 import { BehaviorSubject } from '../utils/subjectUtils';
 
 export type PondPresence = Record<string, any>;
 
-export enum PresenceEventTypes {
-    JOIN = 'JOIN',
-    LEAVE = 'LEAVE',
-    UPDATE = 'UPDATE'
-}
 
 export interface PresencePayload {
     changed: PondPresence;

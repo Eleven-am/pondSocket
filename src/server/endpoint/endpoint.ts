@@ -4,8 +4,11 @@ import internal from 'stream';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import { ConnectionResponse, PondConnectionResponseHandler } from './connectionResponse';
+import { ErrorTypes, SystemSender, ClientActions } from '../../enums';
+// eslint-disable-next-line import/no-unresolved
+import { ClientMessage } from '../../types';
 import { PondMessage } from '../abstracts/abstractResponse';
-import { ChannelEngine, ChannelEvent, ServerActions, ChannelReceivers } from '../channel/channelEngine';
+import { ChannelEngine, ChannelEvent, ServerActions } from '../channel/channelEngine';
 import { PondChannel, PondChannelManager, RequestCache, SocketCache } from '../pondChannel/pondChannel';
 import { MatchPattern, PondPath, Resolver } from '../utils/matchPattern';
 
@@ -21,20 +24,6 @@ export interface IncomingConnection {
     query: Record<string, string>;
     headers: IncomingHttpHeaders;
     address: string;
-}
-
-export enum ClientActions {
-    JOIN_CHANNEL = 'JOIN_CHANNEL',
-    LEAVE_CHANNEL = 'LEAVE_CHANNEL',
-    BROADCAST = 'BROADCAST',
-}
-
-export type ClientMessage = {
-    action: ClientActions;
-    channelName: string;
-    event: string;
-    payload: Record<string, any>;
-    addresses?: ChannelReceivers;
 }
 
 export type EndpointHandler = (req: IncomingConnection, res: ConnectionResponse) => void;
@@ -95,7 +84,7 @@ export class Endpoint {
                 event,
                 payload,
                 action: ServerActions.BROADCAST,
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
             };
 
             this._sendMessage(socket, message);
@@ -154,7 +143,7 @@ export class Endpoint {
                 if (data.message) {
                     const newMessage: ChannelEvent = {
                         event: data.message.event,
-                        channelName: 'SERVER',
+                        channelName: SystemSender.ENDPOINT,
                         payload: data.message.payload,
                         action: ServerActions.SYSTEM,
                     };
@@ -280,9 +269,9 @@ export class Endpoint {
      */
     private _readMessage (cache: SocketCache, message: string) {
         const errorMessage: ChannelEvent = {
-            event: 'error',
+            event: ErrorTypes.INVALID_MESSAGE,
             action: ServerActions.ERROR,
-            channelName: 'ENDPOINT',
+            channelName: SystemSender.ENDPOINT,
             payload: {},
         };
 
@@ -315,6 +304,7 @@ export class Endpoint {
                 };
                 this._sendMessage(cache.socket, errorMessage);
             } else if (e instanceof Error) {
+                errorMessage.event = ErrorTypes.INTERNAL_SERVER_ERROR;
                 errorMessage.payload = {
                     message: e.message,
                 };

@@ -1,20 +1,16 @@
 import { EventRequest } from './eventRequest';
 import { EventResponse } from './eventResponse';
+import { ErrorTypes, PresenceEventTypes, SystemSender } from '../../enums';
+// eslint-disable-next-line import/no-unresolved
+import { ClientMessage } from '../../types';
 import { PondMessage } from '../abstracts/abstractResponse';
 import { MiddlewareFunction } from '../abstracts/middleware';
-import { ClientMessage } from '../endpoint/endpoint';
-import {
-    PondPresence,
-    PresenceEngine,
-    UserPresences,
-    PresenceEventTypes,
-    PresencePayload,
-} from '../presence/presenceEngine';
+import { PondPresence, PresenceEngine, UserPresences, PresencePayload } from '../presence/presenceEngine';
 import { Subject } from '../utils/subjectUtils';
 
 export type PondAssigns = Record<string, any>;
 export type ChannelReceivers = 'all_users' | 'all_except_sender' | string[];
-type ChannelSenders = 'channel' | string;
+type ChannelSenders = SystemSender.CHANNEL | string;
 
 export type InternalChannelEvent = {
     sender: ChannelSenders;
@@ -125,12 +121,12 @@ export class ChannelEngine {
      * @param reason - The reason for kicking the user
      */
     public kickUser (userId: string, reason: string) {
-        this.sendMessage('channel', [userId], ServerActions.SYSTEM, 'kicked_out', {
+        this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, 'kicked_out', {
             message: 'You have been kicked out of the channel',
             reason,
         });
         this.removeUser(userId);
-        this.sendMessage('channel', 'all_users', ServerActions.SYSTEM, 'kicked', {
+        this.sendMessage(SystemSender.CHANNEL, 'all_users', ServerActions.SYSTEM, 'kicked', {
             userId,
             reason,
         });
@@ -141,7 +137,7 @@ export class ChannelEngine {
      * @param reason - The reason for self-destructing the channel
      */
     public destroy (reason: string) {
-        this.sendMessage('channel', 'all_users', ServerActions.ERROR, 'destroyed', {
+        this.sendMessage(SystemSender.CHANNEL, 'all_users', ServerActions.ERROR, 'destroyed', {
             message: 'Channel has been destroyed',
             reason,
         });
@@ -167,7 +163,7 @@ export class ChannelEngine {
         this._presenceEngine.trackPresence(userId, presence, (change) => {
             const { type, ...rest } = change;
 
-            this.sendMessage('channel', [userId], ServerActions.PRESENCE, type, rest);
+            this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.PRESENCE, type, rest);
         });
     }
 
@@ -271,7 +267,7 @@ export class ChannelEngine {
      * @private
      */
     public sendMessage (sender: ChannelSenders, recipient: ChannelReceivers, action: ServerActions, event: string, payload: PondMessage) {
-        if (!this._users.has(sender) && sender !== 'channel') {
+        if (!this._users.has(sender) && sender !== SystemSender.CHANNEL) {
             throw new Error(`ChannelEngine: User with id ${sender} does not exist in channel ${this.name}`);
         }
 
@@ -306,7 +302,7 @@ export class ChannelEngine {
         const response = new EventResponse(responseEvent, this);
 
         this._parentEngine.execute(request, response, () => {
-            this.sendMessage('channel', [userId], ServerActions.ERROR, 'error_no_handler', {
+            this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.ERROR, ErrorTypes.HANDLER_NOT_FOUND, {
                 message: 'A handler did not respond to the event',
                 code: 404,
             });
@@ -341,7 +337,7 @@ export class ChannelEngine {
                 users = allUsers;
                 break;
             case 'all_except_sender':
-                if (sender === 'channel') {
+                if (sender === SystemSender.CHANNEL) {
                     throw new Error('ChannelEngine: Cannot send to all users except sender when sender is channel');
                 }
 

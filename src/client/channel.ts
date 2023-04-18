@@ -1,4 +1,4 @@
-import { PresenceEventTypes, ServerActions, ClientActions, PondState } from '../enums';
+import { PresenceEventTypes, ServerActions, ClientActions, PondState, ChannelState } from '../enums';
 import { SimpleSubject, SimpleBehaviorSubject, Unsubscribe } from '../server/utils/subjectUtils';
 import {
     PondPresence,
@@ -14,8 +14,6 @@ import {
 type Publisher = (data: ClientMessage) => void;
 
 export class Channel {
-    private _finished: boolean;
-
     private readonly _name: string;
 
     private readonly _joinParams: JoinParams;
@@ -24,7 +22,7 @@ export class Channel {
 
     private readonly _clientState: SimpleBehaviorSubject<PondState>;
 
-    private readonly _joinState: SimpleBehaviorSubject<boolean>;
+    private readonly _joinState: SimpleBehaviorSubject<ChannelState>;
 
     private readonly _publisher: Publisher;
 
@@ -34,16 +32,16 @@ export class Channel {
 
     private readonly _presenceSub: Unsubscribe;
 
-    constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<PondState>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams = {}) {
+    constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<PondState>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams = {
+    }) {
         this._name = name;
         this._queue = [];
         this._presence = [];
-        this._finished = false;
         this._joinParams = params;
         this._publisher = publisher;
         this._clientState = clientState;
         this._receiver = new SimpleSubject<ChannelEvent>();
-        this._joinState = new SimpleBehaviorSubject<boolean>(false);
+        this._joinState = new SimpleBehaviorSubject<ChannelState>(ChannelState.IDLE);
         this._presenceSub = this._init(receiver);
     }
 
@@ -51,7 +49,7 @@ export class Channel {
      * @desc Connects to the channel.
      */
     public join () {
-        if (this._finished) {
+        if (this._joinState.value === ChannelState.CLOSED) {
             throw new Error('This channel has been closed');
         }
 
@@ -62,6 +60,7 @@ export class Channel {
             payload: this._joinParams,
         };
 
+        this._joinState.next(ChannelState.JOINING);
         if (this._clientState.value === PondState.OPEN) {
             this._publisher(joinMessage);
         } else {
@@ -77,11 +76,12 @@ export class Channel {
             action: ClientActions.LEAVE_CHANNEL,
             channelName: this._name,
             event: ClientActions.LEAVE_CHANNEL,
-            payload: {},
+            payload: {
+            },
         };
 
         this._publish(leaveMessage);
-        this._finished = true;
+        this._joinState.next(ChannelState.CLOSED);
         this._presenceSub();
     }
 
@@ -114,7 +114,7 @@ export class Channel {
      * @desc Monitors the connection state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
-    public onConnectionChange (callback: (connected: boolean) => void) {
+    public onConnectionChange (callback: (connected: ChannelState) => void) {
         return this._joinState.subscribe((data) => {
             callback(data);
         });
@@ -187,15 +187,8 @@ export class Channel {
     /**
      * @desc Gets the current connection state of the channel.
      */
-    public isConnected (): boolean {
+    public get channelState (): ChannelState {
         return this._joinState.value;
-    }
-
-    /**
-     * @desc check is the channel has been closed.
-     */
-    public hasClosed (): boolean {
-        return this._finished;
     }
 
     /**
@@ -210,7 +203,7 @@ export class Channel {
      * @param callback - The callback to call when the presence changes.
      */
     public onUsersChange (callback: (users: PondPresence[]) => void) {
-        return this._subscribeToPresence((event, payload) => callback(payload.presence));
+        return this._subscribeToPresence((_event, payload) => callback(payload.presence));
     }
 
     private _send (event: string, payload: PondMessage, receivers: ChannelReceivers = 'all_users') {
@@ -226,8 +219,10 @@ export class Channel {
     }
 
     private _publish (data: ClientMessage) {
-        if (this._joinState.value && this._clientState.value !== PondState.OPEN) {
-            this._publisher(data);
+        if (this._clientState.value === PondState.OPEN) {
+            if (this._joinState.value === ChannelState.JOINED || this._joinState.value === ChannelState.JOINING) {
+                this._publisher(data);
+            }
 
             return;
         }
@@ -246,11 +241,10 @@ export class Channel {
     private _init (receiver: SimpleSubject<ChannelEvent>): Unsubscribe {
         const unsubMessages = receiver.subscribe((data) => {
             if (data.channelName === this._name) {
-                if (!this._joinState.value) {
-                    this._joinState.publish(true);
+                if (this._joinState.value !== ChannelState.JOINED) {
+                    this._joinState.next(ChannelState.JOINED);
                 }
-
-                this._receiver.publish(data);
+                this._receiver.next(data);
             }
         });
 
@@ -271,11 +265,11 @@ export class Channel {
                         this._publisher(message);
                     });
 
-                this._joinState.publish(true);
+                this._joinState.next(ChannelState.JOINED);
 
                 this._queue = [];
             } else if (state !== PondState.OPEN) {
-                this._joinState.publish(false);
+                this._joinState.next(ChannelState.STALLED);
             }
         });
 

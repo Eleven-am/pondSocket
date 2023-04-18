@@ -4,6 +4,7 @@ import request from 'superwstest';
 import { Server } from 'ws';
 
 import { PondSocket } from './pondSocket';
+import { SystemSender } from '../../enums';
 import { ServerActions } from '../channel/channelEngine';
 import { Endpoint } from '../endpoint/endpoint';
 
@@ -122,7 +123,7 @@ describe('server', () => {
             .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .expectJson({
                 event: 'testEvent',
-                channelName: 'SERVER',
+                channelName: SystemSender.ENDPOINT,
                 payload: { test: 'test' },
                 action: ServerActions.SYSTEM,
             })
