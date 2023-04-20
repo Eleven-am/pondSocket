@@ -206,6 +206,13 @@ export class Channel {
         return this._subscribeToPresence((_event, payload) => callback(payload.presence));
     }
 
+    /**
+     * @desc Gets the current connection state of the channel.
+     */
+    public isConnected () {
+        return this._joinState.value === ChannelState.JOINED || this._joinState.value === ChannelState.JOINING;
+    }
+
     private _send (event: string, payload: PondMessage, receivers: ChannelReceivers = 'all_users') {
         const message: ClientMessage = {
             action: ClientActions.BROADCAST,

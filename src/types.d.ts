@@ -197,6 +197,11 @@ export declare class Channel {
      * @param callback - The callback to call when the presence changes.
      */
     public onUsersChange(callback: (users: PondPresence[]) => void): Unsubscribe;
+
+    /**
+     * @desc Gets the current connection state of the channel.
+     */
+    public isConnected (): boolean;
 }
 
 declare class PondSocketClient {
