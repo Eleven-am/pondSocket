@@ -78,7 +78,10 @@ export class PresenceEngine {
         const oldPresence = this._presenceMap.get(presenceKey);
 
         if (oldPresence) {
-            this._presenceMap.set(presenceKey, presence);
+            this._presenceMap.set(presenceKey, {
+                ...oldPresence,
+                ...presence,
+            });
             this._presence.next({
                 type: PresenceEventTypes.UPDATE,
                 changed: {

@@ -140,7 +140,13 @@ export declare class Channel {
      * @desc Monitors the connection state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
-    public onConnectionChange(callback: (connected: ChannelState) => void): Unsubscribe;
+    public onConnectionChange(callback: (connected: boolean) => void): Unsubscribe;
+
+    /**
+     * @desc Monitors the channel state of the channel.
+     * @param callback - The callback to call when the connection state changes.
+     */
+    public onChannelStateChange (callback: (connected: ChannelState) => void): Unsubscribe;
 
     /**
      * @desc Detects when clients join the channel.

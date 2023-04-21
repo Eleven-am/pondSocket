@@ -111,10 +111,10 @@ export class Channel {
     }
 
     /**
-     * @desc Monitors the connection state of the channel.
+     * @desc Monitors the channel state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
-    public onConnectionChange (callback: (connected: ChannelState) => void) {
+    public onChannelStateChange (callback: (connected: ChannelState) => void) {
         return this._joinState.subscribe((data) => {
             callback(data);
         });
@@ -211,6 +211,16 @@ export class Channel {
      */
     public isConnected () {
         return this._joinState.value === ChannelState.JOINED || this._joinState.value === ChannelState.JOINING;
+    }
+
+    /**
+     * @desc Monitors the connection state of the channel.
+     * @param callback - The callback to call when the connection state changes.
+     */
+    public onConnectionChange (callback: (connected: boolean) => void) {
+        return this.onChannelStateChange((state) => {
+            callback(state === ChannelState.JOINED || state === ChannelState.JOINING);
+        });
     }
 
     private _send (event: string, payload: PondMessage, receivers: ChannelReceivers = 'all_users') {

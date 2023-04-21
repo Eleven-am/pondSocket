@@ -118,7 +118,7 @@ describe('Channel', () => {
 
         const stateListener = jest.fn();
 
-        channel.onConnectionChange(stateListener);
+        channel.onChannelStateChange(stateListener);
 
         expect(stateListener).toHaveBeenCalledWith(ChannelState.IDLE);
 
@@ -138,6 +138,33 @@ describe('Channel', () => {
         channel.leave();
 
         expect(stateListener).toHaveBeenCalledWith(ChannelState.CLOSED);
+    });
+
+    it('should notify subscribers when state changes BOOLEAN', () => {
+        const { channel, receiver } = createChannel();
+
+        const stateListener = jest.fn();
+
+        channel.onConnectionChange(stateListener);
+
+        expect(stateListener).toHaveBeenCalledWith(false);
+
+        channel.join();
+
+        receiver.next({
+            action: 'SYSTEM',
+            channelName: 'test',
+            event: 'SYSTEM',
+            payload: {
+                event: 'JOIN',
+            },
+        });
+
+        expect(stateListener).toHaveBeenCalledWith(true);
+
+        channel.leave();
+
+        expect(stateListener).toHaveBeenCalledWith(false);
     });
 
     it('should correctly send a message', () => {
