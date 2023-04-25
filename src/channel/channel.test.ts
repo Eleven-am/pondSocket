@@ -1,5 +1,7 @@
-import { ChannelEngine, ServerActions } from './channelEngine';
-import { PresenceEventTypes, SystemSender } from '../../enums';
+import { ChannelEngine } from './channel';
+import { EventRequest } from './eventRequest';
+import { EventResponse } from './eventResponse';
+import { ServerActions, PresenceEventTypes, SystemSender, ChannelReceiver, ClientActions, ErrorTypes } from '../enums';
 
 export const createParentEngine = () => {
     const parentEngine = {
@@ -16,11 +18,10 @@ describe('ChannelEngine', () => {
         const parentEngine = createParentEngine();
         const channelEngine = new ChannelEngine('test', parentEngine);
 
-        expect(channelEngine['_users'].size).toEqual(0);
+        expect(channelEngine.size).toEqual(0);
         expect(channelEngine.getUserData('test')).not.toBeDefined();
         channelEngine.addUser('test', { test: 1 }, onMessage);
-        expect(channelEngine['_users'].size).toEqual(1);
-        expect(channelEngine['_users'].get('test')).toEqual({ test: 1 });
+        expect(channelEngine.size).toEqual(1);
         expect(channelEngine.getUserData('test')).toEqual({
             assigns: { test: 1 },
             presence: {},
@@ -96,9 +97,9 @@ describe('ChannelEngine', () => {
             id: 'test',
         });
 
-        expect(channelEngine['_presenceEngine']).not.toBeDefined();
+        expect(channelEngine.presenceEngine).not.toBeDefined();
         channelEngine.trackPresence('test', { test: 2 });
-        expect(channelEngine['_presenceEngine']).toBeDefined();
+        expect(channelEngine.presenceEngine).toBeDefined();
         expect(channelEngine.getUserData('test')).toEqual({
             assigns: { test: 1 },
             presence: { test: 2 },
@@ -124,7 +125,7 @@ describe('ChannelEngine', () => {
         channelEngine.trackPresence('test', { test: 2 });
         expect(() => {
             channelEngine.trackPresence('test', { test: 2 });
-        }).toThrow('ChannelEngine: User with id test already has a presence subscription in channel test');
+        }).toThrow('PresenceEngine: Presence with key test already exists');
     });
 
     it('should be able to list presence', () => {
@@ -132,7 +133,6 @@ describe('ChannelEngine', () => {
         const parentEngine = createParentEngine();
         const channelEngine = new ChannelEngine('test', parentEngine);
 
-        expect(channelEngine.getPresence()).toEqual({});
         channelEngine.addUser('test', { test: 1 }, onMessage);
         channelEngine.addUser('test2', { test: 2 }, onMessage);
         channelEngine.trackPresence('test', { test: 2 });
@@ -149,7 +149,7 @@ describe('ChannelEngine', () => {
         });
 
         channelEngine.trackPresence('test2', { test: 3 });
-        expect(channelEngine.getPresence()).toEqual({
+        expect(channelEngine.presenceEngine?.getPresence()).toEqual({
             test: { test: 2 },
             test2: { test: 3 },
         });
@@ -169,7 +169,7 @@ describe('ChannelEngine', () => {
             presence: { test: 2 },
             id: 'test',
         });
-        channelEngine.updatePresence('test', { test: 3 });
+        channelEngine.presenceEngine?.updatePresence('test', { test: 3 });
         expect(channelEngine.getUserData('test')).toEqual({
             assigns: { test: 1 },
             presence: { test: 3 },
@@ -182,19 +182,8 @@ describe('ChannelEngine', () => {
         const channelEngine = new ChannelEngine('testChannel', parentEngine);
 
         expect(() => {
-            channelEngine.updatePresence('test', { test: 2 });
+            channelEngine.trackPresence('test', { test: 2 });
         }).toThrow('ChannelEngine: User with id test does not exist in channel testChannel');
-    });
-
-    it('should throw error if user is not tracking presence', () => {
-        const onMessage = jest.fn();
-        const parentEngine = createParentEngine();
-        const channelEngine = new ChannelEngine('test', parentEngine);
-
-        channelEngine.addUser('test', { test: 1 }, onMessage);
-        expect(() => {
-            channelEngine.updatePresence('test', { test: 2 });
-        }).toThrow('ChannelEngine: Presence engine is not initialized');
     });
 
     it('should remove user from channel', () => {
@@ -203,10 +192,10 @@ describe('ChannelEngine', () => {
         const channelEngine = new ChannelEngine('test', parentEngine);
 
         channelEngine.addUser('test', { test: 1 }, onMessage);
-        expect(channelEngine['_users'].size).toEqual(1);
+        expect(channelEngine.size).toEqual(1);
         expect(channelEngine.getUserData('test')).toBeDefined();
         channelEngine.removeUser('test');
-        expect(channelEngine['_users'].size).toEqual(0);
+        expect(channelEngine.size).toEqual(0);
         expect(channelEngine.getUserData('test')).not.toBeDefined();
     });
 
@@ -228,13 +217,13 @@ describe('ChannelEngine', () => {
         channelEngine.trackPresence('test', { test: 2 });
         channelEngine.addUser('test2', { test: 1 }, onMessage);
         channelEngine.trackPresence('test2', { test: 2 });
-        expect(channelEngine.getPresence()).toEqual({
+        expect(channelEngine.presenceEngine?.getPresence()).toEqual({
             test: { test: 2 },
             test2: { test: 2 },
         });
         onMessage.mockClear();
         channelEngine.removeUser('test');
-        expect(channelEngine.getPresence()).toEqual({
+        expect(channelEngine.presenceEngine?.getPresence()).toEqual({
             test2: { test: 2 },
         });
         expect(onMessage).toHaveBeenCalledWith({
@@ -265,7 +254,7 @@ describe('ChannelEngine', () => {
 
         expect(() => {
             // now we try to untrack the presence of a user that is not in the channel
-            channelEngine.unTrackPresence('test1', false);
+            channelEngine.presenceEngine?.removePresence('test1');
         }).toThrow('PresenceEngine: Presence with key test1 does not exist');
     });
 
@@ -284,7 +273,7 @@ describe('ChannelEngine', () => {
 
         expect(() => {
             // now we try to untrack the presence of a user that is not in the channel
-            channelEngine.unTrackPresence('test', true);
+            channelEngine.presenceEngine?.removePresence('test');
         }).not.toThrow();
     });
 
@@ -296,7 +285,7 @@ describe('ChannelEngine', () => {
         channelEngine.addUser('test', { test: 1 }, onMessage);
         channelEngine.addUser('test2', { test: 1 }, onMessage);
         channelEngine.kickUser('test2', 'test reason');
-        expect(channelEngine['_users'].size).toEqual(1);
+        expect(channelEngine.size).toEqual(1);
         expect(channelEngine.getUserData('test2')).not.toBeDefined();
         expect(onMessage.mock.calls[0][0]).toStrictEqual({
             action: ServerActions.SYSTEM,
@@ -340,7 +329,7 @@ describe('ChannelEngine', () => {
 
         channelEngine.addUser('test', { test: 1 }, onMessage);
         channelEngine.addUser('test2', { test: 1 }, onMessage);
-        channelEngine.sendMessage(SystemSender.CHANNEL, 'all_users', ServerActions.BROADCAST, 'test', { test: 2 });
+        channelEngine.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, 'test', { test: 2 });
 
         expect(onMessage.mock.calls[0][0]).toStrictEqual({
             action: ServerActions.BROADCAST,
@@ -354,14 +343,14 @@ describe('ChannelEngine', () => {
         expect(onMessage).toHaveBeenCalledTimes(2);
         onMessage.mockClear();
 
-        channelEngine.sendMessage('test2', 'all_except_sender', ServerActions.BROADCAST, 'test', { test: 3 });
+        channelEngine.sendMessage('test2', ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, 'test', { test: 3 });
         expect(onMessage).toHaveBeenCalledTimes(1);
 
         onMessage.mockClear();
 
         // when user is not in channel it throws an error
         expect(() => {
-            channelEngine.sendMessage('test3', 'all_except_sender', ServerActions.BROADCAST, 'test', { test: 3 });
+            channelEngine.sendMessage('test3', ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, 'test', { test: 3 });
         }).toThrow('ChannelEngine: User with id test3 does not exist in channel test');
     });
 
@@ -376,7 +365,7 @@ describe('ChannelEngine', () => {
 
         channelEngine.addUser('test', { test: 1 }, onMessage);
         channelEngine.addUser('test2', { test: 1 }, onMessage);
-        channelEngine.sendMessage('test2', 'all_except_sender', ServerActions.BROADCAST, 'test', { test: 2 });
+        channelEngine.sendMessage('test2', ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, 'test', { test: 2 });
 
         expect(onMessage.mock.calls[0][0]).toStrictEqual({
             action: ServerActions.BROADCAST,
@@ -391,13 +380,13 @@ describe('ChannelEngine', () => {
         // when user is not in channel it throws an error
 
         expect(() => {
-            channelEngine.sendMessage('test3', 'all_except_sender', ServerActions.BROADCAST, 'test', { test: 3 });
+            channelEngine.sendMessage('test3', ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, 'test', { test: 3 });
         }).toThrow('ChannelEngine: User with id test3 does not exist in channel test');
 
         // when sender is channel itself it throws an error
         expect(() => {
-            channelEngine.sendMessage(SystemSender.CHANNEL, 'all_except_sender', ServerActions.BROADCAST, 'test', { test: 3 });
-        }).toThrow('ChannelEngine: Cannot send to all users except sender when sender is channel');
+            channelEngine.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, 'test', { test: 3 });
+        }).toThrow(`ChannelEngine: Cannot use ${ChannelReceiver.ALL_EXCEPT_SENDER} with ${SystemSender.CHANNEL}`);
     });
 
     it('should broadcast a message to  specific users', () => {
@@ -444,5 +433,70 @@ describe('ChannelEngine', () => {
         expect(() => {
             channelEngine.sendMessage('test4', ['test', 'test3'], ServerActions.BROADCAST, 'test', { test: 3 });
         }).toThrow('ChannelEngine: User with id test4 does not exist in channel test');
+    });
+
+    it('should broadcast messages while also triggering the onMessage callback', () => {
+        const onMessage = jest.fn();
+        const parentEngine = createParentEngine();
+        const channelEngine = new ChannelEngine('test', parentEngine);
+
+        parentEngine.execute = (req: any, res: any) => {
+            expect(req).toBeInstanceOf(EventRequest);
+            expect(res).toBeInstanceOf(EventResponse);
+            res.accept();
+        };
+
+        expect(() => channelEngine.broadcastMessage('test2', {
+            action: ClientActions.BROADCAST,
+            channelName: 'test',
+            event: 'test',
+            payload: { test: 1 },
+            addresses: ChannelReceiver.ALL_USERS,
+        })).toThrow('ChannelEngine: User with id test2 does not exist in channel test');
+
+        channelEngine.addUser('test2', { test: 1 }, onMessage);
+
+        channelEngine.broadcastMessage('test2', {
+            action: ClientActions.BROADCAST,
+            channelName: 'test',
+            event: 'test',
+            payload: { test: 1 },
+            addresses: ChannelReceiver.ALL_USERS,
+        });
+
+        expect(onMessage).toHaveBeenCalledTimes(1);
+
+        let count = 0;
+
+        onMessage.mockClear();
+        parentEngine.execute = (req: any, res: any, next: any) => {
+            expect(req).toBeInstanceOf(EventRequest);
+            expect(res).toBeInstanceOf(EventResponse);
+            count++;
+            next();
+        };
+
+        channelEngine.broadcastMessage('test2', {
+            action: ClientActions.BROADCAST,
+            channelName: 'test',
+            event: 'test',
+            payload: { test: 1 },
+            addresses: ChannelReceiver.ALL_USERS,
+        });
+
+        // proves that the message was received by the parent engine
+        expect(count).toBe(1);
+
+        // however the onMessage callback was not called
+        // because the message was never handled by the parent engine
+        expect(onMessage).toHaveBeenCalledWith({
+            action: ServerActions.ERROR,
+            channelName: 'test',
+            event: ErrorTypes.HANDLER_NOT_FOUND,
+            payload: {
+                code: 404,
+                message: 'A handler did not respond to the event',
+            },
+        });
     });
 });
