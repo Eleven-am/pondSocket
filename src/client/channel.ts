@@ -1,70 +1,72 @@
-import { PresenceEventTypes, ServerActions, ClientActions, PondState, ChannelState } from '../enums';
-import { SimpleSubject, SimpleBehaviorSubject, Unsubscribe } from '../server/utils/subjectUtils';
+import { PondState, ChannelState, ClientActions, ServerActions, PresenceEventTypes, ChannelReceiver } from '../enums';
+import { SimpleSubject, SimpleBehaviorSubject } from '../subjects/subject';
 import {
-    PondPresence,
-    PresencePayload,
-    ChannelEvent,
-    ChannelReceivers,
     JoinParams,
+    ChannelEvent,
     ClientMessage,
+    Unsubscribe,
+    PondPresence,
     PondMessage,
+    PresencePayload,
+    ChannelReceivers,
 // eslint-disable-next-line import/no-unresolved
 } from '../types';
+
 
 type Publisher = (data: ClientMessage) => void;
 
 export class Channel {
-    private readonly _name: string;
+    readonly #name: string;
 
-    private readonly _joinParams: JoinParams;
+    readonly #joinParams: JoinParams;
 
-    private readonly _receiver: SimpleSubject<ChannelEvent>;
+    readonly #receiver: SimpleSubject<ChannelEvent>;
 
-    private readonly _clientState: SimpleBehaviorSubject<PondState>;
+    readonly #clientState: SimpleBehaviorSubject<PondState>;
 
-    private readonly _joinState: SimpleBehaviorSubject<ChannelState>;
+    readonly #joinState: SimpleBehaviorSubject<ChannelState>;
 
-    private readonly _publisher: Publisher;
+    readonly #publisher: Publisher;
 
-    private _queue: ClientMessage[];
+    #queue: ClientMessage[];
 
-    private _presence: PondPresence[];
+    #presence: PondPresence[];
 
-    private readonly _presenceSub: Unsubscribe;
+    readonly #presenceSub: Unsubscribe;
 
     constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<PondState>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams = {
     }) {
-        this._name = name;
-        this._queue = [];
-        this._presence = [];
-        this._joinParams = params;
-        this._publisher = publisher;
-        this._clientState = clientState;
-        this._receiver = new SimpleSubject<ChannelEvent>();
-        this._joinState = new SimpleBehaviorSubject<ChannelState>(ChannelState.IDLE);
-        this._presenceSub = this._init(receiver);
+        this.#name = name;
+        this.#queue = [];
+        this.#presence = [];
+        this.#joinParams = params;
+        this.#publisher = publisher;
+        this.#clientState = clientState;
+        this.#receiver = new SimpleSubject<ChannelEvent>();
+        this.#joinState = new SimpleBehaviorSubject<ChannelState>(ChannelState.IDLE);
+        this.#presenceSub = this.#init(receiver);
     }
 
     /**
      * @desc Connects to the channel.
      */
     public join () {
-        if (this._joinState.value === ChannelState.CLOSED) {
+        if (this.#joinState.value === ChannelState.CLOSED) {
             throw new Error('This channel has been closed');
         }
 
         const joinMessage: ClientMessage = {
             action: ClientActions.JOIN_CHANNEL,
-            channelName: this._name,
+            channelName: this.#name,
             event: ClientActions.JOIN_CHANNEL,
-            payload: this._joinParams,
+            payload: this.#joinParams,
         };
 
-        this._joinState.next(ChannelState.JOINING);
-        if (this._clientState.value === PondState.OPEN) {
-            this._publisher(joinMessage);
+        this.#joinState.publish(ChannelState.JOINING);
+        if (this.#clientState.value === PondState.OPEN) {
+            this.#publisher(joinMessage);
         } else {
-            this._queue.push(joinMessage);
+            this.#queue.push(joinMessage);
         }
     }
 
@@ -74,15 +76,15 @@ export class Channel {
     public leave () {
         const leaveMessage: ClientMessage = {
             action: ClientActions.LEAVE_CHANNEL,
-            channelName: this._name,
+            channelName: this.#name,
             event: ClientActions.LEAVE_CHANNEL,
             payload: {
             },
         };
 
-        this._publish(leaveMessage);
-        this._joinState.next(ChannelState.CLOSED);
-        this._presenceSub();
+        this.#publish(leaveMessage);
+        this.#joinState.publish(ChannelState.CLOSED);
+        this.#presenceSub();
     }
 
     /**
@@ -90,7 +92,7 @@ export class Channel {
      * @param callback - The callback to call when a message is received.
      */
     public onMessage (callback: (event: string, message: PondMessage) => void) {
-        return this._receiver.subscribe((data) => {
+        return this.#receiver.subscribe((data) => {
             if (data.action !== ServerActions.PRESENCE) {
                 return callback(data.event, data.payload);
             }
@@ -115,7 +117,7 @@ export class Channel {
      * @param callback - The callback to call when the connection state changes.
      */
     public onChannelStateChange (callback: (connected: ChannelState) => void) {
-        return this._joinState.subscribe((data) => {
+        return this.#joinState.subscribe((data) => {
             callback(data);
         });
     }
@@ -125,7 +127,7 @@ export class Channel {
      * @param callback - The callback to call when a client joins the channel.
      */
     public onJoin (callback: (presence: PondPresence) => void) {
-        return this._subscribeToPresence((event, payload) => {
+        return this.#subscribeToPresence((event, payload) => {
             if (event === PresenceEventTypes.JOIN) {
                 return callback(payload.changed);
             }
@@ -137,7 +139,7 @@ export class Channel {
      * @param callback - The callback to call when a client leaves the channel.
      */
     public onLeave (callback: (presence: PondPresence) => void) {
-        return this._subscribeToPresence((event, payload) => {
+        return this.#subscribeToPresence((event, payload) => {
             if (event === PresenceEventTypes.LEAVE) {
                 return callback(payload.changed);
             }
@@ -149,7 +151,7 @@ export class Channel {
      * @param callback - The callback to call when a client changes their presence in the channel.
      */
     public onPresenceChange (callback: (presence: PresencePayload) => void) {
-        return this._subscribeToPresence((event, payload) => {
+        return this.#subscribeToPresence((event, payload) => {
             if (event === PresenceEventTypes.UPDATE) {
                 return callback(payload);
             }
@@ -163,7 +165,7 @@ export class Channel {
      * @param recipient - The clients to send the message to.
      */
     public sendMessage (event: string, payload: PondMessage, recipient: string[]) {
-        this._send(event, payload, recipient);
+        this.#send(event, payload, recipient);
     }
 
     /**
@@ -172,7 +174,7 @@ export class Channel {
      * @param payload - The message to send.
      */
     public broadcastFrom (event: string, payload: PondMessage) {
-        this._send(event, payload, 'all_except_sender');
+        this.#send(event, payload, ChannelReceiver.ALL_EXCEPT_SENDER);
     }
 
     /**
@@ -181,21 +183,21 @@ export class Channel {
      * @param payload - The message to send.
      */
     public broadcast (event: string, payload: PondMessage) {
-        this._send(event, payload);
+        this.#send(event, payload);
     }
 
     /**
      * @desc Gets the current connection state of the channel.
      */
     public get channelState (): ChannelState {
-        return this._joinState.value;
+        return this.#joinState.value as ChannelState;
     }
 
     /**
      * @desc Gets the current presence of the channel.
      */
     public getPresence (): PondPresence[] {
-        return this._presence;
+        return this.#presence;
     }
 
     /**
@@ -203,14 +205,14 @@ export class Channel {
      * @param callback - The callback to call when the presence changes.
      */
     public onUsersChange (callback: (users: PondPresence[]) => void) {
-        return this._subscribeToPresence((_event, payload) => callback(payload.presence));
+        return this.#subscribeToPresence((_event, payload) => callback(payload.presence));
     }
 
     /**
      * @desc Gets the current connection state of the channel.
      */
     public isConnected () {
-        return this._joinState.value === ChannelState.JOINED || this._joinState.value === ChannelState.JOINING;
+        return this.#joinState.value === ChannelState.JOINED || this.#joinState.value === ChannelState.JOINING;
     }
 
     /**
@@ -223,75 +225,75 @@ export class Channel {
         });
     }
 
-    private _send (event: string, payload: PondMessage, receivers: ChannelReceivers = 'all_users') {
+    #send (event: string, payload: PondMessage, receivers: ChannelReceivers = ChannelReceiver.ALL_USERS) {
         const message: ClientMessage = {
             action: ClientActions.BROADCAST,
-            channelName: this._name,
+            channelName: this.#name,
             event,
             payload,
             addresses: receivers,
         };
 
-        this._publish(message);
+        this.#publish(message);
     }
 
-    private _publish (data: ClientMessage) {
-        if (this._clientState.value === PondState.OPEN) {
-            if (this._joinState.value === ChannelState.JOINED || this._joinState.value === ChannelState.JOINING) {
-                this._publisher(data);
+    #publish (data: ClientMessage) {
+        if (this.#clientState.value === PondState.OPEN) {
+            if (this.#joinState.value === ChannelState.JOINED || this.#joinState.value === ChannelState.JOINING) {
+                this.#publisher(data);
             }
 
             return;
         }
 
-        this._queue.push(data);
+        this.#queue.push(data);
     }
 
-    private _subscribeToPresence (callback: (event: PresenceEventTypes, payload: PresencePayload) => void) {
-        return this._receiver.subscribe((data) => {
+    #subscribeToPresence (callback: (event: PresenceEventTypes, payload: PresencePayload) => void) {
+        return this.#receiver.subscribe((data) => {
             if (data.action === ServerActions.PRESENCE) {
                 return callback(data.event, data.payload);
             }
         });
     }
 
-    private _init (receiver: SimpleSubject<ChannelEvent>): Unsubscribe {
+    #init (receiver: SimpleSubject<ChannelEvent>): Unsubscribe {
         const unsubMessages = receiver.subscribe((data) => {
-            if (data.channelName === this._name) {
-                if (this._joinState.value !== ChannelState.JOINED) {
-                    this._joinState.next(ChannelState.JOINED);
+            if (data.channelName === this.#name) {
+                if (this.#joinState.value !== ChannelState.JOINED) {
+                    this.#joinState.publish(ChannelState.JOINED);
                 }
-                this._receiver.next(data);
+                this.#receiver.publish(data);
             }
         });
 
-        const unsubStateChange = this._clientState.subscribe((state) => {
-            if (state === PondState.OPEN && this._queue.length > 0) {
+        const unsubStateChange = this.#clientState.subscribe((state) => {
+            if (state === PondState.OPEN && this.#queue.length > 0) {
                 const joinMessage: ClientMessage = {
                     action: ClientActions.JOIN_CHANNEL,
-                    channelName: this._name,
+                    channelName: this.#name,
                     event: ClientActions.JOIN_CHANNEL,
-                    payload: this._joinParams,
+                    payload: this.#joinParams,
                 };
 
-                this._publisher(joinMessage);
+                this.#publisher(joinMessage);
 
-                this._queue
+                this.#queue
                     .filter((message) => message.action !== ClientActions.JOIN_CHANNEL)
                     .forEach((message) => {
-                        this._publisher(message);
+                        this.#publisher(message);
                     });
 
-                this._joinState.next(ChannelState.JOINED);
+                this.#joinState.publish(ChannelState.JOINED);
 
-                this._queue = [];
+                this.#queue = [];
             } else if (state !== PondState.OPEN) {
-                this._joinState.next(ChannelState.STALLED);
+                this.#joinState.publish(ChannelState.STALLED);
             }
         });
 
-        const unsubPresence = this._subscribeToPresence((_, payload) => {
-            this._presence = payload.presence;
+        const unsubPresence = this.#subscribeToPresence((_, payload) => {
+            this.#presence = payload.presence;
         });
 
         return () => {

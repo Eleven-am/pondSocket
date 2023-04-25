@@ -1,7 +1,6 @@
 import { Channel } from './channel';
 import { PondState, ClientActions, ChannelState, PresenceEventTypes } from '../enums';
-import { ServerActions } from '../server/channel/channelEngine';
-import { SimpleSubject, SimpleBehaviorSubject } from '../server/utils/subjectUtils';
+import { SimpleBehaviorSubject, SimpleSubject } from '../subjects/subject';
 // eslint-disable-next-line import/no-unresolved
 import { ChannelEvent } from '../types';
 
