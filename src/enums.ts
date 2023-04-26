@@ -17,13 +17,6 @@ export enum ClientActions {
     BROADCAST = 'BROADCAST',
 }
 
-export enum PondState {
-    CONNECTING = 'CONNECTING',
-    OPEN = 'OPEN',
-    CLOSING = 'CLOSING',
-    CLOSED = 'CLOSED',
-}
-
 export enum ChannelState {
     IDLE = 'IDLE',
     JOINING = 'JOINING',

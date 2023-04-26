@@ -1,18 +1,22 @@
-import { InternalChannelEvent, ChannelEngine } from './channel';
+import { ChannelEngine, BroadcastEvent } from './channel';
 import { PondResponse } from '../abstracts/abstractResponse';
 import { SystemSender, ServerActions, ErrorTypes, ChannelReceiver } from '../enums';
+import { ChannelError } from '../errors/pondError';
 // eslint-disable-next-line import/no-unresolved
 import { PondAssigns, PondMessage, PondPresence } from '../types';
 
 export class EventResponse extends PondResponse {
-    readonly #event: InternalChannelEvent;
+    readonly #event: BroadcastEvent;
 
     readonly #engine: ChannelEngine;
 
-    constructor (event: InternalChannelEvent, engine: ChannelEngine) {
+    #executed: boolean;
+
+    constructor (event: BroadcastEvent, engine: ChannelEngine) {
         super();
         this.#event = event;
         this.#engine = engine;
+        this.#executed = false;
     }
 
     /**
@@ -51,9 +55,8 @@ export class EventResponse extends PondResponse {
      * @param assigns - the data to assign to the client
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
+        this.accept(assigns);
         this.#engine.sendMessage(SystemSender.CHANNEL, [this.#event.sender], ServerActions.SYSTEM, event, payload);
-
-        return this.accept(assigns);
     }
 
     /**
@@ -146,8 +149,24 @@ export class EventResponse extends PondResponse {
      * @private
      */
     #manageAssigns (assigns?: PondAssigns): void {
+        this.#performChecks();
         if (assigns) {
             this.#engine.updateAssigns(this.#event.sender, assigns);
         }
+    }
+
+    /**
+     * @desc Performs checks to ensure the response has not been executed
+     * @private
+     */
+    #performChecks (): void {
+        if (this.#executed) {
+            const message = 'Event response has already been executed';
+            const code = 403;
+
+            throw new ChannelError(message, code, this.#engine.name);
+        }
+
+        this.#executed = true;
     }
 }

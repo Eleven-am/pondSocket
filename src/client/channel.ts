@@ -1,4 +1,11 @@
-import { PondState, ChannelState, ClientActions, ServerActions, PresenceEventTypes, ChannelReceiver } from '../enums';
+import {
+    ChannelState,
+    ClientActions,
+    ServerActions,
+    PresenceEventTypes,
+    ChannelReceiver,
+    Events,
+} from '../enums';
 import { SimpleSubject, SimpleBehaviorSubject } from '../subjects/subject';
 import {
     JoinParams,
@@ -22,7 +29,7 @@ export class Channel {
 
     readonly #receiver: SimpleSubject<ChannelEvent>;
 
-    readonly #clientState: SimpleBehaviorSubject<PondState>;
+    readonly #clientState: SimpleBehaviorSubject<boolean>;
 
     readonly #joinState: SimpleBehaviorSubject<ChannelState>;
 
@@ -34,7 +41,7 @@ export class Channel {
 
     readonly #presenceSub: Unsubscribe;
 
-    constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<PondState>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams = {
+    constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<boolean>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams = {
     }) {
         this.#name = name;
         this.#queue = [];
@@ -63,10 +70,10 @@ export class Channel {
         };
 
         this.#joinState.publish(ChannelState.JOINING);
-        if (this.#clientState.value === PondState.OPEN) {
+        if (this.#clientState.value) {
             this.#publisher(joinMessage);
         } else {
-            this.#queue.push(joinMessage);
+            this.#joinState.publish(ChannelState.STALLED);
         }
     }
 
@@ -212,7 +219,7 @@ export class Channel {
      * @desc Gets the current connection state of the channel.
      */
     public isConnected () {
-        return this.#joinState.value === ChannelState.JOINED || this.#joinState.value === ChannelState.JOINING;
+        return this.#joinState.value === ChannelState.JOINED || this.#joinState.value === ChannelState.STALLED;
     }
 
     /**
@@ -221,7 +228,7 @@ export class Channel {
      */
     public onConnectionChange (callback: (connected: boolean) => void) {
         return this.onChannelStateChange((state) => {
-            callback(state === ChannelState.JOINED || state === ChannelState.JOINING);
+            callback(state === ChannelState.JOINED || state === ChannelState.STALLED);
         });
     }
 
@@ -238,8 +245,8 @@ export class Channel {
     }
 
     #publish (data: ClientMessage) {
-        if (this.#clientState.value === PondState.OPEN) {
-            if (this.#joinState.value === ChannelState.JOINED || this.#joinState.value === ChannelState.JOINING) {
+        if (this.#clientState.value) {
+            if (this.#joinState.value === ChannelState.JOINED) {
                 this.#publisher(data);
             }
 
@@ -260,15 +267,17 @@ export class Channel {
     #init (receiver: SimpleSubject<ChannelEvent>): Unsubscribe {
         const unsubMessages = receiver.subscribe((data) => {
             if (data.channelName === this.#name) {
-                if (this.#joinState.value !== ChannelState.JOINED) {
+                if (data.event === Events.ACKNOWLEDGE) {
                     this.#joinState.publish(ChannelState.JOINED);
+                    this.#emptyQueue();
+                } else {
+                    this.#receiver.publish(data);
                 }
-                this.#receiver.publish(data);
             }
         });
 
         const unsubStateChange = this.#clientState.subscribe((state) => {
-            if (state === PondState.OPEN && this.#queue.length > 0) {
+            if (state && this.#joinState.value === ChannelState.STALLED) {
                 const joinMessage: ClientMessage = {
                     action: ClientActions.JOIN_CHANNEL,
                     channelName: this.#name,
@@ -277,17 +286,7 @@ export class Channel {
                 };
 
                 this.#publisher(joinMessage);
-
-                this.#queue
-                    .filter((message) => message.action !== ClientActions.JOIN_CHANNEL)
-                    .forEach((message) => {
-                        this.#publisher(message);
-                    });
-
-                this.#joinState.publish(ChannelState.JOINED);
-
-                this.#queue = [];
-            } else if (state !== PondState.OPEN) {
+            } else if (!state && this.#joinState.value === ChannelState.JOINED) {
                 this.#joinState.publish(ChannelState.STALLED);
             }
         });
@@ -301,5 +300,17 @@ export class Channel {
             unsubStateChange();
             unsubPresence();
         };
+    }
+
+    #emptyQueue () {
+        this.#queue
+            .filter((message) => message.action !== ClientActions.JOIN_CHANNEL)
+            .forEach((message) => {
+                this.#publisher(message);
+            });
+
+        this.#joinState.publish(ChannelState.JOINED);
+
+        this.#queue = [];
     }
 }

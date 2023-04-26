@@ -1,6 +1,6 @@
 import request from 'superwstest';
 
-import { SystemSender, ServerActions, ErrorTypes, ClientActions, Events } from '../enums';
+import { SystemSender, ServerActions, ErrorTypes, ClientActions, Events, ChannelReceiver } from '../enums';
 import { PondSocket } from '../server/pondSocket';
 
 /* eslint-disable line-comment-position, no-inline-comments */
@@ -543,9 +543,7 @@ describe('endpoint', () => {
 
                 const connections = endpoint.listConnections();
 
-                if (connections.length === 1) {
-                    res.send('TEST', { test: 'test' });
-                }
+                expect(connections).toHaveLength(1);
             } else {
                 res.reject();
             }
@@ -553,15 +551,7 @@ describe('endpoint', () => {
 
         await request(server)
             .ws('/api/socket')
-            .expectUpgrade((res) => expect(res.statusCode).toBe(101))
-            .expectJson({
-                action: ServerActions.BROADCAST,
-                event: 'TEST',
-                payload: {
-                    test: 'test',
-                },
-                channelName: SystemSender.ENDPOINT,
-            });
+            .expectUpgrade((res) => expect(res.statusCode).toBe(101));
     });
 
     it('should be able to refuse connections to the endpoint', async () => {
@@ -734,6 +724,102 @@ describe('endpoint', () => {
                 channelName: '/test/socket',
                 event: Events.ACKNOWLEDGE,
                 payload: {},
+            });
+    });
+
+    it('should throw an error if accept, reject / send is called more than once', async () => {
+        socket.createEndpoint('/api/:room', (_, res) => {
+            res.send('hello', {
+                test: 'test',
+            });
+
+            expect(() => res.accept()).toThrowError('Cannot execute response more than once');
+        });
+
+        await request(server)
+            .ws('/api/socket')
+            .expectUpgrade((res) => expect(res.statusCode).toBe(101))
+            .expectJson({
+                action: ServerActions.BROADCAST,
+                channelName: SystemSender.ENDPOINT,
+                event: 'hello',
+                payload: {
+                    test: 'test',
+                },
+            });
+    });
+
+    it('should be able to connect, join a channel and send a message', async () => {
+        const message = {
+            action: ClientActions.JOIN_CHANNEL,
+            channelName: '/test/socket',
+            event: 'TEST',
+            payload: {},
+        };
+
+        const endpoint = socket.createEndpoint('/api/:room', (_, res) => {
+            res.accept();
+        });
+
+        const channel = endpoint.createChannel('/test/:room', (req, res) => {
+            expect(req.event.params.room).toBeDefined();
+            res.accept();
+        });
+
+        channel.onEvent('echo', (req, res) => {
+            res.send('echo', req.event.payload);
+        });
+
+        channel.onEvent('broadcast', (req) => {
+            channel.broadcast('broadcast', {
+                ...req.event.payload,
+                broadcast: true,
+            });
+        });
+
+        await request(server)
+            .ws('/api/socket')
+            .expectUpgrade((res) => expect(res.statusCode).toBe(101))
+            .sendJson(message)
+            .expectJson({
+                action: ServerActions.SYSTEM,
+                channelName: '/test/socket',
+                event: Events.ACKNOWLEDGE,
+                payload: {},
+            })
+            .sendJson({
+                addresses: ChannelReceiver.ALL_EXCEPT_SENDER,
+                action: ClientActions.BROADCAST,
+                channelName: '/test/socket',
+                event: 'echo',
+                payload: {
+                    test: 'test',
+                },
+            })
+            .expectJson({
+                action: ServerActions.SYSTEM,
+                channelName: '/test/socket',
+                event: 'echo',
+                payload: {
+                    test: 'test',
+                },
+            })
+            .sendJson({
+                action: ClientActions.BROADCAST,
+                channelName: '/test/socket',
+                event: 'broadcast',
+                payload: {
+                    test: 'test',
+                },
+            })
+            .expectJson({
+                action: ServerActions.SYSTEM,
+                channelName: '/test/socket',
+                event: 'broadcast',
+                payload: {
+                    test: 'test',
+                    broadcast: true,
+                },
             });
     });
 });

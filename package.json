@@ -17,7 +17,7 @@
   },
   "scripts": {
     "test": "jest --coverage --verbose --watchAll",
-    "build": "tsc"
+    "build": "tsc --project tsconfig.build.json"
   },
   "author": "Roy OSSAI",
   "license": "GPL-3.0",

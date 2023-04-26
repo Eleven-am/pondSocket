@@ -2,7 +2,7 @@ import { Middleware } from '../abstracts/middleware';
 import { ChannelEngine, ParentEngine } from '../channel/channel';
 import { EventRequest } from '../channel/eventRequest';
 import { EventResponse } from '../channel/eventResponse';
-import { ServerActions, ChannelReceiver } from '../enums';
+import { ServerActions, ChannelReceiver, SystemSender } from '../enums';
 // eslint-disable-next-line import/no-unresolved
 import { PondPath, PondMessage } from '../types';
 
@@ -53,10 +53,10 @@ export class LobbyEngine {
         if (channelName) {
             const channel = this.getChannel(channelName) || this.createChannel(channelName);
 
-            channel.sendMessage('channel', ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
+            channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
         } else {
             this.#channels.forEach((channel) => {
-                channel.sendMessage('channel', ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
+                channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
             });
         }
     }
@@ -64,7 +64,7 @@ export class LobbyEngine {
     /**
      * @desc Removes a user from all channels
      * @param clientId - The client id of the user to remove
-     * @param graceful - Whether or not to gracefully remove the user
+     * @param graceful - Whether to gracefully remove the user or not
      */
     public removeUser (clientId: string, graceful = false) {
         this.#channels.forEach((channel) => {
@@ -118,14 +118,6 @@ export class LobbyEngine {
     public listChannels () {
         return Array.from(this.#channels)
             .map((channel) => channel.name);
-    }
-
-    /**
-     * @desc Gets all channels
-     * @private
-     */
-    public getChannels () {
-        return Array.from(this.#channels);
     }
 
     /**

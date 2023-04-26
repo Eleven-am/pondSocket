@@ -1,12 +1,19 @@
 import { Channel } from './channel';
-import { PondState, ClientActions, ChannelState, PresenceEventTypes } from '../enums';
+import {
+    ClientActions,
+    ChannelState,
+    PresenceEventTypes,
+    ServerActions,
+    Events,
+    ChannelReceiver,
+} from '../enums';
 import { SimpleBehaviorSubject, SimpleSubject } from '../subjects/subject';
 // eslint-disable-next-line import/no-unresolved
 import { ChannelEvent } from '../types';
 
 const createChannel = (params?: Record<string, any>) => {
     const publisher = jest.fn();
-    const state = new SimpleBehaviorSubject<PondState>(PondState.OPEN);
+    const state = new SimpleBehaviorSubject<boolean>(true);
     const receiver = new SimpleSubject<ChannelEvent>();
 
     const channel = new Channel(
@@ -30,7 +37,7 @@ describe('Channel', () => {
         const { channel, publisher, state } = createChannel();
 
         expect(publisher).not.toHaveBeenCalled();
-        expect(state.value).toBe(PondState.OPEN);
+        expect(state.value).toBe(true);
 
         channel.join();
 
@@ -43,24 +50,15 @@ describe('Channel', () => {
 
         const { channel: channel2, publisher: publisher2, state: state2 } = createChannel();
 
-        state2.next(PondState.CLOSED);
-        expect(state2.value).toBe(PondState.CLOSED);
+        state2.publish(false);
+        expect(state2.value).toBe(false);
         expect(publisher2).not.toHaveBeenCalled();
-        expect(channel2['_queue']).toEqual([]);
 
         channel2.join();
 
         expect(publisher2).not.toHaveBeenCalled();
-        expect(channel2['_queue']).toEqual([
-            {
-                action: ClientActions.JOIN_CHANNEL,
-                channelName: 'test',
-                event: ClientActions.JOIN_CHANNEL,
-                payload: {},
-            },
-        ]);
 
-        state2.next(PondState.OPEN);
+        state2.publish(true);
 
         expect(publisher2).toHaveBeenCalledWith({
             action: ClientActions.JOIN_CHANNEL,
@@ -68,9 +66,6 @@ describe('Channel', () => {
             event: ClientActions.JOIN_CHANNEL,
             payload: {},
         });
-
-        expect(channel2['_queue']).toEqual([]);
-
         const { channel: channel3 } = createChannel();
 
         channel3.leave();
@@ -88,11 +83,21 @@ describe('Channel', () => {
 
         expect(channel.channelState).toBe(ChannelState.JOINING);
 
-        // once the server responds with a join message, the channel should be connected
-        receiver.next({
-            action: 'SYSTEM',
+        receiver.publish({
+            action: ServerActions.SYSTEM,
             channelName: 'test',
             event: 'SYSTEM',
+            payload: {
+                event: 'JOIN',
+            },
+        });
+
+        expect(channel.channelState).toBe(ChannelState.JOINING);
+        // once the server responds with an ack, the channel state should be joined
+        receiver.publish({
+            action: ServerActions.SYSTEM,
+            channelName: 'test',
+            event: Events.ACKNOWLEDGE,
             payload: {
                 event: 'JOIN',
             },
@@ -123,10 +128,10 @@ describe('Channel', () => {
 
         channel.join();
 
-        receiver.next({
+        receiver.publish({
             action: 'SYSTEM',
             channelName: 'test',
-            event: 'SYSTEM',
+            event: Events.ACKNOWLEDGE,
             payload: {
                 event: 'JOIN',
             },
@@ -148,18 +153,23 @@ describe('Channel', () => {
 
         expect(stateListener).toHaveBeenCalledWith(false);
 
+        expect(channel.isConnected()).toBe(false);
+
         channel.join();
 
-        receiver.next({
+        expect(channel.isConnected()).toBe(false);
+
+        receiver.publish({
             action: 'SYSTEM',
             channelName: 'test',
-            event: 'SYSTEM',
+            event: Events.ACKNOWLEDGE,
             payload: {
                 event: 'JOIN',
             },
         });
 
         expect(stateListener).toHaveBeenCalledWith(true);
+        expect(channel.isConnected()).toBe(true);
 
         channel.leave();
 
@@ -167,26 +177,32 @@ describe('Channel', () => {
     });
 
     it('should correctly send a message', () => {
-        const { channel, publisher, state } = createChannel();
+        const { channel, publisher, state, receiver } = createChannel();
 
         expect(channel.channelState).toBe(ChannelState.IDLE);
         expect(publisher).not.toHaveBeenCalled();
-        expect(channel['_queue']).toEqual([]);
 
         // when the socket is connected but the channel is not joined, the message would not be queued
-        channel.broadcast('test', { test: true });
+        channel.broadcast('test', { test: false });
         expect(publisher).not.toHaveBeenCalled();
-        expect(channel['_queue']).toEqual([]);
 
         channel.join();
 
         publisher.mockClear();
+        receiver.publish({
+            action: 'SYSTEM',
+            channelName: 'test',
+            event: Events.ACKNOWLEDGE,
+            payload: {
+                event: 'JOIN',
+            },
+        });
 
         // however once the channel is joined, the message should be sent
         channel.broadcast('test', { test: true });
         expect(publisher).toHaveBeenCalledWith({
             action: ClientActions.BROADCAST,
-            addresses: 'all_users',
+            addresses: ChannelReceiver.ALL_USERS,
             channelName: 'test',
             event: 'test',
             payload: {
@@ -196,27 +212,16 @@ describe('Channel', () => {
 
         // if for some reason the socket is disconnected, the message should be queued
         publisher.mockClear();
-        state.next(PondState.CLOSED);
+        state.publish(false);
 
-        expect(state.value).toBe(PondState.CLOSED);
+        expect(state.value).toBe(false);
 
         channel.broadcast('test', { test: true });
         expect(publisher).not.toHaveBeenCalled();
-        expect(channel['_queue']).toEqual([
-            {
-                action: ClientActions.BROADCAST,
-                addresses: 'all_users',
-                channelName: 'test',
-                event: 'test',
-                payload: {
-                    test: true,
-                },
-            },
-        ]);
 
         // once the socket is reconnected, a join message should be sent and the queued messages should be sent
         publisher.mockClear();
-        state.next(PondState.OPEN);
+        state.publish(true);
 
         expect(publisher).toHaveBeenCalledWith({
             action: ClientActions.JOIN_CHANNEL,
@@ -225,17 +230,27 @@ describe('Channel', () => {
             payload: {},
         });
 
+        // until it receives an ack message the queued messages should not be sent
+        expect(publisher).toHaveBeenCalledTimes(1);
+
+        receiver.publish({
+            action: 'SYSTEM',
+            channelName: 'test',
+            event: Events.ACKNOWLEDGE,
+            payload: {
+                event: 'JOIN',
+            },
+        });
+
         expect(publisher).toHaveBeenCalledWith({
             action: ClientActions.BROADCAST,
-            addresses: 'all_users',
+            addresses: ChannelReceiver.ALL_USERS,
             channelName: 'test',
             event: 'test',
             payload: {
                 test: true,
             },
         });
-
-        expect(channel['_queue']).toEqual([]);
 
         // if the channel is closed, the message should not be sent, and should not be queued
         publisher.mockClear();
@@ -251,7 +266,6 @@ describe('Channel', () => {
 
         expect(channel.channelState).toBe(ChannelState.CLOSED);
         channel.broadcast('test', { test: true });
-        expect(channel['_queue']).toEqual([]);
         expect(publisher).toBeCalledTimes(1);
     });
 
@@ -268,7 +282,7 @@ describe('Channel', () => {
         // usually the server wouldn't send a presence if the channel is not joined
         // but for testing purposes, we'll just send it anyway
 
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.JOIN,
             channelName: 'test',
@@ -297,7 +311,7 @@ describe('Channel', () => {
 
         presenceListener.mockClear();
 
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.UPDATE,
             channelName: 'test',
@@ -322,7 +336,7 @@ describe('Channel', () => {
         expect(presenceListener).not.toHaveBeenCalled();
 
         // also, if a presence event is received for a different channel, it should not be sent to the listener
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.JOIN,
             channelName: 'test2',
@@ -359,7 +373,7 @@ describe('Channel', () => {
         // usually the server wouldn't send a presence if the channel is not joined
         // but for testing purposes, we'll just send it anyway
 
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.LEAVE,
             channelName: 'test',
@@ -388,7 +402,7 @@ describe('Channel', () => {
 
         presenceListener.mockClear();
 
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.UPDATE,
             channelName: 'test',
@@ -413,7 +427,7 @@ describe('Channel', () => {
         expect(presenceListener).not.toHaveBeenCalled();
 
         // also, if a presence event is received for a different channel, it should not be sent to the listener
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.LEAVE,
             channelName: 'test2',
@@ -450,7 +464,7 @@ describe('Channel', () => {
         // usually the server wouldn't send a presence if the channel is not joined
         // but for testing purposes, we'll just send it anyway
 
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.UPDATE,
             channelName: 'test',
@@ -489,7 +503,7 @@ describe('Channel', () => {
 
         // if we receive a leave or join event, it should be sent to the listener
         // this is because we are listening for all presence events
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.JOIN,
             channelName: 'test',
@@ -519,7 +533,7 @@ describe('Channel', () => {
         presenceListener.mockClear();
 
         // also, if a presence event is received for a different channel, it should not be sent to the listener
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.UPDATE,
             channelName: 'test2',
@@ -544,7 +558,7 @@ describe('Channel', () => {
         expect(presenceListener).not.toHaveBeenCalled();
 
         // we once again send a presence event for the same channel, but this time it should be sent to the listener
-        receiver.next({
+        receiver.publish({
             action: ServerActions.PRESENCE,
             event: PresenceEventTypes.UPDATE,
             channelName: 'test',
@@ -580,6 +594,58 @@ describe('Channel', () => {
         expect(channel.getPresence()).toBe(presenceListener.mock.calls[0][0]);
     });
 
+    it('should notify subscribers when any presence event occurs', () => {
+        const { channel, receiver } = createChannel();
+
+        const presenceListener = jest.fn();
+
+        channel.onPresenceChange(presenceListener);
+
+        expect(presenceListener).not.toHaveBeenCalled();
+
+        // usually the server wouldn't send a presence if the channel is not joined
+        // but for testing purposes, we'll just send it anyway
+
+        receiver.publish({
+            action: ServerActions.PRESENCE,
+            event: PresenceEventTypes.UPDATE,
+            channelName: 'test',
+            payload: {
+                changed: {
+                    id: 'test',
+                    status: 'online',
+                },
+                presence: [
+                    {
+                        id: 'test',
+                        status: 'online',
+                    },
+                    {
+                        id: 'test2',
+                        status: 'online',
+                    },
+                ],
+            },
+        });
+
+        expect(presenceListener).toHaveBeenCalledWith({
+            changed: {
+                id: 'test',
+                status: 'online',
+            },
+            presence: [
+                {
+                    id: 'test',
+                    status: 'online',
+                },
+                {
+                    id: 'test2',
+                    status: 'online',
+                },
+            ],
+        });
+    });
+
     // message events
 
     it('should notify subscribers when a message is received', () => {
@@ -591,7 +657,7 @@ describe('Channel', () => {
 
         expect(messageListener).not.toHaveBeenCalled();
 
-        receiver.next({
+        receiver.publish({
             action: ServerActions.BROADCAST,
             event: 'message',
             channelName: 'test',
@@ -607,7 +673,7 @@ describe('Channel', () => {
         });
 
         // if a message event is received for a different channel, it should not be sent to the listener
-        receiver.next({
+        receiver.publish({
             action: ServerActions.BROADCAST,
             event: 'message',
             channelName: 'test2',
@@ -626,7 +692,7 @@ describe('Channel', () => {
 
         expect(specificMessageListener).not.toHaveBeenCalled();
 
-        receiver.next({
+        receiver.publish({
             action: ServerActions.BROADCAST,
             event: 'test',
             channelName: 'test',
@@ -643,7 +709,7 @@ describe('Channel', () => {
 
         specificMessageListener.mockClear();
         // if a message event is received for the same channel, but a different event, it should not be sent to the listener
-        receiver.next({
+        receiver.publish({
             action: ServerActions.BROADCAST,
             event: 'test2',
             channelName: 'test',
@@ -656,7 +722,7 @@ describe('Channel', () => {
         expect(specificMessageListener).not.toHaveBeenCalled();
 
         // if a message event is received for a different channel, it should not be sent to the listener
-        receiver.next({
+        receiver.publish({
             action: ServerActions.BROADCAST,
             event: 'test',
             channelName: 'test2',
@@ -667,5 +733,67 @@ describe('Channel', () => {
         });
 
         expect(specificMessageListener).not.toHaveBeenCalled();
+    });
+
+    it('should be able to broadcast a message', () => {
+        const { channel, receiver, publisher } = createChannel();
+
+        channel.join();
+
+        publisher.mockClear();
+        receiver.publish({
+            action: 'SYSTEM',
+            channelName: 'test',
+            event: Events.ACKNOWLEDGE,
+            payload: {
+                event: 'JOIN',
+            },
+        });
+
+        channel.sendMessage('test', {
+            test: 'test',
+        }, ['test1']);
+
+        expect(publisher).toHaveBeenCalledWith({
+            action: ClientActions.BROADCAST,
+            channelName: 'test',
+            event: 'test',
+            payload: {
+                test: 'test',
+            },
+            addresses: ['test1'],
+        });
+
+        publisher.mockClear();
+
+        channel.broadcastFrom('test', {
+            test: 'test',
+        });
+
+        expect(publisher).toHaveBeenCalledWith({
+            action: ClientActions.BROADCAST,
+            channelName: 'test',
+            event: 'test',
+            payload: {
+                test: 'test',
+            },
+            addresses: ChannelReceiver.ALL_EXCEPT_SENDER,
+        });
+
+        publisher.mockClear();
+
+        channel.broadcast('test', {
+            test: 'test',
+        });
+
+        expect(publisher).toHaveBeenCalledWith({
+            action: ClientActions.BROADCAST,
+            channelName: 'test',
+            event: 'test',
+            payload: {
+                test: 'test',
+            },
+            addresses: ChannelReceiver.ALL_USERS,
+        });
     });
 });

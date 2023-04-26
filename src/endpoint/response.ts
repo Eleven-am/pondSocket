@@ -3,6 +3,7 @@ import { WebSocket } from 'ws';
 import { Endpoint, SocketCache } from './endpoint';
 import { PondResponse } from '../abstracts/abstractResponse';
 import { ServerActions, ErrorTypes, SystemSender } from '../enums';
+import { EndpointError } from '../errors/pondError';
 // eslint-disable-next-line import/no-unresolved
 import { PondAssigns, PondMessage } from '../types';
 
@@ -13,11 +14,14 @@ export class ConnectionResponse extends PondResponse {
 
     readonly #clientId: string;
 
+    #executed: boolean;
+
     constructor (webSocket: WebSocket, engine: Endpoint, clientId: string) {
         super();
         this.#webSocket = webSocket;
         this.#engine = engine;
         this.#clientId = clientId;
+        this.#executed = false;
     }
 
     /**
@@ -25,6 +29,7 @@ export class ConnectionResponse extends PondResponse {
      * @param assigns - the data to assign to the client
      */
     public accept (assigns?: PondAssigns) {
+        this.#performChecks();
         const cache: SocketCache = {
             clientId: this.#clientId,
             socket: this.#webSocket,
@@ -40,6 +45,7 @@ export class ConnectionResponse extends PondResponse {
      * @param errorCode - the error code
      */
     public reject (message?: string, errorCode?: number) {
+        this.#performChecks();
         const payload = {
             message: message || 'Unauthorized connection',
             code: errorCode || 401,
@@ -81,5 +87,20 @@ export class ConnectionResponse extends PondResponse {
         };
 
         this.#webSocket.send(JSON.stringify(message));
+    }
+
+    /**
+     * @desc Performs checks to ensure the response has not been executed
+     * @private
+     */
+    #performChecks (): void {
+        if (this.#executed) {
+            const message = 'Cannot execute response more than once';
+            const code = 403;
+
+            throw new EndpointError(message, code);
+        }
+
+        this.#executed = true;
     }
 }

@@ -51,7 +51,7 @@ export interface UserAssigns {
 
 export type ChannelReceivers = ChannelReceiver | string[];
 
-interface Event {
+export interface Event {
     action: 'SYSTEM' | 'BROADCAST' | 'ERROR';
     event: string;
     payload: PondMessage;

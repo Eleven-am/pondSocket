@@ -1,4 +1,4 @@
-import { ChannelEngine, InternalChannelEvent } from './channel';
+import { ChannelEngine, BroadcastEvent } from './channel';
 import { createParentEngine } from './channel.test';
 import { EventResponse } from './eventResponse';
 import { ServerActions, SystemSender, ErrorTypes, ChannelReceiver } from '../enums';
@@ -9,8 +9,8 @@ export const createChannelEngine = () => {
     return new ChannelEngine('test', parentEngine);
 };
 
-export const createChannelEvent = () => {
-    const responseEvent: InternalChannelEvent = {
+export const createChannelEvent = (name: string) => {
+    const responseEvent: BroadcastEvent = {
         event: 'event',
         payload: {
             payload: 'payload',
@@ -18,6 +18,7 @@ export const createChannelEvent = () => {
         sender: 'sender',
         action: ServerActions.BROADCAST,
         recipients: ['recipient'],
+        channelName: name,
     };
 
     return responseEvent;
@@ -25,7 +26,7 @@ export const createChannelEvent = () => {
 
 const createChannelResponse = () => {
     const channelEngine = createChannelEngine();
-    const event = createChannelEvent();
+    const event = createChannelEvent(channelEngine.name);
 
     channelEngine.addUser(event.sender, { assign: 'assign' }, () => {});
     channelEngine.addUser(event.recipients[0], { assign: 'assign' }, () => {});
@@ -232,5 +233,17 @@ describe('ChannelResponse', () => {
 
         expect(() => response.unTrackPresence('non_existent_user'))
             .toThrowError('PresenceEngine: Presence with key non_existent_user does not exist');
+    });
+
+    it('should throw an error if accept, reject / send is called more than once', () => {
+        const { response, channelEngine } = createChannelResponse();
+
+        jest.spyOn(channelEngine, 'sendMessage');
+        expect(channelEngine.sendMessage).not.toHaveBeenCalled();
+        response.accept();
+        expect(channelEngine.sendMessage).toHaveBeenCalledWith('sender', ['recipient'], ServerActions.BROADCAST, 'event', { payload: 'payload' });
+        expect(() => response.accept()).toThrowError('Event response has already been executed');
+        expect(() => response.reject()).toThrowError('Event response has already been executed');
+        expect(() => response.send('event', { payload: 'payload' })).toThrowError('Event response has already been executed');
     });
 });

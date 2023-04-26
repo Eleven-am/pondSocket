@@ -76,18 +76,22 @@ describe('JoinResponse', () => {
 
         // check if the response was sent
         expect(channelEngine.addUser).toHaveBeenCalled();
-        expect(channelEngine.getUserData(socket.clientId)).toStrictEqual({ assigns: { assign: 'assign' },
+        expect(channelEngine.getUserData(socket.clientId)).toStrictEqual({
+            assigns: {
+                assign: 'assign',
+            },
             id: 'sender',
-            presence: {} });
+            presence: {},
+        });
 
         // also check if the socket was sent a message
         expect(socket.socket.send).toHaveBeenCalledWith(JSON.stringify({
+            channelName: 'test',
             action: ServerActions.SYSTEM,
-            event: 'POND_MESSAGE',
             payload: {
                 message: 'message',
             },
-            channelName: 'test',
+            event: 'POND_MESSAGE',
         }));
     });
 
@@ -142,5 +146,17 @@ describe('JoinResponse', () => {
 
         // check if the trackPresence method was called
         expect(trackPresence).toHaveBeenCalledWith('sender', { status: 'online' });
+    });
+
+    it('should throw an error if accept, reject / send is called more than once', () => {
+        const { response, channelEngine, socket } = createPondResponse();
+
+        jest.spyOn(channelEngine, 'addUser');
+        expect(channelEngine.addUser).not.toHaveBeenCalled();
+        response.accept();
+        expect(channelEngine.addUser).toHaveBeenCalledWith(socket.clientId, socket.assigns, expect.any(Function));
+        expect(() => response.accept()).toThrowError('Request to join channel test rejected: Request already executed');
+        expect(() => response.reject()).toThrowError('Request to join channel test rejected: Request already executed');
+        expect(() => response.send('event', { payload: 'payload' })).toThrowError('Request to join channel test rejected: Request already executed');
     });
 });

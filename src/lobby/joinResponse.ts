@@ -2,6 +2,7 @@ import { PondResponse } from '../abstracts/abstractResponse';
 import { ChannelEngine } from '../channel/channel';
 import { RequestCache } from '../endpoint/endpoint';
 import { ErrorTypes, ServerActions, SystemSender, ChannelReceiver, Events } from '../enums';
+import { ChannelError } from '../errors/pondError';
 // eslint-disable-next-line import/no-unresolved
 import { PondAssigns, ChannelEvent, PondMessage, PondPresence } from '../types';
 
@@ -10,10 +11,13 @@ export class JoinResponse extends PondResponse {
 
     readonly #engine: ChannelEngine;
 
+    #executed: boolean;
+
     constructor (user: RequestCache, engine: ChannelEngine) {
         super();
         this.#user = user;
         this.#engine = engine;
+        this.#executed = false;
     }
 
     /**
@@ -21,6 +25,8 @@ export class JoinResponse extends PondResponse {
      * @param assigns - the data to assign to the client
      */
     public accept (assigns?: PondAssigns): JoinResponse {
+        this.#performChecks();
+
         assigns = {
             ...assigns,
             ...this.#user.assigns,
@@ -47,6 +53,8 @@ export class JoinResponse extends PondResponse {
      * @param errorCode - the error code
      */
     public reject (message?: string, errorCode?: number): JoinResponse {
+        this.#performChecks();
+
         const text = `Request to join channel ${this.#engine.name} rejected: ${message || 'Unauthorized request'}`;
 
         const errorMessage: ChannelEvent = {
@@ -119,5 +127,20 @@ export class JoinResponse extends PondResponse {
         this.#engine.trackPresence(this.#user.clientId, presence);
 
         return this;
+    }
+
+    /**
+     * @desc Performs checks to ensure the response has not been executed
+     * @private
+     */
+    #performChecks (): void {
+        if (this.#executed) {
+            const message = `Request to join channel ${this.#engine.name} rejected: Request already executed`;
+            const code = 403;
+
+            throw new ChannelError(message, code, this.#engine.name);
+        }
+
+        this.#executed = true;
     }
 }

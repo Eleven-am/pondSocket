@@ -12,18 +12,21 @@ import {
     UserAssigns,
     ChannelEvent,
     ChannelReceivers,
-    ClientMessage, UserData,
+    ClientMessage,
+    UserData,
 // eslint-disable-next-line import/no-unresolved
 } from '../types';
 
 type ChannelSenders = SystemSender.CHANNEL | string;
 
-export type InternalChannelEvent = {
+export type InternalChannelEvent = ChannelEvent & {
+    recipients: string[];
+}
+
+export type BroadcastEvent = Omit<InternalChannelEvent, 'action' | 'payload'> & {
+    action: ServerActions.BROADCAST;
     sender: ChannelSenders;
     payload: PondMessage;
-    event: string;
-    recipients: string[];
-    action: ServerActions;
 }
 
 export type ParentEngine = {
@@ -81,7 +84,7 @@ export class ChannelEngine {
         if (user) {
             this.#users.delete(userId);
             this.#receiver.unsubscribe(userId);
-            this.#presenceEngine?.removePresence(userId);
+            this.#presenceEngine?.removePresence(userId, graceful);
 
             if (this.#users.size === 0) {
                 this.#parentEngine.destroyChannel();
@@ -98,8 +101,7 @@ export class ChannelEngine {
      */
     public kickUser (userId: string, reason: string) {
         this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, 'kicked_out', {
-            message: 'You have been kicked out of the channel',
-            reason,
+            message: reason ?? 'You have been kicked out of the channel',
         });
         this.removeUser(userId);
         this.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, 'kicked', {
@@ -114,8 +116,7 @@ export class ChannelEngine {
      */
     public destroy (reason: string) {
         this.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.ERROR, 'destroyed', {
-            message: 'Channel has been destroyed',
-            reason,
+            message: reason ?? 'Channel has been destroyed',
         });
         this.#parentEngine.destroyChannel();
         this.#users.forEach((_, userId) => this.#receiver.unsubscribe(userId));
@@ -184,13 +185,15 @@ export class ChannelEngine {
             throw new ChannelError(`ChannelEngine: User with id ${sender} does not exist in channel ${this.name}`, 404, this.name);
         }
 
-        this.#receiver.publish({
-            sender,
+        const eventMessage = {
             recipients: this.#getUsersFromRecipients(recipient, sender),
+            channelName: this.name,
             action,
             payload,
             event,
-        });
+        } as InternalChannelEvent;
+
+        this.#receiver.publish(eventMessage);
     }
 
     /**
@@ -203,11 +206,12 @@ export class ChannelEngine {
             throw new ChannelError(`ChannelEngine: User with id ${userId} does not exist in channel ${this.name}`, 404, this.name);
         }
 
-        const responseEvent: InternalChannelEvent = {
+        const responseEvent: BroadcastEvent = {
+            sender: userId,
             event: message.event,
             payload: message.payload,
             action: ServerActions.BROADCAST,
-            sender: userId,
+            channelName: this.name,
             recipients: this.#getUsersFromRecipients(message.addresses || ChannelReceiver.ALL_USERS, userId),
         };
 
@@ -228,12 +232,11 @@ export class ChannelEngine {
      * @param presence - The initial presence of the user
      */
     public trackPresence (userId: string, presence: PondPresence) {
-        this.#presenceEngine = this.#presenceEngine ?? new PresenceEngine(this.name);
-
         if (!this.#users.has(userId)) {
             throw new ChannelError(`ChannelEngine: User with id ${userId} does not exist in channel ${this.name}`, 404, this.name);
         }
 
+        this.#presenceEngine = this.#presenceEngine ?? new PresenceEngine(this.name);
         this.#presenceEngine.trackPresence(userId, presence, (change) => {
             const { type, ...rest } = change;
 
@@ -256,14 +259,9 @@ export class ChannelEngine {
     }
 
     #subscribe (userId: string, onMessage: (event: ChannelEvent) => void) {
-        this.#receiver.subscribeWith(userId, (event) => {
-            if (event.recipients.includes(userId)) {
-                onMessage({
-                    action: event.action,
-                    event: event.event,
-                    payload: event.payload,
-                    channelName: this.name,
-                } as ChannelEvent);
+        this.#receiver.subscribeWith(userId, ({ recipients, ...event }) => {
+            if (recipients.includes(userId)) {
+                onMessage(event);
             }
         });
     }

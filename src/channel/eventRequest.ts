@@ -1,13 +1,13 @@
-import { ChannelEngine, InternalChannelEvent } from './channel';
+import { ChannelEngine, BroadcastEvent } from './channel';
 import { AbstractRequest } from '../abstracts/abstractRequest';
 import { ChannelError } from '../errors/pondError';
 // eslint-disable-next-line import/no-unresolved
 import { UserData } from '../types';
 
 export class EventRequest<Path extends string> extends AbstractRequest<Path> {
-    private readonly _internalEvent: InternalChannelEvent;
+    private readonly _internalEvent: BroadcastEvent;
 
-    constructor (event: InternalChannelEvent, engine: ChannelEngine) {
+    constructor (event: BroadcastEvent, engine: ChannelEngine) {
         super(event.event, engine, event.payload);
         this._internalEvent = event;
     }

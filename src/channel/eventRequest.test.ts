@@ -4,7 +4,7 @@ import { createChannelEngine, createChannelEvent } from './eventResponse.test';
 describe('ChannelRequest', () => {
     it('should create a new ChannelRequest', () => {
         const channelEngine = createChannelEngine();
-        const event = createChannelEvent();
+        const event = createChannelEvent(channelEngine.name);
         const channelRequest = new EventRequest(event, channelEngine);
 
         expect(channelRequest).toBeDefined();
@@ -12,7 +12,7 @@ describe('ChannelRequest', () => {
 
     it('should return the payload', () => {
         const channelEngine = createChannelEngine();
-        const event = createChannelEvent();
+        const event = createChannelEvent(channelEngine.name);
         const channelRequest = new EventRequest(event, channelEngine);
 
         channelRequest._parseQueries('event');
@@ -22,7 +22,7 @@ describe('ChannelRequest', () => {
 
     it('should return the user', () => {
         const channelEngine = createChannelEngine();
-        const event = createChannelEvent();
+        const event = createChannelEvent(channelEngine.name);
         const channelRequest = new EventRequest(event, channelEngine);
 
         // because the user in the event does not exist in the channel, this should throw an error

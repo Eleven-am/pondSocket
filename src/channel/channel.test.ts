@@ -292,8 +292,7 @@ describe('ChannelEngine', () => {
             channelName: 'test',
             event: 'kicked_out',
             payload: {
-                reason: 'test reason',
-                message: 'You have been kicked out of the channel',
+                message: 'test reason',
             },
         });
 
