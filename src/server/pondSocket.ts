@@ -132,6 +132,7 @@ export class PondSocket {
             };
 
             this.#socketServer.handleUpgrade(req, socket, head, (socket) => {
+                this.#socketServer.emit('connection', socket);
                 this.#middleware.run(request, socket, () => {
                     const message = {
                         action: ServerActions.ERROR,
