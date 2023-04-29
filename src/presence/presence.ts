@@ -1,5 +1,5 @@
 import { ChannelEngine } from '../channel/channel';
-import { PresenceEventTypes, SystemSender, ChannelReceiver, ServerActions } from '../enums';
+import { PresenceEventTypes, SystemSender, ServerActions } from '../enums';
 import { PresenceError } from '../errors/pondError';
 // eslint-disable-next-line import/no-unresolved
 import { PondPresence, UserPresences, PresencePayload } from '../types';
@@ -110,9 +110,15 @@ export class PresenceEngine {
      * @private
      */
     #publish (event: PresenceEventTypes, payload: PresencePayload) {
+        const recipients = Array.from(this.#presenceMap.keys());
+
+        if (recipients.length === 0) {
+            return;
+        }
+
         this.#channel.sendMessage(
             SystemSender.CHANNEL,
-            ChannelReceiver.ALL_USERS,
+            recipients,
             ServerActions.PRESENCE,
             event,
             payload,

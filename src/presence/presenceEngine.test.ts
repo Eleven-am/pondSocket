@@ -1,7 +1,7 @@
 import { PresenceEngine } from './presence';
 import { ChannelEngine } from '../channel/channel';
 import { createChannelEngine } from '../channel/eventResponse.test';
-import { PresenceEventTypes, SystemSender, ChannelReceiver, ServerActions } from '../enums';
+import { PresenceEventTypes, SystemSender, ServerActions } from '../enums';
 // eslint-disable-next-line import/no-unresolved
 import { PondPresence } from '../types';
 
@@ -13,6 +13,9 @@ describe('PresenceEngine', () => {
 
     beforeEach(() => {
         channel = createChannelEngine();
+        channel.addUser('presenceKey', { assign: 'assign' }, () => {
+            // do nothing
+        });
         presenceEngine = new PresenceEngine(channel);
         presence = {
             id: 'id',
@@ -31,7 +34,7 @@ describe('PresenceEngine', () => {
             presenceEngine.trackPresence(presenceKey, presence);
             expect(channel.sendMessage).toHaveBeenCalledWith(
                 SystemSender.CHANNEL,
-                ChannelReceiver.ALL_USERS,
+                ['presenceKey'],
                 ServerActions.PRESENCE,
                 PresenceEventTypes.JOIN,
                 {
@@ -62,7 +65,7 @@ describe('PresenceEngine', () => {
             presenceEngine.updatePresence(presenceKey, newPresence);
             expect(channel.sendMessage).toHaveBeenCalledWith(
                 SystemSender.CHANNEL,
-                ChannelReceiver.ALL_USERS,
+                ['presenceKey'],
                 ServerActions.PRESENCE,
                 PresenceEventTypes.UPDATE,
                 {
@@ -84,6 +87,10 @@ describe('PresenceEngine', () => {
         it('should remove a presence from the presence engine', () => {
             const listener = jest.spyOn(channel, 'sendMessage');
 
+            // before we can track a presence, we need make sure the user is in the channel
+            channel.addUser('presenceKey2', { assign: 'assign' }, () => {
+                // do nothing
+            });
             presenceEngine.trackPresence(presenceKey, presence);
             presenceEngine.trackPresence('presenceKey2', {
                 ...presence,
@@ -100,7 +107,7 @@ describe('PresenceEngine', () => {
             expect(listener).toHaveBeenCalledTimes(1);
             expect(listener).toHaveBeenCalledWith(
                 SystemSender.CHANNEL,
-                ChannelReceiver.ALL_USERS,
+                ['presenceKey2'],
                 ServerActions.PRESENCE,
                 PresenceEventTypes.LEAVE,
                 {
@@ -116,20 +123,7 @@ describe('PresenceEngine', () => {
 
             listener.mockClear();
             presenceEngine.removePresence('presenceKey2');
-            expect(listener).toHaveBeenCalledTimes(1);
-            expect(listener).toHaveBeenCalledWith(
-                SystemSender.CHANNEL,
-                ChannelReceiver.ALL_USERS,
-                ServerActions.PRESENCE,
-                PresenceEventTypes.LEAVE,
-                {
-                    changed: {
-                        ...presence,
-                        key: 'presence2',
-                    },
-                    presence: [],
-                },
-            );
+            expect(listener).toHaveBeenCalledTimes(0);
         });
 
         it('should throw an error if the presence does not exist', () => {
