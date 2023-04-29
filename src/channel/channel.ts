@@ -63,7 +63,7 @@ export class ChannelEngine {
 
         if (oldUser) {
             const message = `ChannelEngine: User with id ${userId} already exists in channel ${this.name}`;
-            const code = 404;
+            const code = 400;
 
             throw new ChannelError(message, code, this.name);
         }
@@ -145,12 +145,13 @@ export class ChannelEngine {
      * @param userId - The id of the user to get
      */
     public getUserData (userId: string): UserData | undefined {
+        const assigns = this.#users.get(userId);
         const presence = this.#presenceEngine ? this.#presenceEngine.getUserPresence(userId) : {};
 
-        if (this.#users.has(userId)) {
+        if (assigns) {
             return {
+                assigns,
                 id: userId,
-                assigns: this.#users.get(userId)!,
                 presence: presence || {},
             };
         }
@@ -236,12 +237,8 @@ export class ChannelEngine {
             throw new ChannelError(`ChannelEngine: User with id ${userId} does not exist in channel ${this.name}`, 404, this.name);
         }
 
-        this.#presenceEngine = this.#presenceEngine ?? new PresenceEngine(this.name);
-        this.#presenceEngine.trackPresence(userId, presence, (change) => {
-            const { type, ...rest } = change;
-
-            this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.PRESENCE, type, rest);
-        });
+        this.#presenceEngine = this.#presenceEngine ?? new PresenceEngine(this);
+        this.#presenceEngine.trackPresence(userId, presence);
     }
 
     /**
@@ -258,6 +255,12 @@ export class ChannelEngine {
         return this.#users.size;
     }
 
+    /**
+     * @desc Subscribes a user to the channel
+     * @param userId - The id of the user to subscribe
+     * @param onMessage - The callback to call when a message is received
+     * @private
+     */
     #subscribe (userId: string, onMessage: (event: ChannelEvent) => void) {
         this.#receiver.subscribeWith(userId, ({ recipients, ...event }) => {
             if (recipients.includes(userId)) {
@@ -266,6 +269,12 @@ export class ChannelEngine {
         });
     }
 
+    /**
+     * @desc Gets the users from a set of recipients
+     * @param recipients - The recipients to get the users from
+     * @param sender - The sender of the message
+     * @private
+     */
     #getUsersFromRecipients (recipients: ChannelReceivers, sender: ChannelSenders): string[] {
         const allUsers = Array.from(this.#users.keys());
         let users: string[];

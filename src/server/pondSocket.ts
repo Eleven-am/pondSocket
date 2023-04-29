@@ -105,7 +105,7 @@ export class PondSocket {
                 }
 
                 socket.isAlive = false;
-                socket.ping(() => {});
+                socket.ping();
             });
         }, 30000);
 

@@ -32,13 +32,9 @@ export type PondMessage = PondObject;
 export type PondAssigns = PondObject;
 export type JoinParams = PondObject;
 
-export interface PresencePayload {
+export interface PresencePayload extends PondObject {
     changed: PondPresence;
     presence: PondPresence[];
-}
-
-export interface PresenceEvent extends PresencePayload {
-    type: PresenceEventTypes;
 }
 
 export interface UserPresences {

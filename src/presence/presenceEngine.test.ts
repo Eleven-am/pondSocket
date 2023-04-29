@@ -1,16 +1,19 @@
 import { PresenceEngine } from './presence';
-import { PresenceEventTypes } from '../enums';
+import { ChannelEngine } from '../channel/channel';
+import { createChannelEngine } from '../channel/eventResponse.test';
+import { PresenceEventTypes, SystemSender, ChannelReceiver, ServerActions } from '../enums';
 // eslint-disable-next-line import/no-unresolved
-import { PondPresence, PresenceEvent } from '../types';
+import { PondPresence } from '../types';
 
 describe('PresenceEngine', () => {
     let presenceEngine: PresenceEngine;
     let presence: PondPresence;
     let presenceKey: string;
-    let onPresenceChange: (presence: PresenceEvent) => void;
+    let channel: ChannelEngine;
 
     beforeEach(() => {
-        presenceEngine = new PresenceEngine('channel');
+        channel = createChannelEngine();
+        presenceEngine = new PresenceEngine(channel);
         presence = {
             id: 'id',
             name: 'name',
@@ -19,28 +22,34 @@ describe('PresenceEngine', () => {
             location: 'location',
         };
         presenceKey = 'presenceKey';
-        onPresenceChange = jest.fn();
     });
 
     describe('trackPresence', () => {
         it('should insert a presence into the presence engine', () => {
-            presenceEngine.trackPresence(presenceKey, presence, onPresenceChange);
-            expect(onPresenceChange).toHaveBeenCalledWith({
-                type: PresenceEventTypes.JOIN,
-                changed: presence,
-                presence: [presence],
-            });
+            // spy on the channel sendMessage method
+            jest.spyOn(channel, 'sendMessage');
+            presenceEngine.trackPresence(presenceKey, presence);
+            expect(channel.sendMessage).toHaveBeenCalledWith(
+                SystemSender.CHANNEL,
+                ChannelReceiver.ALL_USERS,
+                ServerActions.PRESENCE,
+                PresenceEventTypes.JOIN,
+                {
+                    changed: presence,
+                    presence: [presence],
+                },
+            );
         });
 
         it('should throw an error if the presence already exists', () => {
-            presenceEngine.trackPresence(presenceKey, presence, onPresenceChange);
-            expect(() => presenceEngine.trackPresence(presenceKey, presence, onPresenceChange)).toThrowError(`PresenceEngine: Presence with key ${presenceKey} already exists`);
+            presenceEngine.trackPresence(presenceKey, presence);
+            expect(() => presenceEngine.trackPresence(presenceKey, presence)).toThrowError(`PresenceEngine: Presence with key ${presenceKey} already exists`);
         });
     });
 
     describe('updatePresence', () => {
         it('should update a presence', () => {
-            presenceEngine.trackPresence(presenceKey, presence, onPresenceChange);
+            presenceEngine.trackPresence(presenceKey, presence);
             const newPresence = {
                 id: 'id',
                 name: 'name',
@@ -49,15 +58,21 @@ describe('PresenceEngine', () => {
                 location: 'location',
             };
 
+            jest.spyOn(channel, 'sendMessage');
             presenceEngine.updatePresence(presenceKey, newPresence);
-            expect(onPresenceChange).toHaveBeenCalledWith({
-                type: PresenceEventTypes.UPDATE,
-                changed: {
-                    ...presence,
-                    ...newPresence,
+            expect(channel.sendMessage).toHaveBeenCalledWith(
+                SystemSender.CHANNEL,
+                ChannelReceiver.ALL_USERS,
+                ServerActions.PRESENCE,
+                PresenceEventTypes.UPDATE,
+                {
+                    changed: {
+                        ...presence,
+                        ...newPresence,
+                    },
+                    presence: [newPresence],
                 },
-                presence: [newPresence],
-            });
+            );
         });
 
         it('should throw an error if the presence does not exist', () => {
@@ -67,30 +82,54 @@ describe('PresenceEngine', () => {
 
     describe('removePresence', () => {
         it('should remove a presence from the presence engine', () => {
-            const secondOnPresenceChange = jest.fn();
+            const listener = jest.spyOn(channel, 'sendMessage');
 
-            presenceEngine.trackPresence(presenceKey, presence, onPresenceChange);
+            presenceEngine.trackPresence(presenceKey, presence);
             presenceEngine.trackPresence('presenceKey2', {
                 ...presence,
                 key: 'presence2',
-            }, secondOnPresenceChange);
+            });
+
+            expect(listener).toHaveBeenCalledTimes(2);
+
+            // clear the mock
+            listener.mockClear();
+
             presenceEngine.removePresence(presenceKey);
-            expect(onPresenceChange).toHaveBeenCalledTimes(2);
-            expect(secondOnPresenceChange).toHaveBeenCalledWith({
-                type: PresenceEventTypes.LEAVE,
-                changed: presence,
-                presence: [
-                    {
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith(
+                SystemSender.CHANNEL,
+                ChannelReceiver.ALL_USERS,
+                ServerActions.PRESENCE,
+                PresenceEventTypes.LEAVE,
+                {
+                    changed: presence,
+                    presence: [
+                        {
+                            ...presence,
+                            key: 'presence2',
+                        },
+                    ],
+                },
+            );
+
+            listener.mockClear();
+            presenceEngine.removePresence('presenceKey2');
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith(
+                SystemSender.CHANNEL,
+                ChannelReceiver.ALL_USERS,
+                ServerActions.PRESENCE,
+                PresenceEventTypes.LEAVE,
+                {
+                    changed: {
                         ...presence,
                         key: 'presence2',
                     },
-                ],
-            });
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            onPresenceChange.mockClear();
-            presenceEngine.removePresence('presenceKey2');
-            expect(onPresenceChange).not.toHaveBeenCalled();
+                    presence: [],
+                },
+            );
         });
 
         it('should throw an error if the presence does not exist', () => {
@@ -100,7 +139,7 @@ describe('PresenceEngine', () => {
 
     describe('getPresence', () => {
         it('should return the presence', () => {
-            presenceEngine.trackPresence(presenceKey, presence, onPresenceChange);
+            presenceEngine.trackPresence(presenceKey, presence);
             const data: any = {};
 
             data[presenceKey] = presence;

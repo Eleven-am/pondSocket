@@ -27,8 +27,8 @@ export class JoinResponse extends PondResponse {
     public accept (assigns?: PondAssigns): JoinResponse {
         this.#performChecks();
 
-        assigns = {
-            ...assigns,
+        const newAssigns = {
+            ...assigns || {},
             ...this.#user.assigns,
         };
 
@@ -40,7 +40,7 @@ export class JoinResponse extends PondResponse {
         };
 
         this.#user.socket.send(JSON.stringify(acknowledgement));
-        this.#engine.addUser(this.#user.clientId, assigns!, (event) => {
+        this.#engine.addUser(this.#user.clientId, newAssigns, (event) => {
             this.#user.socket.send(JSON.stringify(event));
         });
 

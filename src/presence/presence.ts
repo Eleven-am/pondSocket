@@ -1,19 +1,16 @@
-import { PresenceEventTypes } from '../enums';
+import { ChannelEngine } from '../channel/channel';
+import { PresenceEventTypes, SystemSender, ChannelReceiver, ServerActions } from '../enums';
 import { PresenceError } from '../errors/pondError';
-import { BehaviorSubject } from '../subjects/subject';
 // eslint-disable-next-line import/no-unresolved
-import { PresenceEvent, PondPresence, UserPresences } from '../types';
+import { PondPresence, UserPresences, PresencePayload } from '../types';
 
 export class PresenceEngine {
-    readonly #engine: BehaviorSubject<PresenceEvent>;
-
     readonly #presenceMap: Map<string, PondPresence>;
 
-    readonly #channel: string;
+    readonly #channel: ChannelEngine;
 
-    constructor (channel: string) {
+    constructor (channel: ChannelEngine) {
         this.#channel = channel;
-        this.#engine = new BehaviorSubject<PresenceEvent>();
         this.#presenceMap = new Map<string, PondPresence>();
     }
 
@@ -41,24 +38,20 @@ export class PresenceEngine {
      * @desc Tracks a presence
      * @param presenceKey - The key of the presence
      * @param presence - The presence
-     * @param onPresenceChange - The callback to be called when the presence changes
      */
-    public trackPresence (presenceKey: string, presence: PondPresence, onPresenceChange: (presence: PresenceEvent) => void) {
+    public trackPresence (presenceKey: string, presence: PondPresence) {
         if (!this.#presenceMap.has(presenceKey)) {
             this.#presenceMap.set(presenceKey, presence);
-            this.#engine.publish({
-                type: PresenceEventTypes.JOIN,
+            this.#publish(PresenceEventTypes.JOIN, {
                 changed: presence,
                 presence: Array.from(this.#presenceMap.values()),
             });
         } else {
-            const code = 404;
+            const code = 400;
             const message = `PresenceEngine: Presence with key ${presenceKey} already exists`;
 
-            throw new PresenceError(message, code, this.#channel, PresenceEventTypes.JOIN);
+            throw new PresenceError(message, code, this.#channel.name, PresenceEventTypes.JOIN);
         }
-
-        return this.#engine.subscribeWith(presenceKey, onPresenceChange);
     }
 
     /**
@@ -70,10 +63,8 @@ export class PresenceEngine {
         const presence = this.#presenceMap.get(presenceKey);
 
         if (presence) {
-            this.#engine.unsubscribe(presenceKey);
             this.#presenceMap.delete(presenceKey);
-            this.#engine.publish({
-                type: PresenceEventTypes.LEAVE,
+            this.#publish(PresenceEventTypes.LEAVE, {
                 changed: presence,
                 presence: Array.from(this.#presenceMap.values()),
             });
@@ -81,7 +72,7 @@ export class PresenceEngine {
             const code = 404;
             const message = `PresenceEngine: Presence with key ${presenceKey} does not exist`;
 
-            throw new PresenceError(message, code, this.#channel, PresenceEventTypes.LEAVE);
+            throw new PresenceError(message, code, this.#channel.name, PresenceEventTypes.LEAVE);
         }
     }
 
@@ -100,8 +91,7 @@ export class PresenceEngine {
             };
 
             this.#presenceMap.set(presenceKey, newPresence);
-            this.#engine.publish({
-                type: PresenceEventTypes.UPDATE,
+            this.#publish(PresenceEventTypes.UPDATE, {
                 changed: newPresence,
                 presence: Array.from(this.#presenceMap.values()),
             });
@@ -109,7 +99,23 @@ export class PresenceEngine {
             const code = 404;
             const message = `PresenceEngine: Presence with key ${presenceKey} does not exist`;
 
-            throw new PresenceError(message, code, this.#channel, PresenceEventTypes.UPDATE);
+            throw new PresenceError(message, code, this.#channel.name, PresenceEventTypes.UPDATE);
         }
+    }
+
+    /**
+     * @desc Publishes a presence event to all users in the channel
+     * @param event - The event type
+     * @param payload - The payload of the event
+     * @private
+     */
+    #publish (event: PresenceEventTypes, payload: PresencePayload) {
+        this.#channel.sendMessage(
+            SystemSender.CHANNEL,
+            ChannelReceiver.ALL_USERS,
+            ServerActions.PRESENCE,
+            event,
+            payload,
+        );
     }
 }

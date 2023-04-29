@@ -164,7 +164,6 @@ export class PondChannel {
         this.#lobby.onEvent(event, handler);
     }
 
-
     /**
      * @desc Broadcasts a message to all users in a channel
      * @param event - The event to broadcast

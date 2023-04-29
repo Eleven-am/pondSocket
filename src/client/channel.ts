@@ -232,6 +232,13 @@ export class Channel {
         });
     }
 
+    /**
+     * @desc Builds a message structure to and sends it to the server.
+     * @param event - The event to send.
+     * @param payload - The message to send.
+     * @param receivers - The clients to send the message to.
+     * @private
+     */
     #send (event: string, payload: PondMessage, receivers: ChannelReceivers = ChannelReceiver.ALL_USERS) {
         const message: ClientMessage = {
             action: ClientActions.BROADCAST,
@@ -244,6 +251,11 @@ export class Channel {
         this.#publish(message);
     }
 
+    /**
+     * @desc Publishes a message received from the server.
+     * @param data - The message to publish.
+     * @private
+     */
     #publish (data: ClientMessage) {
         if (this.#clientState.value) {
             if (this.#joinState.value === ChannelState.JOINED) {
@@ -256,6 +268,11 @@ export class Channel {
         this.#queue.push(data);
     }
 
+    /**
+     * @desc Publishes all presence events to the channel.
+     * @param callback - The callback to call when a presence event is received.
+     * @private
+     */
     #subscribeToPresence (callback: (event: PresenceEventTypes, payload: PresencePayload) => void) {
         return this.#receiver.subscribe((data) => {
             if (data.action === ServerActions.PRESENCE) {
@@ -264,6 +281,11 @@ export class Channel {
         });
     }
 
+    /**
+     * 2desc Initializes the channel.
+     * @param receiver - The receiver to subscribe to.
+     * @private
+     */
     #init (receiver: SimpleSubject<ChannelEvent>): Unsubscribe {
         const unsubMessages = receiver.subscribe((data) => {
             if (data.channelName === this.#name) {
@@ -302,6 +324,10 @@ export class Channel {
         };
     }
 
+    /**
+     * @desc Publishes the queue of messages to the server.
+     * @private
+     */
     #emptyQueue () {
         this.#queue
             .filter((message) => message.action !== ClientActions.JOIN_CHANNEL)

@@ -10,16 +10,27 @@ export class SimpleSubject<T> {
         this.#observers = new Set<Subscriber<T>>();
     }
 
+    /**
+     * @desc Subscribes to a subject
+     * @param observer - The observer to subscribe
+     */
     subscribe (observer: Subscriber<T>): Unsubscribe {
         this.#observers.add(observer);
 
         return () => this.#observers.delete(observer);
     }
 
+    /**
+     * @desc Publishes a message to all subscribers
+     * @param message - The message to publish
+     */
     publish (message: T) {
         this.#observers.forEach((observer) => observer(message));
     }
 
+    /**
+     * @desc Returns the number of subscribers
+     */
     get size () {
         return this.#observers.size;
     }
@@ -34,15 +45,26 @@ export class SimpleBehaviorSubject<T> extends SimpleSubject<T> {
         this.#lastMessage = initialValue;
     }
 
+    /**
+     * @desc Returns the last message published
+     */
     public get value () {
         return this.#lastMessage;
     }
 
+    /**
+     * @desc Publishes a message to all subscribers
+     * @param message - The message to publish
+     */
     publish (message: T) {
         this.#lastMessage = message;
         super.publish(message);
     }
 
+    /**
+     * @desc Subscribes to a subject
+     * @param observer - The observer to subscribe
+     */
     subscribe (observer: Subscriber<T>): Unsubscribe {
         if (this.#lastMessage) {
             observer(this.#lastMessage);
@@ -55,15 +77,28 @@ export class SimpleBehaviorSubject<T> extends SimpleSubject<T> {
 export class Subject<T> extends SimpleSubject<T> {
     readonly #subscriptions: Record<string, Unsubscribe> = {};
 
+    /**
+     * @desc Subscribes to a subject
+     * @param identifier - The identifier of the subscription
+     * @param observer - The observer to subscribe
+     */
     subscribeWith (identifier: string, observer: Subscriber<T>): void {
         this.#subscriptions[identifier] = super.subscribe(observer);
     }
 
+    /**
+     * @desc Unsubscribes from a subject
+     * @param identifier - The identifier of the subscription
+     */
     unsubscribe (identifier: string) {
         this.#subscriptions[identifier]?.();
         delete this.#subscriptions[identifier];
     }
 
+    /**
+     * @desc Checks if a subscription exists
+     * @param identifier - The identifier of the subscription
+     */
     has (identifier: string) {
         return Boolean(this.#subscriptions[identifier]);
     }
@@ -78,6 +113,11 @@ export class BehaviorSubject<T> extends Subject<T> {
         this.#lastMessage = initialValue;
     }
 
+    /**
+     * @desc Subscribes to a subject
+     * @param identifier - The identifier of the subscription
+     * @param observer - The observer to subscribe
+     */
     subscribeWith (identifier: string, observer: Subscriber<T>): void {
         if (this.#lastMessage) {
             observer(this.#lastMessage);
@@ -86,6 +126,10 @@ export class BehaviorSubject<T> extends Subject<T> {
         super.subscribeWith(identifier, observer);
     }
 
+    /**
+     * @desc Publishes a message to all subscribers
+     * @param message - The message to publish
+     */
     publish (message: T) {
         this.#lastMessage = message;
         super.publish(message);

@@ -110,6 +110,10 @@ export default class PondClient {
         return this._connectionState.subscribe(callback);
     }
 
+    /**
+     * @desc Returns a function that publishes a message to the socket.
+     * @private
+     */
     #createPublisher () {
         return (message: ClientMessage) => {
             if (this._connectionState.value) {
