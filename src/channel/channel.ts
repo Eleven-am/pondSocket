@@ -287,13 +287,16 @@ export class ChannelEngine {
                 if (sender === SystemSender.CHANNEL) {
                     throw new ChannelError(`ChannelEngine: Cannot use ${ChannelReceiver.ALL_EXCEPT_SENDER} with ${SystemSender.CHANNEL}`, 500, this.name);
                 }
+
                 users = allUsers.filter((user) => user !== sender);
                 break;
             default:
-                const absentUsers = recipients.filter((user) => !allUsers.includes(user));
+                if (!Array.isArray(recipients) || !recipients.every((recipient) => typeof recipient === 'string')) {
+                    throw new ChannelError(`ChannelEngine: Invalid recipients ${recipients}`, 500, this.name);
+                }
 
-                if (absentUsers.length > 0) {
-                    throw new ChannelError(`ChannelEngine: Users ${absentUsers.join(', ')} are not in channel ${this.name}`, 400, this.name);
+                if (recipients.some((user) => !allUsers.includes(user))) {
+                    throw new ChannelError(`ChannelEngine: Invalid recipients ${recipients} some users do not exist in channel ${this.name}`, 500, this.name);
                 }
 
                 users = recipients;
