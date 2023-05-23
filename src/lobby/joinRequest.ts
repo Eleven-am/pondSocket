@@ -1,5 +1,5 @@
 import { AbstractRequest } from '../abstracts/abstractRequest';
-import { ChannelEngine } from '../channel/channel';
+import { ChannelEngine, Client } from '../channel/channel';
 import { RequestCache } from '../endpoint/endpoint';
 // eslint-disable-next-line import/no-unresolved
 import { JoinParams, UserData, PondAssigns } from '../types';
@@ -28,5 +28,9 @@ export class JoinRequest<Path extends string> extends AbstractRequest<Path> {
             assigns: this.#assigns,
             presence: {},
         };
+    }
+
+    public get client (): Client {
+        return new Client(this._engine);
     }
 }

@@ -11,7 +11,7 @@ describe('AbstractRequest', () => {
         const request = new AbstractRequest('/test', createMockChannelEngine(), {});
 
         expect(request).toBeTruthy();
-        expect(request.channelNme).toBe('test');
+        expect(request.channelName).toBe('test');
         expect(request.assigns).toEqual({});
         expect(request.presence).toEqual({});
     });

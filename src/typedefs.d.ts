@@ -29,7 +29,7 @@ export enum ChannelState {
 export declare class AbstractRequest<Path extends string> {
     event: PondEvent<Path>;
 
-    channelNme: string;
+    channelName: string;
 
     assigns: UserAssigns;
 
@@ -241,6 +241,61 @@ export declare class Channel {
     onConnectionChange (callback: (connected: boolean) => void): Unsubscribe;
 }
 
+export declare class Client {
+    /**
+     * @desc Gets the current assign data for the channel.
+     */
+    get getAssigns (): UserAssigns;
+
+    /**
+     * @desc Gets the assign date for a specific user.
+     * @param userId - The id of the user to get the assign data for.
+     */
+    getUserData (userId: string): UserData;
+
+    /**
+     * @desc Broadcasts a message to every client in the channel,
+     * @param event - The event to send.
+     * @param payload - The message to send.
+     */
+    broadcastMessage (event: string, payload: PondMessage): void;
+
+    /**
+     * @desc Sends a message to a specific client in the channel.
+     * @param userId - The id of the user to send the message to.
+     * @param event - The event to send.
+     * @param payload - The message to send.
+     */
+    sendToUser (userId: string, event: string, payload: PondMessage): void;
+
+    /**
+     * @desc Bans a user from the channel.
+     * @param userId - The id of the user to ban.
+     * @param reason - The reason for the ban.
+     */
+    banUser (userId: string, reason?: string): void;
+
+    /**
+     * @desc tracks a user's presence in the channel
+     * @param userId - the id of the user to track
+     * @param presence - the presence of the user
+     */
+    trackPresence (userId: string, presence: PondPresence): void;
+
+    /**
+     * @desc removes a user's presence from the channel
+     * @param userId - the id of the user to remove
+     */
+    removePresence (userId: string): void;
+
+    /**
+     * @desc updates a user's presence in the channel
+     * @param userId - the id of the user to update
+     * @param presence - the new presence of the user
+     */
+    updatePresence (userId: string, presence: PondPresence): void;
+}
+
 export declare class Endpoint {
     /**
      * @desc Adds a new PondChannel to this path on this endpoint
@@ -276,6 +331,8 @@ export declare class JoinRequest<Path extends string> extends AbstractRequest<Pa
     joinParams: JoinParams;
 
     user: UserData;
+
+    client: Client;
 }
 
 export declare class JoinResponse extends PondResponse {

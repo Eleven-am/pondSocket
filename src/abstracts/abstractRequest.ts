@@ -32,7 +32,7 @@ export class AbstractRequest<Path extends string> {
         };
     }
 
-    public get channelNme (): string {
+    public get channelName (): string {
         return this._engine.name;
     }
 

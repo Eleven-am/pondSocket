@@ -306,3 +306,43 @@ export class ChannelEngine {
         return users;
     }
 }
+
+export class Client {
+    #engine: ChannelEngine;
+
+    constructor (engine: ChannelEngine) {
+        this.#engine = engine;
+    }
+
+    public getAssigns () {
+        return this.#engine.getAssigns();
+    }
+
+    public getUserData (userId: string) {
+        return this.#engine.getUserData(userId);
+    }
+
+    public broadcastMessage (event: string, payload: PondMessage) {
+        this.#engine.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+    }
+
+    public sendToUser (userId: string, event: string, payload: PondMessage) {
+        this.#engine.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.BROADCAST, event, payload);
+    }
+
+    public banUser (userId: string, reason?: string) {
+        this.#engine.kickUser(userId, reason ?? 'You have been banned from the channel');
+    }
+
+    public trackPresence (userId: string, presence: PondPresence) {
+        this.#engine.trackPresence(userId, presence);
+    }
+
+    public removePresence (userId: string) {
+        this.#engine.presenceEngine?.removePresence(userId);
+    }
+
+    public updatePresence (userId: string, presence: PondPresence) {
+        this.#engine.presenceEngine?.updatePresence(userId, presence);
+    }
+}
