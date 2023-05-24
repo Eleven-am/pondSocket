@@ -1,8 +1,7 @@
 import { ChannelEngine } from '../channel/channel';
 import { PresenceEventTypes, SystemSender, ServerActions } from '../enums';
 import { PresenceError } from '../errors/pondError';
-// eslint-disable-next-line import/no-unresolved
-import { PondPresence, UserPresences, PresencePayload } from '../types';
+import type { PondPresence, UserPresences, PresencePayload } from '../types';
 
 export class PresenceEngine {
     readonly #presenceMap: Map<string, PondPresence>;

@@ -3,8 +3,7 @@ import { ChannelEngine, ParentEngine } from '../channel/channel';
 import { EventRequest } from '../channel/eventRequest';
 import { EventResponse } from '../channel/eventResponse';
 import { ServerActions, ChannelReceiver, SystemSender } from '../enums';
-// eslint-disable-next-line import/no-unresolved
-import { PondPath, PondMessage } from '../types';
+import type { PondPath, PondMessage } from '../types';
 
 export class LobbyEngine {
     readonly #channels: Set<ChannelEngine>;

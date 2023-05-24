@@ -7,7 +7,7 @@ import {
     Events,
 } from '../enums';
 import { SimpleSubject, SimpleBehaviorSubject } from '../subjects/subject';
-import {
+import type {
     JoinParams,
     ChannelEvent,
     ClientMessage,
@@ -16,9 +16,7 @@ import {
     PondMessage,
     PresencePayload,
     ChannelReceivers,
-// eslint-disable-next-line import/no-unresolved
 } from '../types';
-
 
 type Publisher = (data: ClientMessage) => void;
 

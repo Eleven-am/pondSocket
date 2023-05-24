@@ -1,8 +1,7 @@
 import { ChannelEngine, BroadcastEvent } from './channel';
 import { AbstractRequest } from '../abstracts/abstractRequest';
 import { ChannelError } from '../errors/pondError';
-// eslint-disable-next-line import/no-unresolved
-import { UserData } from '../types';
+import type { UserData } from '../types';
 
 export class EventRequest<Path extends string> extends AbstractRequest<Path> {
     private readonly _internalEvent: BroadcastEvent;

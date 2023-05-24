@@ -4,8 +4,7 @@ import { Endpoint, SocketCache } from './endpoint';
 import { PondResponse } from '../abstracts/abstractResponse';
 import { ServerActions, ErrorTypes, SystemSender } from '../enums';
 import { EndpointError } from '../errors/pondError';
-// eslint-disable-next-line import/no-unresolved
-import { PondAssigns, PondMessage } from '../types';
+import type { PondAssigns, PondMessage } from '../types';
 
 export class ConnectionResponse extends PondResponse {
     readonly #webSocket: WebSocket;

@@ -2,8 +2,7 @@ import { ChannelEngine, BroadcastEvent } from './channel';
 import { PondResponse } from '../abstracts/abstractResponse';
 import { SystemSender, ServerActions, ErrorTypes, ChannelReceiver } from '../enums';
 import { ChannelError } from '../errors/pondError';
-// eslint-disable-next-line import/no-unresolved
-import { PondAssigns, PondMessage, PondPresence } from '../types';
+import type { PondAssigns, PondMessage, PondPresence } from '../types';
 
 export class EventResponse extends PondResponse {
     readonly #event: BroadcastEvent;

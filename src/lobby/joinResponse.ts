@@ -3,8 +3,7 @@ import { ChannelEngine } from '../channel/channel';
 import { RequestCache } from '../endpoint/endpoint';
 import { ErrorTypes, ServerActions, SystemSender, ChannelReceiver, Events } from '../enums';
 import { ChannelError } from '../errors/pondError';
-// eslint-disable-next-line import/no-unresolved
-import { PondAssigns, ChannelEvent, PondMessage, PondPresence } from '../types';
+import type { PondAssigns, ChannelEvent, PondMessage, PondPresence } from '../types';
 
 export class JoinResponse extends PondResponse {
     readonly #user: RequestCache;

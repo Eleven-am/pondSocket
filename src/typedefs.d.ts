@@ -2,7 +2,7 @@ import { Server as HTTPServer } from 'http';
 
 import { WebSocketServer } from 'ws';
 
-import {
+import type {
     UserPresences,
     UserAssigns,
     PondEvent,
@@ -15,7 +15,6 @@ import {
     PondPath,
     JoinParams,
     IncomingConnection,
-// eslint-disable-next-line import/no-unresolved
 } from './types';
 
 export enum ChannelState {

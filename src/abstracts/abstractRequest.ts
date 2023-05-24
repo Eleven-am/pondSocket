@@ -1,7 +1,6 @@
 import { ChannelEngine } from '../channel/channel';
 import { parseAddress } from '../matcher/matcher';
-// eslint-disable-next-line import/no-unresolved
-import { PondMessage, UserPresences, UserAssigns, PondPath, PondEvent, EventParams } from '../types';
+import type { PondMessage, UserPresences, UserAssigns, PondPath, PondEvent, EventParams } from '../types';
 
 export class AbstractRequest<Path extends string> {
     protected readonly _engine: ChannelEngine;

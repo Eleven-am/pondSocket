@@ -1,6 +1,5 @@
 import PondSocketClient from './client';
-// eslint-disable-next-line import/no-unresolved
-import { ChannelEvent } from './types';
+import type { ChannelEvent } from './types';
 
 const WebSocket = require('websocket').w3cwebsocket as typeof import('websocket').w3cwebsocket;
 

@@ -5,7 +5,7 @@ import { SystemSender, ServerActions, ChannelReceiver, ErrorTypes } from '../enu
 import { ChannelError } from '../errors/pondError';
 import { PresenceEngine } from '../presence/presence';
 import { Subject } from '../subjects/subject';
-import {
+import type {
     PondMessage,
     PondAssigns,
     PondPresence,
@@ -14,7 +14,6 @@ import {
     ChannelReceivers,
     ClientMessage,
     UserData,
-// eslint-disable-next-line import/no-unresolved
 } from '../types';
 
 type ChannelSenders = SystemSender.CHANNEL | string;

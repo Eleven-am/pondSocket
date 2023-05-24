@@ -1,8 +1,7 @@
 import { Channel } from './client/channel';
 import { ChannelState } from './enums';
 import { SimpleSubject, SimpleBehaviorSubject } from './subjects/subject';
-// eslint-disable-next-line import/no-unresolved
-import { ChannelEvent, JoinParams, ClientMessage } from './types';
+import type { ChannelEvent, JoinParams, ClientMessage } from './types';
 
 export default class PondClient {
     protected readonly _address: URL;

@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/no-unresolved
-import { Params, PondPath, EventParams } from '../types';
+import type { Params, PondPath, EventParams } from '../types';
 
 /**
  * @desc Returns the {key: value} matches of a string

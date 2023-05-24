@@ -8,8 +8,7 @@ import {
     ChannelReceiver,
 } from '../enums';
 import { SimpleBehaviorSubject, SimpleSubject } from '../subjects/subject';
-// eslint-disable-next-line import/no-unresolved
-import { ChannelEvent } from '../types';
+import type { ChannelEvent } from '../types';
 
 const createChannel = (params?: Record<string, any>) => {
     const publisher = jest.fn();

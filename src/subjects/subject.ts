@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/no-unresolved
-import { Unsubscribe } from '../types';
+import type { Unsubscribe } from '../types';
 
 type Subscriber<T> = (message: T) => void;
 

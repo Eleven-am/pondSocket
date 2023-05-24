@@ -7,8 +7,7 @@ import { Endpoint } from '../endpoint/endpoint';
 import { ConnectionResponse } from '../endpoint/response';
 import { ServerActions, SystemSender, ErrorTypes } from '../enums';
 import { parseAddress } from '../matcher/matcher';
-// eslint-disable-next-line import/no-unresolved
-import { PondPath, IncomingConnection } from '../types';
+import type { PondPath, IncomingConnection } from '../types';
 
 interface SocketRequest {
     id: string;

@@ -8,8 +8,7 @@ import { JoinRequest } from '../lobby/joinRequest';
 import { JoinResponse } from '../lobby/joinResponse';
 import { LobbyEngine, PondChannel } from '../lobby/lobby';
 import { parseAddress } from '../matcher/matcher';
-// eslint-disable-next-line import/no-unresolved
-import { PondAssigns, ClientMessage, PondMessage, ChannelEvent, JoinParams, PondPath } from '../types';
+import type { PondAssigns, ClientMessage, PondMessage, ChannelEvent, JoinParams, PondPath } from '../types';
 
 type AuthorizationHandler<Event extends string> = (request: JoinRequest<Event>, response: JoinResponse) => void | Promise<void>;
 

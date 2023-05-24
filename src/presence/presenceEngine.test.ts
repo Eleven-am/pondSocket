@@ -2,8 +2,7 @@ import { PresenceEngine } from './presence';
 import { ChannelEngine } from '../channel/channel';
 import { createChannelEngine } from '../channel/eventResponse.test';
 import { PresenceEventTypes, SystemSender, ServerActions } from '../enums';
-// eslint-disable-next-line import/no-unresolved
-import { PondPresence } from '../types';
+import type { PondPresence } from '../types';
 
 describe('PresenceEngine', () => {
     let presenceEngine: PresenceEngine;

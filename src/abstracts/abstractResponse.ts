@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/no-unresolved
-import { PondAssigns, PondMessage } from '../types';
+import type { PondAssigns, PondMessage } from '../types';
 
 export abstract class PondResponse {
     /**

@@ -1,8 +1,7 @@
 import { AbstractRequest } from '../abstracts/abstractRequest';
 import { ChannelEngine, Client } from '../channel/channel';
 import { RequestCache } from '../endpoint/endpoint';
-// eslint-disable-next-line import/no-unresolved
-import { JoinParams, UserData, PondAssigns } from '../types';
+import type { JoinParams, UserData, PondAssigns } from '../types';
 
 export class JoinRequest<Path extends string> extends AbstractRequest<Path> {
     readonly #params: JoinParams;
