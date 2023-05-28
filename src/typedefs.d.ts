@@ -2,6 +2,7 @@ import { Server as HTTPServer } from 'http';
 
 import { WebSocketServer } from 'ws';
 
+import { LeaveCallback } from './channel/channel';
 import type {
     UserPresences,
     UserAssigns,
@@ -437,6 +438,12 @@ export declare class PondChannel {
      *});
      */
     broadcast (event: string, payload: PondMessage, channelName?: string): void;
+
+    /**
+     * @desc Handles the leave event for a user, can occur when a user disconnects or leaves a channel, use this to clean up any resources
+     * @param callback - The callback to execute when a user leaves
+     */
+    public onLeave (callback: LeaveCallback): void;
 }
 
 export declare class PondSocket {

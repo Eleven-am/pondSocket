@@ -1,5 +1,5 @@
 import { Middleware } from '../abstracts/middleware';
-import { ChannelEngine, ParentEngine } from '../channel/channel';
+import { ChannelEngine, ParentEngine, LeaveCallback } from '../channel/channel';
 import { EventRequest } from '../channel/eventRequest';
 import { EventResponse } from '../channel/eventResponse';
 import { ServerActions, ChannelReceiver, SystemSender } from '../enums';
@@ -9,6 +9,8 @@ export class LobbyEngine {
     readonly #channels: Set<ChannelEngine>;
 
     readonly #middleware: Middleware<EventRequest<string>, EventResponse>;
+
+    #leaveCallback: LeaveCallback | undefined;
 
     constructor () {
         this.#channels = new Set<ChannelEngine>();
@@ -34,6 +36,14 @@ export class LobbyEngine {
 
             next();
         });
+    }
+
+    /**
+     * @desc Handles the leave event for a user, can occur when a user disconnects or leaves a channel, use this to clean up any resources
+     * @param callback - The callback to execute when a user leaves
+     */
+    public onLeave (callback: LeaveCallback) {
+        this.#leaveCallback = callback;
     }
 
     /**
@@ -131,6 +141,7 @@ export class LobbyEngine {
         const parentEngine: ParentEngine = {
             execute,
             destroyChannel,
+            leaveCallback: this.#leaveCallback,
         };
 
         const newChannel: ChannelEngine = new ChannelEngine(channelName, parentEngine);
@@ -177,5 +188,13 @@ export class PondChannel {
      */
     public broadcast (event: string, payload: PondMessage, channelName?: string) {
         this.#lobby.broadcast(event, payload, channelName);
+    }
+
+    /**
+     * @desc Handles the leave event for a user, can occur when a user disconnects or leaves a channel, use this to clean up any resources
+     * @param callback - The callback to execute when a user leaves
+     */
+    public onLeave (callback: LeaveCallback) {
+        this.#lobby.onLeave(callback);
     }
 }

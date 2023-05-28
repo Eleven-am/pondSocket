@@ -28,9 +28,17 @@ export type BroadcastEvent = Omit<InternalChannelEvent, 'action' | 'payload'> & 
     payload: PondMessage;
 }
 
+interface LeaveEvent {
+    userId: string;
+    assigns: PondAssigns;
+}
+
+export type LeaveCallback = (event: LeaveEvent) => void;
+
 export type ParentEngine = {
     destroyChannel: () => void;
     execute: MiddlewareFunction<EventRequest<string>, EventResponse>;
+    leaveCallback?: LeaveCallback;
 }
 
 export class ChannelEngine {
@@ -84,6 +92,13 @@ export class ChannelEngine {
             this.#users.delete(userId);
             this.#receiver.unsubscribe(userId);
             this.#presenceEngine?.removePresence(userId, graceful);
+
+            if (this.#parentEngine.leaveCallback) {
+                this.#parentEngine.leaveCallback({
+                    userId,
+                    assigns: user,
+                });
+            }
 
             if (this.#users.size === 0) {
                 this.#parentEngine.destroyChannel();
