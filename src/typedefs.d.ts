@@ -1,22 +1,70 @@
-import { Server as HTTPServer } from 'http';
+import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
 
+import type { Express } from 'express';
 import { WebSocketServer } from 'ws';
 
-import { LeaveCallback } from './channel/channel';
-import type {
-    UserPresences,
-    UserAssigns,
-    PondEvent,
-    PondAssigns,
-    PondMessage,
-    UserData,
-    PondPresence,
-    Unsubscribe,
-    PresencePayload,
-    PondPath,
-    JoinParams,
-    IncomingConnection,
-} from './types';
+type Unsubscribe = () => void;
+
+export type default_t<T = any> = Record<string, T>;
+type IsParam<Path> = Path extends `:${infer Param}` ? Param : never;
+
+type FilteredParams<Path> = Path extends `${infer First}/${infer Second}`
+    ? IsParam<First> | FilteredParams<Second>
+    : IsParam<Path>
+
+type Params<Path> = {
+    [Key in FilteredParams<Path>]: string
+}
+
+type PondPath<Path extends string> = Path | RegExp;
+
+type EventParams<Path> = {
+    query: Record<string, string>;
+    params: Params<Path>;
+}
+
+type PondObject = default_t;
+type PondPresence = PondObject;
+type PondMessage = PondObject;
+type PondAssigns = PondObject;
+type JoinParams = PondObject;
+
+interface PresencePayload {
+    changed: PondPresence;
+    presence: PondPresence[];
+}
+
+interface UserPresences {
+    [userId: string]: PondPresence;
+}
+
+interface UserAssigns {
+    [userId: string]: PondAssigns;
+}
+
+type PondEvent<Path> = EventParams<Path> & {
+    payload: PondMessage;
+    event: string;
+}
+
+type IncomingConnection<Path> = EventParams<Path> & {
+    id: string;
+    headers: IncomingHttpHeaders;
+    address: string;
+}
+
+interface LeaveEvent {
+    userId: string;
+    assigns: PondAssigns;
+}
+
+type LeaveCallback = (event: LeaveEvent) => void;
+
+interface UserData {
+    assigns: PondAssigns;
+    presence: PondPresence;
+    id: string;
+}
 
 export enum ChannelState {
     IDLE = 'IDLE',
@@ -26,7 +74,7 @@ export enum ChannelState {
     CLOSED = 'CLOSED',
 }
 
-export declare class AbstractRequest<Path extends string> {
+declare class AbstractRequest<Path extends string> {
     event: PondEvent<Path>;
 
     channelName: string;
@@ -36,7 +84,7 @@ export declare class AbstractRequest<Path extends string> {
     presence: UserPresences;
 }
 
-export declare abstract class PondResponse {
+declare abstract class PondResponse {
     /**
      * @desc Rejects the request with the given error message
      * @param message - the error message
@@ -60,11 +108,13 @@ export declare abstract class PondResponse {
     abstract accept (assigns?: PondAssigns): void;
 }
 
-export declare class EventRequest<Path extends string> extends AbstractRequest<Path> {
+declare class EventRequest<Path extends string> extends AbstractRequest<Path> {
     user: UserData;
+
+    client: Client;
 }
 
-export declare class EventResponse extends PondResponse {
+declare class EventResponse extends PondResponse {
     /**
      * @desc Accepts the request and optionally assigns data to the client
      * @param assigns - the data to assign to the client
@@ -144,10 +194,7 @@ export declare class EventResponse extends PondResponse {
 }
 
 export declare class Channel {
-    /**
-     * @desc Gets the current connection state of the channel.
-     */
-    get channelState (): ChannelState;
+    channelState: ChannelState;
 
     /**
      * @desc Connects to the channel.
@@ -241,6 +288,37 @@ export declare class Channel {
     onConnectionChange (callback: (connected: boolean) => void): Unsubscribe;
 }
 
+declare class Endpoint {
+    /**
+     * @desc Adds a new PondChannel to this path on this endpoint
+     * @param path - The path to add the channel to
+     * @param handler - The handler to use to authenticate the client
+     *
+     * @example
+     * const channel = endpoint.createChannel('/chat', (request, response) => {
+     *     if (request.user.assigns.admin)
+     *         response.accept();
+     *
+     *     else
+     *         response.reject('You are not an admin', 403);
+     * });
+     */
+    createChannel<Path extends string> (path: PondPath<Path>, handler: (request: JoinRequest<Path>, response: JoinResponse) => void | Promise<void>): PondChannel;
+
+    /**
+     * @desc Broadcasts a message to all clients connected to this endpoint
+     * @param event - The event to broadcast
+     * @param payload - The payload to broadcast
+     */
+    broadcast (event: string, payload: PondMessage): void;
+
+    /**
+     * @desc Closes specific clients connected to this endpoint
+     * @param clientIds - The id for the client / clients to close
+     */
+    closeConnection (clientIds: string | string[]): void;
+}
+
 export declare class Client {
     /**
      * @desc Gets the current assign data for the channel.
@@ -296,38 +374,7 @@ export declare class Client {
     updatePresence (userId: string, presence: PondPresence): void;
 }
 
-export declare class Endpoint {
-    /**
-     * @desc Adds a new PondChannel to this path on this endpoint
-     * @param path - The path to add the channel to
-     * @param handler - The handler to use to authenticate the client
-     *
-     * @example
-     * const channel = endpoint.createChannel('/chat', (request, response) => {
-     *     if (request.user.assigns.admin)
-     *         response.accept();
-     *
-     *     else
-     *         response.reject('You are not an admin', 403);
-     * });
-     */
-    createChannel<Path extends string> (path: PondPath<Path>, handler: (request: JoinRequest<Path>, response: JoinResponse) => void | Promise<void>): PondChannel;
-
-    /**
-     * @desc Broadcasts a message to all clients connected to this endpoint
-     * @param event - The event to broadcast
-     * @param payload - The payload to broadcast
-     */
-    broadcast (event: string, payload: PondMessage): void;
-
-    /**
-     * @desc Closes specific clients connected to this endpoint
-     * @param clientIds - The id for the client / clients to close
-     */
-    closeConnection (clientIds: string | string[]): void;
-}
-
-export declare class JoinRequest<Path extends string> extends AbstractRequest<Path> {
+declare class JoinRequest<Path extends string> extends AbstractRequest<Path> {
     joinParams: JoinParams;
 
     user: UserData;
@@ -335,9 +382,7 @@ export declare class JoinRequest<Path extends string> extends AbstractRequest<Pa
     client: Client;
 }
 
-export declare class JoinResponse extends PondResponse {
-    #private;
-
+declare class JoinResponse extends PondResponse {
     /**
      * @desc Accepts the request and optionally assigns data to the client
      * @param assigns - the data to assign to the client
@@ -388,7 +433,7 @@ export declare class JoinResponse extends PondResponse {
     trackPresence (presence: PondPresence): JoinResponse;
 }
 
-export declare class ConnectionResponse extends PondResponse {
+declare class ConnectionResponse extends PondResponse {
     /**
      * @desc Accepts the request and optionally assigns data to the client
      * @param assigns - the data to assign to the client
@@ -446,7 +491,7 @@ export declare class PondChannel {
     public onLeave (callback: LeaveCallback): void;
 }
 
-export declare class PondSocket {
+declare class PondSocket {
     constructor (server?: HTTPServer, socketServer?: WebSocketServer);
 
     /**
@@ -480,7 +525,30 @@ export declare class PondSocket {
     createEndpoint<Path extends string> (path: PondPath<Path>, handler: (request: IncomingConnection<Path>, response: ConnectionResponse) => void | Promise<void>): Endpoint;
 }
 
-export declare class PondClient {
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+interface PondSocketExpressApp extends Express {
+
+    /**
+     * @desc Accepts a new socket upgrade request on the provided endpoint using the handler function to authenticate the socket
+     * @param path - the pattern to accept || can also be a regex
+     * @param handler - the handler function to authenticate the socket
+     * @example
+     * const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
+     *    const token = req.query.token;
+     *    if (!token)
+     *       return res.reject('No token provided');
+     *    res.accept({
+     *       assign: {
+     *           token
+     *       }
+     *    });
+     * })
+     */
+    upgrade<Path extends string> (path: PondPath<Path>, handler: (request: IncomingConnection<Path>, response: ConnectionResponse) => void | Promise<void>): Endpoint;
+}
+
+declare class PondClient {
     constructor (endpoint: string, params?: Record<string, any>);
 
     /**
@@ -511,4 +579,6 @@ export declare class PondClient {
      */
     onConnectionChange (callback: (state: boolean) => void): Unsubscribe;
 }
+
+declare const pondSocket: (app: Express) => PondSocketExpressApp;
 
