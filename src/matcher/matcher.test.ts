@@ -60,6 +60,7 @@ describe('parseAddress', () => {
             .toStrictEqual({
                 params: {
                     id: '5',
+                    '*': '/6',
                 },
                 query: {},
             });
@@ -69,7 +70,9 @@ describe('parseAddress', () => {
 
         expect(parseAddress(secondPattern, secondString))
             .toStrictEqual({
-                params: {},
+                params: {
+                    '*': '/test/5/6',
+                },
                 query: {},
             });
     });
