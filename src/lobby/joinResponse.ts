@@ -77,7 +77,7 @@ export class JoinResponse extends PondResponse {
      * @param payload - the payload to send
      * @param assigns - the data to assign to the client
      */
-    public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
+    public send (event: string, payload: PondMessage, assigns?: PondAssigns): JoinResponse {
         this.accept(assigns);
         this.#engine.sendMessage(SystemSender.CHANNEL, [this.#user.clientId], ServerActions.SYSTEM, event, payload);
 

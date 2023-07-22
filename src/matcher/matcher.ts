@@ -1,4 +1,4 @@
-import { EventParams, PondPath } from '../types';
+import type { EventParams, PondPath } from '../types';
 
 function pathToRegexp (path: string) {
     const parts = path.split('/');

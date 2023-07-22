@@ -214,6 +214,7 @@ export class Endpoint {
                     channel.broadcastMessage(cache.clientId, message);
                 });
                 break;
+
             default:
                 throw new Error(`GatewayEngine: Action ${message.action} does not exist`);
         }
