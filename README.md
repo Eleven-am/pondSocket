@@ -33,7 +33,7 @@ Within each endpoint, sockets interact through channels. Channels provide an org
 
 ```javascript
 const channel = endpoint.createChannel('/channel/:id', (req, res) => {
-    // Handle channel-specific events and actions
+    // Handle the join request, which is sent when a user attempts to join the channel
 });
 ```
 
@@ -171,6 +171,8 @@ The `PondChannel` class represents a Generic channel in the PondSocket server. I
 - `onEvent<Event extends string>(event: PondPath<Event>, handler: (request: EventRequest<Event>, response: EventResponse) => void | Promise<void>): void`: Handles an event request made by a user for the specified event with the provided handler function.
 
 - `broadcast(event: string, payload: PondMessage, channelName?: string): void`: Broadcasts a message to all users in the channel with the specified event and payload. Optionally, a specific channel name can be provided to broadcast the message only to users in that channel.
+
+- `onLeave(handler: (event: LeaveEvent) => void | Promise<void>): void`: Handles a leave event for the channel with the provided handler function when a user leaves the channel.
 
 ### EventRequest
 
