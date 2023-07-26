@@ -1,5 +1,5 @@
 import { AbstractRequest } from '../abstracts/abstractRequest';
-import { ChannelEngine, Client } from '../channel/channel';
+import { ChannelEngine, Channel } from '../channel/channel';
 import { RequestCache } from '../endpoint/endpoint';
 import type { JoinParams, UserData, PondAssigns } from '../types';
 
@@ -29,7 +29,7 @@ export class JoinRequest<Path extends string> extends AbstractRequest<Path> {
         };
     }
 
-    public get client (): Client {
-        return new Client(this._engine);
+    public get channel (): Channel {
+        return new Channel(this._engine);
     }
 }

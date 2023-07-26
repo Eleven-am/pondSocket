@@ -111,7 +111,7 @@ declare abstract class PondResponse {
 declare class EventRequest<Path extends string> extends AbstractRequest<Path> {
     user: UserData;
 
-    client: Client;
+    channel: Channel;
 }
 
 declare class EventResponse extends PondResponse {
@@ -193,7 +193,7 @@ declare class EventResponse extends PondResponse {
     closeChannel (reason: string): void;
 }
 
-export declare class Channel {
+export declare class ClientChannel {
     channelState: ChannelState;
 
     /**
@@ -319,7 +319,7 @@ declare class Endpoint {
     closeConnection (clientIds: string | string[]): void;
 }
 
-export declare class Client {
+export declare class Channel {
     /**
      * @desc Gets the current assign data for the channel.
      */
@@ -379,7 +379,7 @@ declare class JoinRequest<Path extends string> extends AbstractRequest<Path> {
 
     user: UserData;
 
-    client: Client;
+    channel: Channel;
 }
 
 declare class JoinResponse extends PondResponse {
@@ -571,7 +571,7 @@ declare class PondClient {
      * @param name - The name of the channel.
      * @param params - The params to send to the server.
      */
-    createChannel (name: string, params?: JoinParams): Channel;
+    createChannel (name: string, params?: JoinParams): ClientChannel;
 
     /**
      * @desc Subscribes to the connection state.

@@ -129,7 +129,6 @@ To create a PondSocket server that accepts authenticated connections and checks 
 
 ```javascript
 import PondSocket from "@eleven-am/pondsocket";
-import Filter from "bad-words";
 
 // Helper functions for token validation
 function isValidToken(token) {
@@ -144,8 +143,17 @@ function getRoleFromToken(token) {
     return 'user';
 }
 
-// Create a PondChannel with profanity check
-const profanityFilter = new Filter();
+function isTextProfane(text) {
+    // Implement your profanity check logic here
+    // Return true if the text is profane, false otherwise
+    return false;
+}
+
+function getMessagesFromDatabase(channelId) {
+    // Implement your logic to retrieve messages from the database
+    // Return an array of messages
+    return [];
+}
 
 const pond = new PondSocket();
 
@@ -167,11 +175,16 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
     }
 });
 
-const profanityChannel = endpoint.createChannel('/channel/:id', (req, res) => {
+// Create a channel, providing a callback that is called when a user attempts to join the channel
+const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res) => {
     // When joining the channel, any joinParams passed from the client will be available in the request payload
     // Also any previous assigns on the socket will be available in the request payload as well
     const { role } = req.user.assigns;
     const { username } = req.joinParams;
+    const { id } = req.event.params;
+    
+    // maybe retrieve the channel from a database
+    const messages = await getMessagesFromDatabase(id);
 
     // Check if the user has the required role to join the channel
     if (role === 'admin') {
@@ -183,7 +196,18 @@ const profanityChannel = endpoint.createChannel('/channel/:id', (req, res) => {
                 role,
                 status: 'online',
                 onlineSince: Date.now(),
-            });
+            })
+            // and send the user the channel history
+            .sendToUsers('history', { messages }, [req.user.id]);
+        
+        // Alternatively, you can also send messages to the user, NOTE that the user would be automatically subscribed to the channel.
+        // res.send('history', { messages }, { username, profanityCount: 0 })
+        //   .trackPresence({
+        //       username,
+        //       role,
+        //       status: 'online',
+        //       onlineSince: Date.now(),
+        //   });
     } else {
         // Reject the join request
         res.reject('You do not have the required role to join this channel', 403);
@@ -195,14 +219,14 @@ profanityChannel.onEvent('message', (req, res) => {
     const { text } = req.event.payload;
 
     // Check for profanity
-    if (profanityFilter.isProfane(text)) {
-        const profanityCount = req.user.assigns.profanityCount + 1
+    if (isTextProfane(text)) {
         // Reject the message if it contains profanity
         res.reject('Profanity is not allowed', 400, {
-            profanityCount,
+            profanityCount:  req.user.assigns.profanityCount + 1
         });
 
-        if (profanityCount >= 3) {
+        // note that profanityCount is updated so req.user.assigns.profanityCount will be updated
+        if (req.user.assigns.profanityCount >= 3) {
             // Kick the user from the channel if they have used profanity more than 3 times
             res.evictUser('You have been kicked from the channel for using profanity');
         } else {
@@ -217,7 +241,7 @@ profanityChannel.onEvent('message', (req, res) => {
     }
 
     // for more complete access to the channel, you can use the client object
-    // const channel = req.client;
+    // const channel = req.channel;
 });
 
 profanityChannel.onEvent('presence/:presence', (req, res) => {

@@ -1,4 +1,4 @@
-import { ChannelEngine, BroadcastEvent, Client } from './channel';
+import { ChannelEngine, BroadcastEvent, Channel } from './channel';
 import { AbstractRequest } from '../abstracts/abstractRequest';
 import { ChannelError } from '../errors/pondError';
 import type { UserData } from '../types';
@@ -24,7 +24,7 @@ export class EventRequest<Path extends string> extends AbstractRequest<Path> {
         return assigns;
     }
 
-    public get client (): Client {
-        return new Client(this._engine);
+    public get channel (): Channel {
+        return new Channel(this._engine);
     }
 }

@@ -321,7 +321,7 @@ export class ChannelEngine {
     }
 }
 
-export class Client {
+export class Channel {
     #engine: ChannelEngine;
 
     constructor (engine: ChannelEngine) {
