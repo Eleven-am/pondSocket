@@ -74,9 +74,179 @@ This node client allows you to turn another server into a client, enabling easy 
 - **Broadcasting**: PondSocket enables broadcasting messages to all users or specific groups within a channel, facilitating real-time updates.
 - **Typed and Well-documented**: The codebase is thoroughly documented and typed, providing a seamless development experience with improved IDE suggestions.
 
-## License
+## Examples
 
-PondSocket is released under the MIT License. Please refer to the `LICENSE` file for detailed licensing information.
+### Client-side Example with Authentication
+
+To connect to the PondSocket server and send messages while associating a username with the client connection, follow the steps below:
+
+```javascript
+import PondClient from "@eleven-am/pondsocket/client";
+
+// Your server URL
+const serverUrl = 'ws://your-server-url/api/socket';
+
+// Your authenticated user's username (replace with actual username)
+const authToken = 'your-auth-token';
+
+// Your username (replace with actual username)
+const username = 'user123';
+
+// Create a new PondClient instance
+const socket = new PondClient(serverUrl, { token: authToken });
+
+// Connect to the server
+socket.connect();
+
+// Add event listeners to handle various scenarios
+socket.onConnectionChange((connected) => {
+    if (connected) {
+        console.log('Connected to the server.');
+    } else {
+        console.log('Disconnected from the server.');
+    }
+});
+
+// Create a channel and join it
+const channel = socket.createChannel('/channel/123', { username });
+channel.join();
+
+// Send a message to the server
+const message = "Hello, PondSocket!";
+channel.broadcast('message', { text: message });
+
+// Handle received messages
+channel.onMessage((event, message) => {
+    console.log(`Received message from server: ${message.text}`);
+});
+```
+
+The client will now connect to the server, and the server will receive the necessary headers automatically, including any authentication tokens or cookies, as required by the browser.
+
+### Server-side Example with Authentication and check for profanity before broadcasting
+
+To create a PondSocket server that accepts authenticated connections and checks for profanity before broadcasting messages, follow the steps below:
+
+```javascript
+import PondSocket from "@eleven-am/pondsocket";
+import Filter from "bad-words";
+
+// Helper functions for token validation
+function isValidToken(token) {
+    // Implement your token validation logic here
+    // Return true if the token is valid, false otherwise
+    return true;
+}
+
+function getRoleFromToken(token) {
+    // Implement the logic to extract the user's role from the token
+    // Return the user's role
+    return 'user';
+}
+
+// Create a PondChannel with profanity check
+const profanityFilter = new Filter();
+
+const pond = new PondSocket();
+
+// Create an endpoint for handling socket connections
+const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
+    // Depending if the user already has cookies set, they can be accessed from the request headers or the request address
+    const token = req.query.token; // If the token is passed as a query parameter
+
+    // Perform token validation here
+    if (isValidToken(token)) {
+        // Extract the authenticated user's username
+        const role = getUsernameFromToken(token);
+
+        // Handle socket connection and authentication for valid users
+        res.accept({ role }); // Assign the user's role to the socket
+    } else {
+        // Reject the connection for invalid users or without a token
+        res.reject('Invalid token', 401);
+    }
+});
+
+const profanityChannel = endpoint.createChannel('/channel/:id', (req, res) => {
+    // When joining the channel, any joinParams passed from the client will be available in the request payload
+    // Also any previous assigns on the socket will be available in the request payload as well
+    const { role } = req.user.assigns;
+    const { username } = req.joinParams;
+
+    // Check if the user has the required role to join the channel
+    if (role === 'admin') {
+        // Accept the join request
+        res.accept({ username, profanityCount: 0 })
+            // optionally you can track the presence of the user in the channel
+            .trackPresence({
+                username,
+                role,
+                status: 'online',
+                onlineSince: Date.now(),
+            });
+    } else {
+        // Reject the join request
+        res.reject('You do not have the required role to join this channel', 403);
+    }
+});
+
+// Attach message event listener to the profanityChannel
+profanityChannel.onEvent('message', (req, res) => {
+    const { text } = req.event.payload;
+
+    // Check for profanity
+    if (profanityFilter.isProfane(text)) {
+        const profanityCount = req.user.assigns.profanityCount + 1
+        // Reject the message if it contains profanity
+        res.reject('Profanity is not allowed', 400, {
+            profanityCount,
+        });
+
+        if (profanityCount >= 3) {
+            // Kick the user from the channel if they have used profanity more than 3 times
+            res.evictUser('You have been kicked from the channel for using profanity');
+        } else {
+            // you can broadcast a message to all users or In the channel that profanity is not allowed
+            res.broadcast('profanity-warning', { message: 'Profanity is not allowed' })
+                // or you can send a message to the user that profanity is not allowed
+                .send('profanity-warning', { message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.` });
+        }
+    } else {
+        // Accept the message to allow broadcasting to other clients in the channel
+        res.accept();
+    }
+
+    // for more complete access to the channel, you can use the client object
+    // const channel = req.client;
+});
+
+profanityChannel.onEvent('presence/:presence', (req, res) => {
+    const { presence } = req.event.params;
+    const { username } = req.user.assigns;
+
+    // Handle presence events
+    res.updatePresence({
+        username,
+        role,
+        onlineSince: Date.now(),
+        status: presence,
+    });
+});
+
+profanityChannel.onLeave((req, res) => {
+    const { username } = req.user.assigns;
+
+    // When a user leaves the channel, PondSocket will automatically remove the user from the presence list and inform other users in the channel
+
+    // perform a cleanup operation here
+});
+
+
+// Start the server
+pond.listen(3000, () => {
+    console.log('PondSocket server listening on port 3000');
+});
+```
 
 ## API Documentation
 
@@ -208,9 +378,7 @@ The `EventResponse` class represents the response object for handling events fro
 
 - `broadcastFromUser(event: string, payload: PondMessage): EventResponse`: Sends a message to all clients in the channel except the sender with the specified event and payload.
 
-- `sendToUsers(event: string, payload: PondMessage, userIds: string[]): EventResponse`: Sends
-
-a message to a specific set of clients identified by the provided userIds with the specified event and payload.
+- `sendToUsers(event: string, payload: PondMessage, userIds: string[]): EventResponse`: Sends a message to a specific set of clients identified by the provided userIds with the specified event and payload.
 
 - `trackPresence(presence: PondPresence, userId?: string): EventResponse`: Tracks a user's presence in the channel.
 
@@ -266,7 +434,7 @@ The `PondClient` class represents a client that connects to the PondSocket serve
 
 ### Channel
 
-The `Channel` class represents a channel in the PondSocket server.
+The `Channel` class represents a channel in the PondClient.
 
 **Methods:**
 
@@ -299,6 +467,10 @@ The `Channel` class represents a channel in the PondSocket server.
 - `isConnected(): boolean`: Gets the current connection state of the channel.
 
 - `onConnectionChange(callback: (connected: boolean) => void): Unsubscribe`: Monitors the connection state of the channel and calls the provided callback when the connection state changes.
+
+## License
+
+PondSocket is released under the GPL-3.0 License. Please refer to the `LICENSE` file for detailed licensing information.
 
 ## Conclusion
 
