@@ -157,7 +157,7 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
     // Perform token validation here
     if (isValidToken(token)) {
         // Extract the authenticated user's username
-        const role = getUsernameFromToken(token);
+        const role = getRoleFromToken(token);
 
         // Handle socket connection and authentication for valid users
         res.accept({ role }); // Assign the user's role to the socket
