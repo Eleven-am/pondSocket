@@ -116,9 +116,13 @@ const message = "Hello, PondSocket!";
 channel.broadcast('message', { text: message });
 
 // Handle received messages
-channel.onMessage((event, message) => {
+// Certain methods in the channel instance returns a subscription function, which can be used to unsubscribe from the event
+const subscription = channel.onMessage((event, message) => {
     console.log(`Received message from server: ${message.text}`);
 });
+
+// Unsubscribe from the event
+subscription();
 ```
 
 The client will now connect to the server, and the server will receive the necessary headers automatically, including any authentication tokens or cookies, as required by the browser.
@@ -257,8 +261,8 @@ profanityChannel.onEvent('presence/:presence', (req, res) => {
     });
 });
 
-profanityChannel.onLeave((req, res) => {
-    const { username } = req.user.assigns;
+profanityChannel.onLeave((event) => {
+    const { username } = event.assigns;
 
     // When a user leaves the channel, PondSocket will automatically remove the user from the presence list and inform other users in the channel
 
@@ -273,8 +277,6 @@ pond.listen(3000, () => {
 ```
 
 ## API Documentation
-
-Apologies for the confusion. Let me remove "Class" from the title of each section:
 
 ### PondSocket
 
