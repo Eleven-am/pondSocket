@@ -416,9 +416,9 @@ The `EventResponse` class represents the response object for handling events fro
 
 - `closeChannel(reason: string): void`: Closes the channel from the server-side for all clients.
 
-### Client
+### Channel
 
-The `Client` class represents a single Channel created by the PondSocket server. Note that a PondChannel can have multiple clients.
+The `Channel` class represents a single Channel created by the PondSocket server. Note that a PondChannel can have multiple clients.
 
 **Methods:**
 
@@ -458,9 +458,9 @@ The `PondClient` class represents a client that connects to the PondSocket serve
 
 - `onConnectionChange(callback: (state: boolean) => void): Unsubscribe`: Subscribes to the connection state changes and calls the provided callback when the state changes.
 
-### Channel
+### ClientChannel
 
-The `Channel` class represents a channel in the PondClient.
+The `ClientChannel` class represents a channel in the PondClient.
 
 **Methods:**
 
