@@ -104,11 +104,11 @@ describe('ChannelResponse', () => {
         jest.spyOn(channelEngine, 'sendMessage');
         event.recipients = ['non_existing_user'];
 
-        expect(() => response.accept()).toThrowError('ChannelEngine: Users non_existing_user are not in channel test');
+        expect(() => response.accept()).toThrowError('ChannelEngine: Invalid recipients non_existing_user some users do not exist in channel test');
         expect(channelEngine.sendMessage).toHaveBeenCalledWith(event.sender, ['non_existing_user'], ServerActions.BROADCAST, event.event, event.payload);
 
         expect(() => response.sendToUsers('event', { payload: 'payload' }, ['non_existing_user']))
-            .toThrowError('ChannelEngine: Users non_existing_user are not in channel test');
+            .toThrowError('ChannelEngine: Invalid recipients non_existing_user some users do not exist in channel test');
     });
 
     it('should track a trackPresence', () => {

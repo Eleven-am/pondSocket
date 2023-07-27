@@ -426,7 +426,7 @@ describe('ChannelEngine', () => {
         // when recipient is not in channel it throws an error
         expect(() => {
             channelEngine.sendMessage('test3', ['test', 'test3', 'test4'], ServerActions.BROADCAST, 'test', { test: 3 });
-        }).toThrow('ChannelEngine: Users test4 are not in channel test');
+        }).toThrow('ChannelEngine: Invalid recipients test,test3,test4 some users do not exist in channel test');
 
         // when sender is not in channel it throws an error
         expect(() => {
