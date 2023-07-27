@@ -193,7 +193,6 @@ export class ChannelEngine {
      * @param action - The action of the message
      * @param event - The event name
      * @param payload - The payload of the message
-     * @private
      */
     public sendMessage (sender: ChannelSenders, recipient: ChannelReceivers, action: ServerActions, event: string, payload: PondMessage) {
         if (!this.#users.has(sender) && sender !== SystemSender.CHANNEL) {
