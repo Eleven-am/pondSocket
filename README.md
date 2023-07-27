@@ -269,7 +269,6 @@ profanityChannel.onLeave((event) => {
     // perform a cleanup operation here
 });
 
-
 // Start the server
 pond.listen(3000, () => {
     console.log('PondSocket server listening on port 3000');
