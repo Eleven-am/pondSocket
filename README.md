@@ -27,6 +27,21 @@ const pond = new PondSocket();
 const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
     // Handle socket connection and authentication
 });
+
+// Start the server
+pond.listen(3000);
+
+// Or alternatively, working with express
+import pondSocket from "@eleven-am/pondsocket/express";
+import express from "express";
+
+const app = pondSocket(express());
+
+const endpoint = app.upgrade('/api/socket', (req, res) => {
+    // Handle socket connection and authentication
+});
+
+app.listen(3000);
 ```
 
 Within each endpoint, sockets interact through channels. Channels provide an organized way to group users and manage efficient communication among them. When users join a channel, they can participate in real-time events and exchange information with other users in the same channel.
