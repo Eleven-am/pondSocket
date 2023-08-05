@@ -327,6 +327,10 @@ export class Channel {
         this.#engine = engine;
     }
 
+    get name () {
+        return this.#engine.name;
+    }
+
     public getAssigns () {
         return this.#engine.getAssigns();
     }
@@ -343,7 +347,11 @@ export class Channel {
         this.#engine.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.BROADCAST, event, payload);
     }
 
-    public banUser (userId: string, reason?: string) {
+    public sendToUsers (userIds: string[], event: string, payload: PondMessage) {
+        this.#engine.sendMessage(SystemSender.CHANNEL, userIds, ServerActions.BROADCAST, event, payload);
+    }
+
+    public evictUser (userId: string, reason?: string) {
         this.#engine.kickUser(userId, reason ?? 'You have been banned from the channel');
     }
 

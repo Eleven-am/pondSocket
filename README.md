@@ -86,7 +86,7 @@ import PondClient from "@eleven-am/pondsocket/client";
 // Your server URL
 const serverUrl = 'ws://your-server-url/api/socket';
 
-// Your authenticated user's username (replace with actual username)
+// Your authenticated user's token (replace with actual token)
 const authToken = 'your-auth-token';
 
 // Your username (replace with actual username)
@@ -186,8 +186,8 @@ const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res)
     const { role } = req.user.assigns;
     const { username } = req.joinParams;
     const { id } = req.event.params;
-    
-    // maybe retrieve the channel from a database
+
+    // maybe retrieve the previous messages from the database
     const messages = await getMessagesFromDatabase(id);
 
     // Check if the user has the required role to join the channel
@@ -203,7 +203,7 @@ const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res)
             })
             // and send the user the channel history
             .sendToUsers('history', { messages }, [req.user.id]);
-        
+
         // Alternatively, you can also send messages to the user, NOTE that the user would be automatically subscribed to the channel.
         // res.send('history', { messages }, { username, profanityCount: 0 })
         //   .trackPresence({
@@ -237,7 +237,7 @@ profanityChannel.onEvent('message', (req, res) => {
             // you can broadcast a message to all users or In the channel that profanity is not allowed
             res.broadcast('profanity-warning', { message: 'Profanity is not allowed' })
                 // or you can send a message to the user that profanity is not allowed
-                .send('profanity-warning', { message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.` });
+                .sendToUsers('profanity-warning', { message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.` }, [req.user.id]);
         }
     } else {
         // Accept the message to allow broadcasting to other clients in the channel
@@ -417,9 +417,11 @@ The `EventResponse` class represents the response object for handling events fro
 
 ### Channel
 
-The `Channel` class represents a single Channel created by the PondSocket server. Note that a PondChannel can have multiple clients.
+The `Channel` class represents a single Channel created by the PondSocket server. Note that a PondChannel can have multiple channels associated with it.
 
 **Methods:**
+
+- `name: string`: The name of the channel.
 
 - `getAssigns: UserAssigns`: Gets the current assign data for the client.
 
@@ -429,7 +431,9 @@ The `Channel` class represents a single Channel created by the PondSocket server
 
 - `sendToUser(userId: string, event: string, payload: PondMessage): void`: Sends a message to a specific client in the channel identified by the provided `userId`, with the specified event and payload.
 
-- `banUser(userId: string, reason?: string): void`: Bans a user from the channel identified by the provided `userId`. Optionally, you can provide a `reason` for the ban.
+- `sendToUsers(userIdS: string[], event: string, payload: PondMessage): void`: Sends a message to a specific set of clients identified by the provided `userIdS`, with the specified event and payload.
+
+- `evictUser(userId: string, reason?: string): void`: Bans a user from the channel identified by the provided `userId`. Optionally, you can provide a `reason` for the ban.
 
 - `trackPresence(userId: string, presence: PondPresence): void`: Tracks a user's presence in the channel identified by the provided `userId`.
 

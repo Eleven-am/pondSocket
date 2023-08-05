@@ -321,6 +321,11 @@ declare class Endpoint {
 
 export declare class Channel {
     /**
+     * The name of the channel.
+     */
+    name: string;
+
+    /**
      * @desc Gets the current assign data for the channel.
      */
     get getAssigns (): UserAssigns;
@@ -347,11 +352,19 @@ export declare class Channel {
     sendToUser (userId: string, event: string, payload: PondMessage): void;
 
     /**
+     * @desc Sends a message to specific clients in the channel.
+     * @param userIds - The ids of the users to send the message to.
+     * @param event - The event to send.
+     * @param payload - The message to send.
+     */
+    sendToUsers (userIds: string[], event: string, payload: PondMessage): void;
+
+    /**
      * @desc Bans a user from the channel.
      * @param userId - The id of the user to ban.
      * @param reason - The reason for the ban.
      */
-    banUser (userId: string, reason?: string): void;
+    evictUser (userId: string, reason?: string): void;
 
     /**
      * @desc tracks a user's presence in the channel
