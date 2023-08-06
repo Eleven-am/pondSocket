@@ -259,7 +259,7 @@ profanityChannel.onEvent('message', (req, res) => {
         res.accept();
     }
 
-    // for more complete access to the channel, you can use the client object
+    // for more complete access to the channel, you can use the channel instance
     // const channel = req.channel;
 });
 
@@ -350,7 +350,7 @@ The `JoinRequest` class represents the request object when a client joins a chan
 
 - `user: UserData`: The user data associated with the client.
 
-- `client: Client`: The Client instance associated with the request.
+- `channel: Channel`: The Channel instance associated with the request.
 
 ### JoinResponse
 
@@ -400,7 +400,7 @@ The `EventRequest` class represents the request object when an event is received
 
 - `user: UserData`: The user data associated with the client.
 
-- `client: Client`: The Client instance associated with the request.
+- `channel: Channel`: The Channel instance associated with the request.
 
 ### EventResponse
 
@@ -472,7 +472,7 @@ The `PondClient` class represents a client that connects to the PondSocket serve
 
 - `disconnect(): void`: Disconnects the socket.
 
-- `createChannel(name: string, params?: JoinParams): Channel`: Creates a channel with the given name and optional join parameters.
+- `createChannel(name: string, params?: JoinParams): ClientChannel`: Creates a channel with the given name and optional join parameters.
 
 - `onConnectionChange(callback: (state: boolean) => void): Unsubscribe`: Subscribes to the connection state changes and calls the provided callback when the state changes.
 
