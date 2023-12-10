@@ -115,7 +115,8 @@ export class ChannelEngine {
      */
     public kickUser (userId: string, reason: string) {
         this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, 'kicked_out', {
-            message: reason ?? 'You have been kicked out of the channel',
+            message: reason,
+            code: 403,
         });
         this.removeUser(userId);
         this.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, 'kicked', {
@@ -241,24 +242,14 @@ export class ChannelEngine {
     }
 
     /**
-     * @desc Begins tracking a user's presence
-     * @param userId - The id of the user to track
-     * @param presence - The initial presence of the user
-     */
-    public trackPresence (userId: string, presence: PondPresence) {
-        if (!this.#users.has(userId)) {
-            throw new ChannelError(`ChannelEngine: User with id ${userId} does not exist in channel ${this.name}`, 404, this.name);
-        }
-
-        this.#presenceEngine = this.#presenceEngine ?? new PresenceEngine(this);
-        this.#presenceEngine.trackPresence(userId, presence);
-    }
-
-    /**
      * @desc Gets the presence engine for the channel
      */
-    public get presenceEngine () {
-        return this.#presenceEngine;
+    public get presenceEngine (): PresenceEngine {
+        const presenceEngine = this.#presenceEngine ?? new PresenceEngine(this);
+
+        this.#presenceEngine = presenceEngine;
+
+        return presenceEngine;
     }
 
     /**
@@ -356,14 +347,14 @@ export class Channel {
     }
 
     public trackPresence (userId: string, presence: PondPresence) {
-        this.#engine.trackPresence(userId, presence);
+        this.#engine.presenceEngine.trackPresence(userId, presence);
     }
 
     public removePresence (userId: string) {
-        this.#engine.presenceEngine?.removePresence(userId);
+        this.#engine.presenceEngine.removePresence(userId);
     }
 
     public updatePresence (userId: string, presence: PondPresence) {
-        this.#engine.presenceEngine?.updatePresence(userId, presence);
+        this.#engine.presenceEngine.updatePresence(userId, presence);
     }
 }

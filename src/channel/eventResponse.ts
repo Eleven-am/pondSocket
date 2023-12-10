@@ -97,8 +97,8 @@ export class EventResponse extends PondResponse {
      * @param presence - the initial presence data
      * @param userId - the id of the user to track
      */
-    public trackPresence (presence: PondPresence, userId?: string): EventResponse {
-        this.#engine.trackPresence(userId || this.#event.sender, presence);
+    public trackPresence (presence: PondPresence, userId = this.#event.sender): EventResponse {
+        this.#engine.presenceEngine.trackPresence(userId, presence);
 
         return this;
     }
@@ -108,8 +108,8 @@ export class EventResponse extends PondResponse {
      * @param presence - the updated presence data
      * @param userId - the id of the user to update
      */
-    public updatePresence (presence: PondPresence, userId?: string): EventResponse {
-        this.#engine.presenceEngine?.updatePresence(userId || this.#event.sender, presence);
+    public updatePresence (presence: PondPresence, userId = this.#event.sender): EventResponse {
+        this.#engine.presenceEngine.updatePresence(userId, presence);
 
         return this;
     }
@@ -118,9 +118,8 @@ export class EventResponse extends PondResponse {
      * @desc Removes a user's presence from the channel
      * @param userId - the id of the user to remove
      */
-    public unTrackPresence (userId?: string): EventResponse {
-        userId = userId || this.#event.sender;
-        this.#engine.presenceEngine?.removePresence(userId);
+    public unTrackPresence (userId = this.#event.sender): EventResponse {
+        this.#engine.presenceEngine.removePresence(userId);
 
         return this;
     }
@@ -130,8 +129,8 @@ export class EventResponse extends PondResponse {
      * @param reason - the reason for the eviction
      * @param userId - the id of the user to evict,
      */
-    public evictUser (reason: string, userId?: string): void {
-        this.#engine.kickUser(userId || this.#event.sender, reason);
+    public evictUser (reason: string, userId = this.#event.sender): void {
+        this.#engine.kickUser(userId, reason);
     }
 
     /**

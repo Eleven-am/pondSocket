@@ -123,7 +123,7 @@ export class JoinResponse extends PondResponse {
      * @param presence - the presence data to track
      */
     public trackPresence (presence: PondPresence): JoinResponse {
-        this.#engine.trackPresence(this.#user.clientId, presence);
+        this.#engine.presenceEngine.trackPresence(this.#user.clientId, presence);
 
         return this;
     }
