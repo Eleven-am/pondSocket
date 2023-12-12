@@ -121,6 +121,11 @@ declare class EventRequest<Path extends string> extends AbstractRequest<Path> {
 
 declare class EventResponse extends PondResponse {
     /**
+     * @desc Whether the server has responded to the request
+     */
+    hasResponded: boolean;
+
+    /**
      * @desc Accepts the request and optionally assigns data to the client
      * @param assigns - the data to assign to the client
      */
@@ -402,6 +407,11 @@ declare class JoinRequest<Path extends string> extends AbstractRequest<Path> {
 
 declare class JoinResponse extends PondResponse {
     /**
+     * @desc Whether the server has responded to the request
+     */
+    hasResponded: boolean;
+
+    /**
      * @desc Accepts the request and optionally assigns data to the client
      * @param assigns - the data to assign to the client
      */
@@ -452,6 +462,11 @@ declare class JoinResponse extends PondResponse {
 }
 
 declare class ConnectionResponse extends PondResponse {
+    /**
+     * @desc Whether the server has responded to the request
+     */
+    hasResponded: boolean;
+
     /**
      * @desc Accepts the request and optionally assigns data to the client
      * @param assigns - the data to assign to the client
