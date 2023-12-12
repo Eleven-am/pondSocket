@@ -22,4 +22,9 @@ export abstract class PondResponse {
      * @param assigns - the data to assign to the client
      */
     public abstract accept(assigns?: PondAssigns): void
+
+    /**
+     * @desc Whether the server has responded to the request
+     */
+    public abstract hasResponded: boolean;
 }

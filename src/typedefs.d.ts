@@ -86,6 +86,11 @@ declare class AbstractRequest<Path extends string> {
 
 declare abstract class PondResponse {
     /**
+     * @desc Whether the server has responded to the request
+     */
+    public abstract hasResponded: boolean;
+
+    /**
      * @desc Rejects the request with the given error message
      * @param message - the error message
      * @param errorCode - the error code

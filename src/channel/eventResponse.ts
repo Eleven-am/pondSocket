@@ -19,6 +19,13 @@ export class EventResponse extends PondResponse {
     }
 
     /**
+     * @desc Whether the server has responded to the request
+     */
+    get hasResponded (): boolean {
+        return this.#executed;
+    }
+
+    /**
      * @desc Accepts the request and optionally assigns data to the client
      * @param assigns - the data to assign to the client
      */
