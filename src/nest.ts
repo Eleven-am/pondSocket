@@ -1,6 +1,6 @@
 import { Server } from 'http';
 
-import { Module, Global } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
 import 'reflect-metadata';
@@ -757,13 +757,10 @@ export function Endpoints<T extends Constructor<NonNullable<unknown>>> (endpoint
         set(endpoints as Constructor<DecoratedEndpoint>[]);
 
         // eslint-disable-next-line new-cap
-        const globalConstructor = Global()(constructor) as T;
-
-        // eslint-disable-next-line new-cap
         return Module({
             providers: [...endpoints, ...channels],
             exports: [...endpoints, ...channels],
-        })(globalConstructor);
+        })(constructor);
     };
 }
 
