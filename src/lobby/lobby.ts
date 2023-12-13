@@ -60,7 +60,11 @@ export class LobbyEngine {
      */
     public broadcast (event: string, payload: PondMessage, channelName?: string) {
         if (channelName) {
-            const channel = this.getChannel(channelName) || this.createChannel(channelName);
+            const channel = this.getChannel(channelName);
+
+            if (!channel) {
+                throw new Error(`GatewayEngine: Channel ${channelName} does not exist`);
+            }
 
             channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
         } else {

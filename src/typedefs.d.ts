@@ -1,9 +1,16 @@
 import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
 
+import type { ModuleRef, HttpAdapterHost } from '@nestjs/core';
 import type { Express } from 'express';
 import { WebSocketServer } from 'ws';
 
 type Unsubscribe = () => void;
+
+type Constructor<T> = new (...args: any[]) => T;
+declare type PropertyDecorator = (target: Object, propertyKey: string | symbol) => void;
+declare type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void;
+declare type MethodDecorator = <T>(target: Object, propertyKey: string | symbol, descriptor: TypedPropertyDescriptor<T>) => TypedPropertyDescriptor<T> | void;
+declare type ParameterDecorator = (target: Object, propertyKey: string | symbol | undefined, parameterIndex: number) => void;
 
 export type default_t<T = any> = Record<string, T>;
 type IsParam<Path> = Path extends `:${infer Param}` ? Param : never;
@@ -615,3 +622,158 @@ declare class PondClient {
 
 declare const pondSocket: (app: Express) => PondSocketExpressApp;
 
+/**
+ * @desc The Decorator for retrieving the JoinRequest object from the request in a handler
+ * @returns {JoinRequest}
+ */
+declare function GetJoinRequest(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the JoinResponse object from the response in a handler
+ * @returns {JoinResponse}
+ */
+declare function GetJoinResponse(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the JoinParams object from the request in a handler
+ * @returns {JoinParams}
+ */
+declare function GetJoinParams(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the UserData object from the request in a handler
+ * @returns {UserData}
+ */
+declare function GetUserData(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the Channel object from the request in a handler
+ * @returns {Channel}
+ */
+declare function GetInternalChannel(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the UserPresence object from the request in a handler
+ * @returns {PondPresence}
+ */
+declare function GetUserPresence(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the event payload from the request in a handler
+ * @returns {PondMessage}
+ */
+declare function GetEventPayload(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the EventRequest Params object from the request in a handler
+ * @returns {EventParams}
+ */
+declare function GetEventParams(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the EventRequest Query object from the request in a handler
+ * @returns {EventParams}
+ */
+declare function GetEventQuery(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the EventResponse in a handler
+ * @returns {EventResponse}
+ */
+declare function GetEventResponse(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the EventRequest in a handler
+ * @returns {EventRequest}
+ */
+declare function GetEventRequest(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the ConnectionReQuest in a handler
+ * @returns {IncomingConnection}
+ */
+declare function GetConnectionRequest(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the ConnectionResponse in a handler
+ * @returns {ConnectionResponse}
+ */
+declare function GetConnectionResponse(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the ConnectionRequestId in a handler
+ * @returns {string}
+ */
+declare function GetConnectionRequestId(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the ConnectionParams in a handler
+ * @returns {EventParams}
+ */
+declare function GetConnectionParams(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the ConnectionHeaders from the request in a handler
+ * @returns {EventParams}
+ */
+declare function GetConnectionHeaders(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the ConnectionQuery in a handler
+ * @returns {EventParams}
+ */
+declare function GetConnectionQuery(): ParameterDecorator;
+
+/**
+ * @desc Marks a method as a handler for JoinRequest events.
+ */
+declare function OnJoinRequest(): MethodDecorator;
+
+/**
+ * @desc Marks a method as a handler for events with the specified name.
+ * @param event - The name of the event to handle.
+ */
+declare function OnEvent(event?: string): MethodDecorator;
+
+/**
+ * @desc Marks a method as a handler for ConnectionRequest events.
+ */
+declare function OnConnectionRequest(): MethodDecorator;
+
+/**
+ * Decorator to mark a class as a channel.
+ * @param path - The path for the channel (default is '*').
+ */
+declare function DChannel(path?: string): ClassDecorator;
+
+/**
+ * Decorator to retrieve the channel instance as a read-only property in a class.
+ */
+declare function ChannelInstance(): PropertyDecorator;
+
+/**
+ * Decorator to mark a class as having multiple channels.
+ * @param channels - The array of channels.
+ */
+declare function Channels(channels: Constructor<NonNullable<unknown>>[]): ClassDecorator;
+
+/**
+ * Decorator to mark a class as an endpoint.
+ * @param path - The path for the endpoint (default is '*').
+ */
+declare function DEndpoint(path?: string): ClassDecorator;
+
+/**
+ * Decorator to mark a class as having multiple endpoints.
+ * @param endpoints - The array of endpoints.
+ */
+declare function Endpoints(endpoints: Constructor<NonNullable<unknown>>[]): ClassDecorator;
+
+declare class PondSocketModule {
+    /**
+     * @desc The NestJS module for the PondSocketModule
+     * @param moduleRef - The NestJS moduleRef
+     * @param adapterHost - The NestJS adapterHost
+     */
+    constructor (moduleRef: ModuleRef, adapterHost: HttpAdapterHost);
+}
