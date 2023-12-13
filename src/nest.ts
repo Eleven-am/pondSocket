@@ -1,8 +1,9 @@
 import { Server } from 'http';
 
-import 'reflect-metadata';
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
+
+import 'reflect-metadata';
 
 import { EventRequest } from './channel/eventRequest';
 import { EventResponse } from './channel/eventResponse';
@@ -742,29 +743,27 @@ export function Endpoint<T extends Constructor<NonNullable<unknown>>> (
     };
 }
 
-export function Endpoints<T extends Constructor<NonNullable<unknown>>> (
-    endpoints: Constructor<NonNullable<unknown>>[],
-) {
+export function Endpoints<T extends Constructor<NonNullable<unknown>>> (endpoints: Constructor<NonNullable<unknown>>[]) {
     return (constructor: T) => {
         const channels = endpoints.reduce((acc, endpoint) => {
             const { get } = manageChannels(endpoint.prototype);
             const channels = get();
 
-
             return [...acc, ...channels];
         }, [] as Constructor<DecoratedChannel>[]);
-
-        // eslint-disable-next-line new-cap
-        const NestJSModule = Module({
-            providers: [...endpoints, ...channels],
-        });
 
         const { set } = manageEndpoints(constructor.prototype);
 
         set(endpoints as Constructor<DecoratedEndpoint>[]);
 
         // eslint-disable-next-line new-cap
-        return NestJSModule(constructor);
+        const globalConstructor = Global()(constructor) as T;
+
+        // eslint-disable-next-line new-cap
+        return Module({
+            providers: [...endpoints, ...channels],
+            exports: [...endpoints, ...channels],
+        })(globalConstructor);
     };
 }
 
