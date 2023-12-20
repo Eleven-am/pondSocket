@@ -62,7 +62,7 @@ export class PondSocket {
      * })
      */
     public createEndpoint<Path extends string> (path: PondPath<Path>, handler: (request: IncomingConnection<Path>, response: ConnectionResponse) => void | Promise<void>) {
-        const endpoint = new Endpoint(this.#socketServer);
+        const endpoint = new Endpoint();
 
         this.#middleware.use((req, socket, next) => {
             const event = parseAddress(path, req.address);

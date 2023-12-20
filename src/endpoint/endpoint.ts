@@ -25,14 +25,11 @@ export interface RequestCache extends SocketCache {
 export class Endpoint {
     readonly #middleware: Middleware<RequestCache, JoinParams>;
 
-    readonly #server: WebSocketServer;
-
     readonly #channels: Set<LobbyEngine>;
 
     readonly #sockets: Set<SocketCache>;
 
-    constructor (server: WebSocketServer) {
-        this.#server = server;
+    constructor () {
         this.#sockets = new Set();
         this.#middleware = new Middleware();
         this.#channels = new Set();

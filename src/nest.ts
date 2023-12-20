@@ -64,6 +64,13 @@ interface HandlerData<Req, Res> {
     value: (instance: unknown, request: Req, response: Res) => Promise<void>;
 }
 
+function isNotEmpty<TValue> (value: TValue | null | undefined): value is TValue {
+    return value !== null &&
+        value !== undefined &&
+        value !== '' &&
+        Object.keys(value).length !== 0;
+}
+
 function createClassDecorator<T> (key: symbol, value: T): ClassDecorator {
     return applyDecorators(Injectable(), SetMetadata(key, value));
 }
@@ -587,15 +594,25 @@ export function OnJoinRequest () {
 
                 if (!response.hasResponded) {
                     if (data) {
-                        const { event, ...rest } = data;
+                        const { event, presence, assigns, ...rest } = data;
 
-                        response.send(event ?? 'response', rest);
+                        if (typeof event === 'string' && isNotEmpty(rest)) {
+                            response.send(event, rest, assigns);
+                        } else {
+                            response.accept(typeof assigns === 'object' ? assigns : {});
+                        }
+
+                        if (presence) {
+                            response.trackPresence(presence);
+                        }
                     } else {
                         response.accept();
                     }
                 }
             } catch (error) {
-                response.reject(String(error));
+                if (!response.hasResponded && error instanceof Error) {
+                    response.reject(error.message);
+                }
             }
         });
     };
@@ -615,15 +632,27 @@ export function OnEvent (event = '*') {
 
                 if (!response.hasResponded) {
                     if (data) {
-                        const { event, ...rest } = data;
+                        const { event, presence, updatePresence, assigns, ...rest } = data;
 
-                        response.send(event ?? 'response', rest);
+                        if (typeof event === 'string' && isNotEmpty(rest)) {
+                            response.send(event, rest, assigns);
+                        } else {
+                            response.accept(typeof assigns === 'object' ? assigns : {});
+                        }
+
+                        if (presence) {
+                            response.trackPresence(presence);
+                        } else if (updatePresence) {
+                            response.updatePresence(updatePresence);
+                        }
                     } else {
                         response.accept();
                     }
                 }
             } catch (error) {
-                response.reject(String(error));
+                if (!response.hasResponded && error instanceof Error) {
+                    response.reject(error.message);
+                }
             }
         });
     };
@@ -644,15 +673,21 @@ export function OnConnectionRequest () {
 
                 if (!response.hasResponded) {
                     if (data) {
-                        const { event, ...rest } = data;
+                        const { event, assigns, ...rest } = data;
 
-                        response.send(event ?? 'response', rest);
+                        if (typeof event === 'string' && isNotEmpty(rest)) {
+                            response.send(event, rest, assigns);
+                        } else {
+                            response.accept(typeof assigns === 'object' ? assigns : {});
+                        }
                     } else {
                         response.accept();
                     }
                 }
             } catch (error) {
-                response.reject(String(error));
+                if (!response.hasResponded && error instanceof Error) {
+                    response.reject(error.message);
+                }
             }
         });
     };
