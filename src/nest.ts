@@ -1,6 +1,12 @@
-import { Server } from 'http';
+import { createServer } from 'http';
 
-import { Module } from '@nestjs/common';
+import {
+    applyDecorators,
+    Injectable,
+    Module,
+    ModuleMetadata,
+    SetMetadata,
+} from '@nestjs/common';
 import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
 import 'reflect-metadata';
@@ -14,14 +20,6 @@ import { JoinResponse } from './lobby/joinResponse';
 import { PondChannel } from './lobby/lobby';
 import { PondSocket } from './server/pondSocket';
 import type { IncomingConnection } from './typedefs';
-
-interface DecoratedChannel {
-    _setEndpoint(endpoint: PondEndpoint): void;
-}
-
-interface DecoratedEndpoint {
-    _setSocket(moduleRef: ModuleRef, socket: PondSocket): void;
-}
 
 const joinRequestKey = Symbol('joinRequestKey');
 const joinResponseKey = Symbol('joinResponseKey');
@@ -43,11 +41,36 @@ const connectionHeadersKey = Symbol('connectionHeadersKey');
 const onJoinHandlerKey = Symbol('onJoinHandlerKey');
 const onEventHandlerKey = Symbol('onEventHandlerKey');
 const onConnectionHandlerKey = Symbol('onConnectionHandlerKey');
-const channelsKey = Symbol('channelsKey');
-const endpointsKey = Symbol('endpointsKey');
 const channelInstanceKey = Symbol('channelInstanceKey');
+const channelClassKey = Symbol('channel');
+const endpointClassKey = Symbol('endpoint');
+const channelsClassKey = Symbol('channels');
+const endpointsClassKey = Symbol('endpoints');
 
 type Constructor<T> = new (...args: any[]) => T;
+
+interface EndpointsMetadata extends Omit<ModuleMetadata, 'controllers'> {
+    endpoints: Constructor<NonNullable<unknown>>[];
+    isGlobal?: boolean;
+}
+
+interface EndpointMetadata {
+    path?: string;
+    channels: Constructor<NonNullable<unknown>>[];
+}
+
+interface HandlerData<Req, Res> {
+    path: string;
+    value: (instance: unknown, request: Req, response: Res) => Promise<void>;
+}
+
+function createClassDecorator<T> (key: symbol, value: T): ClassDecorator {
+    return applyDecorators(Injectable(), SetMetadata(key, value));
+}
+
+function getClassMetadata<T> (key: symbol, target: any): T | null {
+    return Reflect.getMetadata(key, target) ?? null;
+}
 
 function createParamDecorator (key: symbol, error: string) {
     return (target: any, propertyKey: string, parameterIndex: number) => {
@@ -71,17 +94,6 @@ function resolveParamDecorator (key: symbol, target: any, propertyKey: string) {
     return index;
 }
 
-function createClassDecorator<A> (key: symbol, target: any) {
-    return {
-        get () {
-            return (Reflect.getMetadata(key, target) || []) as Constructor<A>[];
-        },
-        set (value: Constructor<A>[]) {
-            Reflect.defineMetadata(key, value, target);
-        },
-    };
-}
-
 function manageClassData<A> (key: symbol, target: any) {
     return {
         get () {
@@ -93,19 +105,24 @@ function manageClassData<A> (key: symbol, target: any) {
     };
 }
 
-interface HandlerData<Req, Res> {
-    path: string;
-    value: (request: Req, response: Res) => Promise<void>;
-}
-
 function manageHandlers<Request, Response> (key: symbol, target: any) {
-    const { get, set } = manageClassData<HandlerData<Request, Response>[]>(key, target);
+    const { get, set } = manageClassData<HandlerData<Request, Response>[]>(
+        key,
+        target,
+    );
 
     return {
         get () {
             return get() || [];
         },
-        set (path: string, value: (request: Request, response: Response) => Promise<void>) {
+        set (
+            path: string,
+            value: (
+                instance: unknown,
+                request: Request,
+                response: Response,
+            ) => Promise<void>,
+        ) {
             const handlers = get() || [];
 
             set([
@@ -144,14 +161,6 @@ function manageConnectionHandlers (target: any) {
     );
 }
 
-function manageChannels (target: any) {
-    return createClassDecorator<DecoratedChannel>(channelsKey, target);
-}
-
-function manageEndpoints (target: any) {
-    return createClassDecorator<DecoratedEndpoint>(endpointsKey, target);
-}
-
 export function GetJoinRequest () {
     return createParamDecorator(
         joinRequestKey,
@@ -187,7 +196,7 @@ export function GetInternalChannel () {
     );
 }
 
-export function GetUserPresence () {
+export function GetUserPresences () {
     return createParamDecorator(
         userPresenceKey,
         'UserPresence decorator already applied',
@@ -375,6 +384,12 @@ function resolveEventParameters (
 ) {
     const userDataIndex = resolveParamDecorator(userDataKey, target, propertyKey);
 
+    const userPresenceIndex = resolveParamDecorator(
+        userPresenceKey,
+        target,
+        propertyKey,
+    );
+
     const internalChannelIndex = resolveParamDecorator(
         internalChannelKey,
         target,
@@ -419,13 +434,13 @@ function resolveEventParameters (
         eventPayloadIndex,
         eventResponseIndex,
         eventRequestIndex,
+        userPresenceIndex,
     ].filter((index) => typeof index === 'number') as number[];
 
     const rejectedKeys = [
         joinRequestKey,
         joinResponseKey,
         joinParamsKey,
-        userPresenceKey,
         connectionRequestKey,
         connectionResponseKey,
         connectionRequestIdKey,
@@ -457,6 +472,8 @@ function resolveEventParameters (
                     return response;
                 case eventRequestIndex:
                     return request;
+                case userPresenceIndex:
+                    return request.presence;
                 default:
                     throw new Error('Invalid parameter decorator');
             }
@@ -557,18 +574,14 @@ function resolveConnectionParameters (
 }
 
 export function OnJoinRequest () {
-    return (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) => {
+    return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value;
         const { set } = manageJoinHandlers(target);
 
-        set('', async (request, response) => {
+        set('', async (instance, request, response) => {
             try {
                 const data = await originalMethod.apply(
-                    target,
+                    instance,
                     resolveJoinParameters(request, response, target, propertyKey),
                 );
 
@@ -589,18 +602,14 @@ export function OnJoinRequest () {
 }
 
 export function OnEvent (event = '*') {
-    return (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) => {
+    return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value;
         const { set } = manageEventHandlers(target);
 
-        set(event, async (request, response) => {
+        set(event, async (instance, request, response) => {
             try {
                 const data = await originalMethod.apply(
-                    target,
+                    instance,
                     resolveEventParameters(request, response, target, propertyKey),
                 );
 
@@ -621,19 +630,15 @@ export function OnEvent (event = '*') {
 }
 
 export function OnConnectionRequest () {
-    return (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor,
-    ) => {
+    return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value;
 
         const { set } = manageConnectionHandlers(target);
 
-        set('', async (request, response) => {
+        set('', async (instance, request, response) => {
             try {
                 const data = await originalMethod.apply(
-                    target,
+                    instance,
                     resolveConnectionParameters(request, response, target, propertyKey),
                 );
 
@@ -653,41 +658,9 @@ export function OnConnectionRequest () {
     };
 }
 
-export function Channel<T extends Constructor<NonNullable<unknown>>> (
-    path = '*',
-) {
-    return (constructor: T) => class extends constructor {
-        _setEndpoint (endpoint: PondEndpoint) {
-            const channel = endpoint.createChannel(
-                path,
-                async (request, response) => {
-                    const { get } = manageJoinHandlers(this);
-                    const [handler] = get();
-
-                    if (handler) {
-                        await handler.value(request, response);
-                    } else {
-                        response.accept();
-                    }
-                },
-            );
-
-            const { set } = manageChannelInstance(constructor.prototype);
-            const { get } = manageEventHandlers(this);
-
-            set(channel);
-            get().forEach((handler) => {
-                channel.onEvent(handler.path, async (request, response) => {
-                    await handler.value(request, response);
-                });
-            });
-        }
-    };
-}
-
 export function ChannelInstance () {
     return (target: any, propertyKey: string) => {
-        const { get } = manageChannelInstance(target.constructor.prototype);
+        const { get } = manageChannelInstance(target);
 
         Object.defineProperty(target, propertyKey, {
             get () {
@@ -700,93 +673,132 @@ export function ChannelInstance () {
     };
 }
 
-export function Channels<T extends Constructor<NonNullable<unknown>>> (
-    channels: Constructor<NonNullable<unknown>>[],
-) {
-    return (constructor: T) => {
-        const { set } = manageChannels(constructor.prototype);
+export const Channel = (path = '*') => createClassDecorator(channelClassKey, path);
 
-        set(channels as Constructor<DecoratedChannel>[]);
+const SetEndpoint = (path = '*') => createClassDecorator(endpointClassKey, path);
 
-        return constructor;
-    };
-}
+const SetChannels = (channels: Constructor<NonNullable<unknown>>[]) => createClassDecorator(channelsClassKey, channels);
 
-export function Endpoint<T extends Constructor<NonNullable<unknown>>> (
-    path = '*',
-) {
-    return (constructor: T) => class extends constructor {
-        _setSocket (moduleRef: ModuleRef, socket: PondSocket) {
-            const { get } = manageConnectionHandlers(this);
-            const { get: getChannels } = manageChannels(this);
-            const [handler] = get();
+const getChannels = (target: any) => getClassMetadata<Constructor<NonNullable<unknown>>[]>(
+    channelsClassKey,
+    target,
+) ?? [];
 
-            const endpoint = socket.createEndpoint(
-                path,
-                async (request, response) => {
-                    if (handler) {
-                        await handler.value(request, response);
-                    } else {
-                        response.accept();
-                    }
-                },
-            );
+export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(SetChannels(metadata.channels), SetEndpoint(metadata.path));
 
-            getChannels().forEach((channel) => {
-                const chan = moduleRef.get(channel, {
-                    strict: false,
-                });
+export const Endpoints = ({
+    endpoints,
+    providers = [],
+    imports = [],
+    exports = [],
+}: EndpointsMetadata) => (target: any) => {
+    const channels = endpoints.flatMap((endpoint) => getChannels(endpoint));
 
-                chan._setEndpoint(endpoint);
-            });
-        }
-    };
-}
 
-export function Endpoints<T extends Constructor<NonNullable<unknown>>> (endpoints: Constructor<NonNullable<unknown>>[]) {
-    return (constructor: T) => {
-        const channels = endpoints.reduce((acc, endpoint) => {
-            const { get } = manageChannels(endpoint.prototype);
-            const channels = get();
-
-            return [...acc, ...channels];
-        }, [] as Constructor<DecoratedChannel>[]);
-
-        const { set } = manageEndpoints(constructor.prototype);
-
-        set(endpoints as Constructor<DecoratedEndpoint>[]);
-
+    return applyDecorators(
         // eslint-disable-next-line new-cap
-        return Module({
-            providers: [...endpoints, ...channels],
-            exports: [...endpoints, ...channels],
-        })(constructor);
-    };
-}
+        SetMetadata(endpointsClassKey, endpoints),
+        // eslint-disable-next-line new-cap
+        Module({
+            imports,
+            providers: [...providers, ...endpoints, ...channels],
+            exports: [...exports, ...channels],
+        }),
+    )(target);
+};
 
 export class PondSocketModule {
-    private readonly socket: PondSocket;
-
     constructor (
         readonly moduleRef: ModuleRef,
         readonly adapterHost: HttpAdapterHost,
     ) {
-        const expressInstance = this.adapterHost.httpAdapter;
-        const server: Server = expressInstance.getHttpServer();
+        const httpAdapter = this.adapterHost.httpAdapter;
 
-        this.socket = new PondSocket(server);
+        const endpoints = getClassMetadata<Constructor<NonNullable<unknown>>[]>(
+            endpointsClassKey,
+            this.constructor,
+        ) ?? [];
 
-        expressInstance.listen = (...args: any[]) => {
-            const { get } = manageEndpoints(this);
+        httpAdapter.listen = (...args: any[]) => {
+            const app = httpAdapter.getInstance();
+            const server = createServer(app);
+            const socket = new PondSocket(server);
 
-            get().map((endpoint) => {
-                const instance = this.moduleRef.get(endpoint, { strict: false });
+            endpoints.forEach((endpoint) => this.manageEndpoint(socket, endpoint));
 
-                instance._setSocket(this.moduleRef, this.socket);
-
-                return instance;
-            });
-            this.socket.listen(...args);
+            return socket.listen(...args);
         };
+    }
+
+    manageEndpoint (
+        socket: PondSocket,
+        endpoint: Constructor<NonNullable<Record<string, unknown>>>,
+    ) {
+        const endpointMetadata = getClassMetadata<string>(
+            endpointClassKey,
+            endpoint,
+        );
+
+        if (!endpointMetadata) {
+            return;
+        }
+
+        const instance = this.moduleRef.get(endpoint, { strict: false });
+
+        const pondEndpoint = socket.createEndpoint(
+            endpointMetadata,
+            async (request, response) => {
+                const { get } = manageConnectionHandlers(instance);
+                const [handler] = get();
+
+                if (handler) {
+                    await handler.value(instance, request, response);
+                } else {
+                    response.accept();
+                }
+            },
+        );
+
+        getChannels(endpoint).forEach((channel) => {
+            this.manageChannel(channel, pondEndpoint);
+        });
+    }
+
+    manageChannel (
+        channel: Constructor<NonNullable<Record<string, unknown>>>,
+        endpoint: PondEndpoint,
+    ) {
+        const channelMetadata = getClassMetadata<string>(channelClassKey, channel);
+
+        if (!channelMetadata) {
+            return;
+        }
+
+        const instance = this.moduleRef.get(channel, { strict: false });
+
+        const channelInstance = endpoint.createChannel(
+            channelMetadata,
+            async (request, response) => {
+                const { get } = manageJoinHandlers(instance);
+                const [handler] = get();
+
+                if (handler) {
+                    await handler.value(instance, request, response);
+                } else {
+                    response.accept();
+                }
+            },
+        );
+
+        const { get: getEventHandlers } = manageEventHandlers(instance);
+        const { set } = manageChannelInstance(instance);
+
+        getEventHandlers().forEach((handler) => {
+            channelInstance.onEvent(handler.path, async (request, response) => {
+                await handler.value(instance, request, response);
+            });
+        });
+
+        set(channelInstance);
     }
 }

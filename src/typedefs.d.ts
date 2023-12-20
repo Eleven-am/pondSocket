@@ -1,5 +1,6 @@
 import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
 
+import { ModuleMetadata } from '@nestjs/common';
 import type { ModuleRef, HttpAdapterHost } from '@nestjs/core';
 import type { Express } from 'express';
 import { WebSocketServer } from 'ws';
@@ -19,8 +20,23 @@ type FilteredParams<Path> = Path extends `${infer First}/${infer Second}`
     ? IsParam<First> | FilteredParams<Second>
     : IsParam<Path>
 
+/**
+ * @desc The type for the params in a request
+ * @typeParam Path - The path to get the params from
+ * @example
+ *
+ * const params: Params<'/api/:id'> = {
+ *    id: '123',
+ *    foo: 'bar', // Error: Type 'string' is not assignable to type 'undefined'
+ * }
+ */
 type Params<Path> = {
     [Key in FilteredParams<Path>]: string
+}
+
+interface EndpointMetadata {
+    path?: string;
+    channels: Constructor<NonNullable<unknown>>[];
 }
 
 type PondPath<Path extends string> = Path | RegExp;
@@ -47,6 +63,11 @@ interface UserPresences {
 
 interface UserAssigns {
     [userId: string]: PondAssigns;
+}
+
+interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
+    endpoints: Constructor<NonNullable<unknown>>[];
+    isGlobal?: boolean;
 }
 
 type PondEvent<Path> = EventParams<Path> & {
@@ -653,10 +674,10 @@ declare function GetUserData(): ParameterDecorator;
 declare function GetInternalChannel(): ParameterDecorator;
 
 /**
- * @desc The Decorator for retrieving the UserPresence object from the request in a handler
- * @returns {PondPresence}
+ * @desc The Decorator for retrieving the UserPresences object from the request in a handler
+ * @returns {UserPresences}
  */
-declare function GetUserPresence(): ParameterDecorator;
+declare function GetUserPresences(): ParameterDecorator;
 
 /**
  * @desc The Decorator for retrieving the event payload from the request in a handler
@@ -666,13 +687,13 @@ declare function GetEventPayload(): ParameterDecorator;
 
 /**
  * @desc The Decorator for retrieving the EventRequest Params object from the request in a handler
- * @returns {EventParams}
+ * @returns {Params}
  */
 declare function GetEventParams(): ParameterDecorator;
 
 /**
  * @desc The Decorator for retrieving the EventRequest Query object from the request in a handler
- * @returns {EventParams}
+ * @returns {Record<string, string>}
  */
 declare function GetEventQuery(): ParameterDecorator;
 
@@ -708,35 +729,35 @@ declare function GetConnectionRequestId(): ParameterDecorator;
 
 /**
  * @desc The Decorator for retrieving the ConnectionParams in a handler
- * @returns {EventParams}
+ * @returns {Params}
  */
 declare function GetConnectionParams(): ParameterDecorator;
 
 /**
  * @desc The Decorator for retrieving the ConnectionHeaders from the request in a handler
- * @returns {EventParams}
+ * @returns {IncomingHttpHeaders}
  */
 declare function GetConnectionHeaders(): ParameterDecorator;
 
 /**
  * @desc The Decorator for retrieving the ConnectionQuery in a handler
- * @returns {EventParams}
+ * @returns {Record<string, string>}
  */
 declare function GetConnectionQuery(): ParameterDecorator;
 
 /**
- * @desc Marks a method as a handler for JoinRequest events.
+ * @desc Marks a method as a handler for JoinRequest events. Throwing an error will reject the request with the error message.
  */
 declare function OnJoinRequest(): MethodDecorator;
 
 /**
- * @desc Marks a method as a handler for events with the specified name.
+ * @desc Marks a method as a handler for events with the specified name. Throwing an error will reject the request with the error message
  * @param event - The name of the event to handle.
  */
 declare function OnEvent(event?: string): MethodDecorator;
 
 /**
- * @desc Marks a method as a handler for ConnectionRequest events.
+ * @desc Marks a method as a handler for ConnectionRequest events. Throwing an error will reject the request with the error message.
  */
 declare function OnConnectionRequest(): MethodDecorator;
 
@@ -759,15 +780,15 @@ declare function Channels(channels: Constructor<NonNullable<unknown>>[]): ClassD
 
 /**
  * Decorator to mark a class as an endpoint.
- * @param path - The path for the endpoint (default is '*').
+ * @param metadata - The metadata for the endpoint.
  */
-declare function DEndpoint(path?: string): ClassDecorator;
+declare function DEndpoint(metadata: EndpointMetadata): ClassDecorator;
 
 /**
  * Decorator to mark a class as having multiple endpoints.
- * @param endpoints - The array of endpoints.
+ * @param metadata - The metadata for the endpoints.
  */
-declare function Endpoints(endpoints: Constructor<NonNullable<unknown>>[]): ClassDecorator;
+declare function Endpoints(metadata: Metadata): ClassDecorator;
 
 declare class PondSocketModule {
     /**
