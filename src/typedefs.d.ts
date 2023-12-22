@@ -550,6 +550,12 @@ export declare class PondChannel {
      * @param callback - The callback to execute when a user leaves
      */
     public onLeave (callback: LeaveCallback): void;
+
+    /**
+     * @desc Gets a channel by name
+     * @param channelName - The name of the channel to get
+     */
+    public getChannel (channelName: string): Channel | null;
 }
 
 declare class PondSocket {
@@ -757,6 +763,11 @@ declare function OnJoinRequest(): MethodDecorator;
 declare function OnEvent(event?: string): MethodDecorator;
 
 /**
+ * @desc Marks a method as a handler for Leave events. Useful for cleaning up resources when a user leaves.
+ */
+declare function OnLeaveEvent (): MethodDecorator;
+
+/**
  * @desc Marks a method as a handler for ConnectionRequest events. Throwing an error will reject the request with the error message.
  */
 declare function OnConnectionRequest(): MethodDecorator;
@@ -769,8 +780,15 @@ declare function DChannel(path?: string): ClassDecorator;
 
 /**
  * Decorator to retrieve the channel instance as a read-only property in a class.
+ * It may either return an instance of the PondChannel if no name is provided otherwise an instance of Channel or null (depending on if a client is connected)
+ * @param name - The name of the channel to return
  */
-declare function ChannelInstance(): PropertyDecorator;
+declare function ChannelInstance(name?: string): PropertyDecorator;
+
+/**
+ * Decorator to retrieve the endpoint instance as a read-only property in a class.
+ */
+declare function EndpointInstance (): PropertyDecorator;
 
 /**
  * Decorator to mark a class as having multiple channels.

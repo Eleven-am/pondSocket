@@ -19,7 +19,7 @@ import { JoinRequest } from './lobby/joinRequest';
 import { JoinResponse } from './lobby/joinResponse';
 import { PondChannel } from './lobby/lobby';
 import { PondSocket } from './server/pondSocket';
-import type { IncomingConnection } from './typedefs';
+import type { IncomingConnection, LeaveEvent } from './typedefs';
 
 const joinRequestKey = Symbol('joinRequestKey');
 const joinResponseKey = Symbol('joinResponseKey');
@@ -42,6 +42,7 @@ const onJoinHandlerKey = Symbol('onJoinHandlerKey');
 const onEventHandlerKey = Symbol('onEventHandlerKey');
 const onConnectionHandlerKey = Symbol('onConnectionHandlerKey');
 const channelInstanceKey = Symbol('channelInstanceKey');
+const endpointInstanceKey = Symbol('endpointInstanceKey');
 const channelClassKey = Symbol('channel');
 const endpointClassKey = Symbol('endpoint');
 const channelsClassKey = Symbol('channels');
@@ -72,6 +73,7 @@ function isNotEmpty<TValue> (value: TValue | null | undefined): value is TValue 
 }
 
 function createClassDecorator<T> (key: symbol, value: T): ClassDecorator {
+    // eslint-disable-next-line new-cap
     return applyDecorators(Injectable(), SetMetadata(key, value));
 }
 
@@ -143,8 +145,34 @@ function manageHandlers<Request, Response> (key: symbol, target: any) {
     };
 }
 
-function manageChannelInstance (target: any) {
-    return manageClassData<PondChannel>(channelInstanceKey, target);
+function managePropertyData<A> (key: symbol, target: any) {
+    function build <T> (propertyKey: string, callback?: (value: A) => A | T | null) {
+        Object.defineProperty(target, propertyKey, {
+            get () {
+                const value = Reflect.getMetadata(key, this) as A;
+
+                if (callback) {
+                    return callback(value);
+                }
+
+                return value;
+            },
+            set () {
+                throw new Error(`${propertyKey} is readonly`);
+            },
+            enumerable: true,
+            configurable: true,
+        });
+    }
+
+    function set (value: A) {
+        Reflect.defineMetadata(key, value, target);
+    }
+
+    return {
+        build,
+        set,
+    };
 }
 
 function manageJoinHandlers (target: any) {
@@ -166,6 +194,18 @@ function manageConnectionHandlers (target: any) {
         onConnectionHandlerKey,
         target,
     );
+}
+
+function manageOnLeaveHandlers (target: any) {
+    return manageHandlers<LeaveEvent, void>(onConnectionHandlerKey, target);
+}
+
+function manageChannelInstance (target: any) {
+    return managePropertyData<PondChannel>(channelInstanceKey, target);
+}
+
+function manageEndpointInstance (target: any) {
+    return managePropertyData<PondEndpoint>(endpointInstanceKey, target);
 }
 
 export function GetJoinRequest () {
@@ -487,6 +527,44 @@ function resolveEventParameters (
         });
 }
 
+function resolveLeaveParameters (
+    event: LeaveEvent,
+    target: any,
+    propertyKey: string,
+) {
+    const userDataIndex = resolveParamDecorator(userDataKey, target, propertyKey);
+
+    const rejectedKeys = [
+        joinRequestKey,
+        joinResponseKey,
+        joinParamsKey,
+        connectionRequestKey,
+        connectionResponseKey,
+        connectionRequestIdKey,
+        connectionParamsKey,
+        connectionQueryKey,
+        eventParamsKey,
+        eventQueryKey,
+        eventPayloadKey,
+        eventResponseKey,
+        eventRequestKey,
+        userPresenceKey,
+        internalChannelKey,
+    ]
+        .map((key) => resolveParamDecorator(key, target, propertyKey))
+        .filter((index) => typeof index === 'number') as number[];
+
+    if (rejectedKeys.length) {
+        throw new Error(`Invalid parameter decorators: ${rejectedKeys.join(', ')}`);
+    }
+
+    if (userDataIndex === null) {
+        return [];
+    }
+
+    return [event.assigns];
+}
+
 function resolveConnectionParameters (
     request: IncomingConnection<string>,
     response: ConnectionResponse,
@@ -618,6 +696,26 @@ export function OnJoinRequest () {
     };
 }
 
+export function OnLeaveEvent () {
+    return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+        const originalMethod = descriptor.value;
+        const { set } = manageOnLeaveHandlers(target);
+
+        set('', async (instance, event) => {
+            try {
+                await originalMethod.apply(
+                    instance,
+                    resolveLeaveParameters(event, target, propertyKey),
+                );
+            } catch (error) {
+                if (error instanceof Error) {
+                    console.error(error.message);
+                }
+            }
+        });
+    };
+}
+
 export function OnEvent (event = '*') {
     return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value;
@@ -693,18 +791,25 @@ export function OnConnectionRequest () {
     };
 }
 
-export function ChannelInstance () {
+export function ChannelInstance (name?: string) {
     return (target: any, propertyKey: string) => {
-        const { get } = manageChannelInstance(target);
+        const { build } = manageChannelInstance(target);
 
-        Object.defineProperty(target, propertyKey, {
-            get () {
-                return get();
-            },
-            set () {
-                throw new Error('ChannelInstance is readonly');
-            },
+        build(propertyKey, (value) => {
+            if (name) {
+                return value.getChannel(name);
+            }
+
+            return value;
         });
+    };
+}
+
+export function EndpointInstance () {
+    return (target: any, propertyKey: string) => {
+        const { build } = manageEndpointInstance(target);
+
+        build(propertyKey);
     };
 }
 
@@ -719,6 +824,7 @@ const getChannels = (target: any) => getClassMetadata<Constructor<NonNullable<un
     target,
 ) ?? [];
 
+// eslint-disable-next-line new-cap
 export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(SetChannels(metadata.channels), SetEndpoint(metadata.path));
 
 export const Endpoints = ({
@@ -728,7 +834,6 @@ export const Endpoints = ({
     exports = [],
 }: EndpointsMetadata) => (target: any) => {
     const channels = endpoints.flatMap((endpoint) => getChannels(endpoint));
-
 
     return applyDecorators(
         // eslint-disable-next-line new-cap
@@ -779,6 +884,7 @@ export class PondSocketModule {
         }
 
         const instance = this.moduleRef.get(endpoint, { strict: false });
+        const { set } = manageEndpointInstance(instance);
 
         const pondEndpoint = socket.createEndpoint(
             endpointMetadata,
@@ -793,6 +899,8 @@ export class PondSocketModule {
                 }
             },
         );
+
+        set(pondEndpoint);
 
         getChannels(endpoint).forEach((channel) => {
             this.manageChannel(channel, pondEndpoint);
@@ -826,6 +934,7 @@ export class PondSocketModule {
         );
 
         const { get: getEventHandlers } = manageEventHandlers(instance);
+        const { get: getLeaveHandlers } = manageOnLeaveHandlers(instance);
         const { set } = manageChannelInstance(instance);
 
         getEventHandlers().forEach((handler) => {
@@ -833,6 +942,14 @@ export class PondSocketModule {
                 await handler.value(instance, request, response);
             });
         });
+
+        const [leaveHandler] = getLeaveHandlers();
+
+        if (leaveHandler) {
+            channelInstance.onLeave(async (event) => {
+                await leaveHandler.value(instance, event);
+            });
+        }
 
         set(channelInstance);
     }

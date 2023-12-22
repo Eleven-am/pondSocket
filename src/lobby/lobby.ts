@@ -1,5 +1,5 @@
 import { Middleware } from '../abstracts/middleware';
-import { ChannelEngine, ParentEngine, LeaveCallback } from '../channel/channel';
+import { ChannelEngine, ParentEngine, LeaveCallback, Channel } from '../channel/channel';
 import { EventRequest } from '../channel/eventRequest';
 import { EventResponse } from '../channel/eventResponse';
 import { ServerActions, ChannelReceiver, SystemSender } from '../enums';
@@ -200,5 +200,19 @@ export class PondChannel {
      */
     public onLeave (callback: LeaveCallback) {
         this.#lobby.onLeave(callback);
+    }
+
+    /**
+     * @desc Gets a channel by name
+     * @param channelName - The name of the channel to get
+     */
+    public getChannel (channelName: string): Channel | null {
+        const channel = this.#lobby.getChannel(channelName);
+
+        if (channel) {
+            return new Channel(channel);
+        }
+
+        return null;
     }
 }
