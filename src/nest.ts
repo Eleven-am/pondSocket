@@ -326,6 +326,60 @@ export function GetConnectionQuery () {
     );
 }
 
+function manageRejectedKeys (rejectedKeys: symbol[], target: any, propertyKey: string) {
+    function symbolToString (symbol: symbol) {
+        switch (symbol) {
+            case joinRequestKey:
+                return 'GetJoinRequest';
+            case joinResponseKey:
+                return 'GetJoinResponse';
+            case joinParamsKey:
+                return 'GetJoinParams';
+            case userDataKey:
+                return 'GetUserData';
+            case internalChannelKey:
+                return 'GetInternalChannel';
+            case userPresenceKey:
+                return 'GetUserPresences';
+            case eventPayloadKey:
+                return 'GetEventPayload';
+            case eventParamsKey:
+                return 'GetEventParams';
+            case eventQueryKey:
+                return 'GetEventQuery';
+            case eventResponseKey:
+                return 'GetEventResponse';
+            case eventRequestKey:
+                return 'GetEventRequest';
+            case connectionRequestKey:
+                return 'GetConnectionRequest';
+            case connectionResponseKey:
+                return 'GetConnectionResponse';
+            case connectionRequestIdKey:
+                return 'GetConnectionRequestId';
+            case connectionParamsKey:
+                return 'GetConnectionParams';
+            case connectionQueryKey:
+                return 'GetConnectionQuery';
+            case connectionHeadersKey:
+                return 'GetConnectionHeaders';
+            default:
+                throw new Error('Invalid parameter decorator');
+        }
+    }
+
+    const rejected = rejectedKeys
+        .map((key) => ({
+            key,
+            name: symbolToString(key),
+        }))
+        .filter(({ key }) => resolveParamDecorator(key, target, propertyKey) !== null);
+
+    if (rejected.length) {
+        throw new Error(`Invalid parameter decorators: ${rejected.map(({ name }) => name).join(', ')}`);
+    }
+}
+
 function resolveJoinParameters (
     request: JoinRequest<string>,
     response: JoinResponse,
@@ -380,7 +434,7 @@ function resolveJoinParameters (
         JoinResponseIndex,
     ].filter((index) => typeof index === 'number') as number[];
 
-    const rejectedKeys = [
+    manageRejectedKeys([
         eventPayloadKey,
         eventRequestKey,
         eventResponseKey,
@@ -390,13 +444,7 @@ function resolveJoinParameters (
         connectionRequestIdKey,
         connectionParamsKey,
         connectionQueryKey,
-    ]
-        .map((key) => resolveParamDecorator(key, target, propertyKey))
-        .filter((index) => typeof index === 'number') as number[];
-
-    if (rejectedKeys.length) {
-        throw new Error(`Invalid parameter decorators: ${rejectedKeys.join(', ')}`);
-    }
+    ], target, propertyKey);
 
     return array
         .sort((a, b) => a - b)
@@ -483,7 +531,7 @@ function resolveEventParameters (
         userPresenceIndex,
     ].filter((index) => typeof index === 'number') as number[];
 
-    const rejectedKeys = [
+    manageRejectedKeys([
         joinRequestKey,
         joinResponseKey,
         joinParamsKey,
@@ -492,13 +540,7 @@ function resolveEventParameters (
         connectionRequestIdKey,
         connectionParamsKey,
         connectionQueryKey,
-    ]
-        .map((key) => resolveParamDecorator(key, target, propertyKey))
-        .filter((index) => typeof index === 'number') as number[];
-
-    if (rejectedKeys.length) {
-        throw new Error(`Invalid parameter decorators: ${rejectedKeys.join(', ')}`);
-    }
+    ], target, propertyKey);
 
     return array
         .sort((a, b) => a - b)
@@ -533,7 +575,7 @@ function resolveLeaveParameters (
 ) {
     const userDataIndex = resolveParamDecorator(userDataKey, target, propertyKey);
 
-    const rejectedKeys = [
+    manageRejectedKeys([
         joinRequestKey,
         joinResponseKey,
         joinParamsKey,
@@ -549,13 +591,7 @@ function resolveLeaveParameters (
         eventRequestKey,
         userPresenceKey,
         internalChannelKey,
-    ]
-        .map((key) => resolveParamDecorator(key, target, propertyKey))
-        .filter((index) => typeof index === 'number') as number[];
-
-    if (rejectedKeys.length) {
-        throw new Error(`Invalid parameter decorators: ${rejectedKeys.join(', ')}`);
-    }
+    ], target, propertyKey);
 
     if (userDataIndex === null) {
         return [];
@@ -615,7 +651,7 @@ function resolveConnectionParameters (
         connectionHeadersIndex,
     ].filter((index) => typeof index === 'number') as number[];
 
-    const rejectedKeys = [
+    manageRejectedKeys([
         joinRequestKey,
         joinResponseKey,
         joinParamsKey,
@@ -627,13 +663,7 @@ function resolveConnectionParameters (
         eventResponseKey,
         userPresenceKey,
         eventRequestKey,
-    ]
-        .map((key) => resolveParamDecorator(key, target, propertyKey))
-        .filter((index) => typeof index === 'number') as number[];
-
-    if (rejectedKeys.length) {
-        throw new Error(`Invalid parameter decorators: ${rejectedKeys.join(', ')}`);
-    }
+    ], target, propertyKey);
 
     return array
         .sort((a, b) => a - b)
