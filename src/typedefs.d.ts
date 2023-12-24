@@ -1,7 +1,6 @@
 import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
 
-import { ModuleMetadata } from '@nestjs/common';
-import type { ModuleRef, HttpAdapterHost } from '@nestjs/core';
+import { ModuleMetadata, DynamicModule } from '@nestjs/common';
 import type { Express } from 'express';
 import { WebSocketServer } from 'ws';
 
@@ -802,17 +801,10 @@ declare function Channels(channels: Constructor<NonNullable<unknown>>[]): ClassD
  */
 declare function DEndpoint(metadata: EndpointMetadata): ClassDecorator;
 
-/**
- * Decorator to mark a class as having multiple endpoints.
- * @param metadata - The metadata for the endpoints.
- */
-declare function Endpoints(metadata: Metadata): ClassDecorator;
-
 declare class PondSocketModule {
     /**
-     * @desc The NestJS module for the PondSocketModule
-     * @param moduleRef - The NestJS moduleRef
-     * @param adapterHost - The NestJS adapterHost
+     * @desc Creates a new PondSocketModule
+     * @param metadata - The metadata for the module
      */
-    constructor (moduleRef: ModuleRef, adapterHost: HttpAdapterHost);
+    static forRoot (metadata: Metadata): DynamicModule;
 }

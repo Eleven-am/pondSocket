@@ -1,4 +1,4 @@
-import { WebSocket, WebSocketServer } from 'ws';
+import { WebSocket } from 'ws';
 
 import { Middleware } from '../abstracts/middleware';
 import { ChannelEngine } from '../channel/channel';

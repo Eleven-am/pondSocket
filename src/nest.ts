@@ -3,9 +3,9 @@ import { createServer } from 'http';
 import {
     applyDecorators,
     Injectable,
-    Module,
     ModuleMetadata,
     SetMetadata,
+    DynamicModule, Provider,
 } from '@nestjs/common';
 import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
@@ -46,7 +46,6 @@ const endpointInstanceKey = Symbol('endpointInstanceKey');
 const channelClassKey = Symbol('channel');
 const endpointClassKey = Symbol('endpoint');
 const channelsClassKey = Symbol('channels');
-const endpointsClassKey = Symbol('endpoints');
 
 type Constructor<T> = new (...args: any[]) => T;
 
@@ -827,44 +826,20 @@ const getChannels = (target: any) => getClassMetadata<Constructor<NonNullable<un
 // eslint-disable-next-line new-cap
 export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(SetChannels(metadata.channels), SetEndpoint(metadata.path));
 
-export const Endpoints = ({
-    endpoints,
-    providers = [],
-    imports = [],
-    exports = [],
-}: EndpointsMetadata) => (target: any) => {
-    const channels = endpoints.flatMap((endpoint) => getChannels(endpoint));
-
-    return applyDecorators(
-        // eslint-disable-next-line new-cap
-        SetMetadata(endpointsClassKey, endpoints),
-        // eslint-disable-next-line new-cap
-        Module({
-            imports,
-            providers: [...providers, ...endpoints, ...channels],
-            exports: [...exports, ...channels],
-        }),
-    )(target);
-};
-
-export class PondSocketModule {
+class PondSocketService {
     constructor (
         readonly moduleRef: ModuleRef,
         readonly adapterHost: HttpAdapterHost,
+        private readonly endpoints: Constructor<NonNullable<unknown>>[],
     ) {
         const httpAdapter = this.adapterHost.httpAdapter;
-
-        const endpoints = getClassMetadata<Constructor<NonNullable<unknown>>[]>(
-            endpointsClassKey,
-            this.constructor,
-        ) ?? [];
 
         httpAdapter.listen = (...args: any[]) => {
             const app = httpAdapter.getInstance();
             const server = createServer(app);
             const socket = new PondSocket(server);
 
-            endpoints.forEach((endpoint) => this.manageEndpoint(socket, endpoint));
+            this.endpoints.forEach((endpoint) => this.manageEndpoint(socket, endpoint));
 
             return socket.listen(...args);
         };
@@ -952,5 +927,31 @@ export class PondSocketModule {
         }
 
         set(channelInstance);
+    }
+}
+
+export class PondSocketModule {
+    static forRoot ({
+        endpoints,
+        providers = [],
+        imports = [],
+        exports = [],
+        isGlobal = false,
+    }: EndpointsMetadata): DynamicModule {
+        const channels = endpoints.flatMap((endpoint) => getChannels(endpoint));
+
+        const pondSocketProvider: Provider = {
+            provide: PondSocketService,
+            useFactory: (moduleRef: ModuleRef, adapterHost: HttpAdapterHost) => new PondSocketService(moduleRef, adapterHost, endpoints),
+            inject: [ModuleRef, HttpAdapterHost],
+        };
+
+        return {
+            module: PondSocketModule,
+            imports: [...imports, ...endpoints, ...channels],
+            providers: [...providers, ...endpoints, ...channels, pondSocketProvider],
+            exports: [...exports, ...channels],
+            global: isGlobal,
+        };
     }
 }
