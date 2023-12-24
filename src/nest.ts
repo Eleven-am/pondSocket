@@ -6,7 +6,9 @@ import {
     ModuleMetadata,
     SetMetadata,
     DynamicModule, Provider,
+// eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
 import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
 import 'reflect-metadata';
@@ -844,17 +846,16 @@ export function EndpointInstance () {
 
 export const Channel = (path = '*') => createClassDecorator(channelClassKey, path);
 
-const SetEndpoint = (path = '*') => createClassDecorator(endpointClassKey, path);
+const setEndpoint = (path = '*') => createClassDecorator(endpointClassKey, path);
 
-const SetChannels = (channels: Constructor<NonNullable<unknown>>[]) => createClassDecorator(channelsClassKey, channels);
+const setChannels = (channels: Constructor<NonNullable<unknown>>[]) => createClassDecorator(channelsClassKey, channels);
 
 const getChannels = (target: any) => getClassMetadata<Constructor<NonNullable<unknown>>[]>(
     channelsClassKey,
     target,
 ) ?? [];
 
-// eslint-disable-next-line new-cap
-export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(SetChannels(metadata.channels), SetEndpoint(metadata.path));
+export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(setChannels(metadata.channels), setEndpoint(metadata.path));
 
 class PondSocketService {
     constructor (
