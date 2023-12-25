@@ -1,6 +1,6 @@
 import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
 
-import { ModuleMetadata, DynamicModule } from '@nestjs/common';
+import type { ModuleMetadata, DynamicModule } from '@nestjs/common';
 import type { Express } from 'express';
 import { WebSocketServer } from 'ws';
 
@@ -87,10 +87,34 @@ interface LeaveEvent {
 
 type LeaveCallback = (event: LeaveEvent) => void;
 
+interface NestRequest {
+    connection?: IncomingConnection<string>;
+    joinRequest?: JoinRequest<string>;
+    eventRequest?: EventRequest<string>;
+    leveeEvent?: LeaveEvent;
+}
+
+interface NestResponse {
+    connection?: ConnectionResponse;
+    joinResponse?: JoinResponse;
+    eventResponse?: EventResponse;
+}
+
+type ParamDecoratorCallback<Input> = (data: Input, request: NestRequest, response: NestResponse) => unknown;
+
 interface UserData {
     assigns: PondAssigns;
     presence: PondPresence;
     id: string;
+}
+
+export interface CanActivate {
+
+    /**
+     * @desc Whether the client can continue with the request
+     * @param request - the request to check
+     */
+    canActivate(request: NestRequest): boolean | Promise<boolean>;
 }
 
 export enum ChannelState {
@@ -751,6 +775,19 @@ declare function GetConnectionHeaders(): ParameterDecorator;
 declare function GetConnectionQuery(): ParameterDecorator;
 
 /**
+ * @desc The Decorator for retrieving the LeaveEvent in a handler
+ * @returns {LeaveEvent}
+ */
+declare function GetLeaveEvent(): ParameterDecorator;
+
+/**
+ * @desc Function to create a param decorator
+ * @param callback - The callback to call when the decorator is used
+ * @returns {ReturnType<callback>}
+ */
+declare function createParamDecorator<Input> (callback: ParamDecoratorCallback<Input>): ParameterDecorator;
+
+/**
  * @desc Marks a method as a handler for JoinRequest events. Throwing an error will reject the request with the error message.
  */
 declare function OnJoinRequest(): MethodDecorator;
@@ -790,16 +827,16 @@ declare function ChannelInstance(name?: string): PropertyDecorator;
 declare function EndpointInstance (): PropertyDecorator;
 
 /**
- * Decorator to mark a class as having multiple channels.
- * @param channels - The array of channels.
- */
-declare function Channels(channels: Constructor<NonNullable<unknown>>[]): ClassDecorator;
-
-/**
  * Decorator to mark a class as an endpoint.
  * @param metadata - The metadata for the endpoint.
  */
 declare function DEndpoint(metadata: EndpointMetadata): ClassDecorator;
+
+/**
+ * Decorator to add a guard to a class or method.
+ * @param guards - The guards to add.
+ */
+declare function PondGuards (...guards: Constructor<CanActivate>[]): ClassDecorator | MethodDecorator;
 
 declare class PondSocketModule {
     /**
