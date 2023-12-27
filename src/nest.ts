@@ -25,7 +25,7 @@ import type {
     LeaveEvent,
     ParameterDecorator,
     ParamDecoratorCallback,
-    NestResponse, NestRequest, EndpointMetadata, Constructor, Metadata, CanActivate,
+    EndpointMetadata, Constructor, Metadata, CanActivate,
 } from './typedefs';
 
 const onJoinHandlerKey = Symbol('onJoinHandlerKey');
@@ -46,7 +46,91 @@ interface HandlerData<Req, Res> {
 
 interface ParamDecoratorMetadata {
     index: number;
-    callback: (request: NestRequest, response: NestResponse) => unknown | Promise<unknown>;
+    callback: (context: Context) => unknown | Promise<unknown>;
+}
+
+interface NestRequest {
+    connection?: IncomingConnection<string>;
+    joinRequest?: JoinRequest<string>;
+    eventRequest?: EventRequest<string>;
+    leveeEvent?: LeaveEvent;
+}
+
+interface NestResponse {
+    connection?: ConnectionResponse;
+    joinResponse?: JoinResponse;
+    eventResponse?: EventResponse;
+}
+
+class Context {
+    private readonly data: Record<string, unknown> = {};
+
+    constructor (
+        private readonly request: NestRequest,
+        private readonly response: NestResponse,
+        private readonly instance: any,
+        private readonly propertyKey: string,
+    ) {}
+
+    get joinRequest () {
+        return this.request.joinRequest ?? null;
+    }
+
+    get eventRequest () {
+        return this.request.eventRequest ?? null;
+    }
+
+    get connection () {
+        return this.request.connection ?? null;
+    }
+
+    get leveeEvent () {
+        return this.request.leveeEvent ?? null;
+    }
+
+    get joinResponse () {
+        return this.response.joinResponse ?? null;
+    }
+
+    get eventResponse () {
+        return this.response.eventResponse ?? null;
+    }
+
+    get connectionResponse () {
+        return this.response.connection ?? null;
+    }
+
+    get user () {
+        return this.joinRequest?.user ?? this.eventRequest?.user ?? null;
+    }
+
+    get channel () {
+        return this.joinRequest?.channel ?? this.eventRequest?.channel ?? null;
+    }
+
+    get presence () {
+        return this.joinRequest?.presence ?? this.eventRequest?.presence ?? null;
+    }
+
+    get event () {
+        return (this.joinRequest ?? this.eventRequest)?.event ?? null;
+    }
+
+    retrieveClassData<A> (key: symbol) {
+        return manageClassData<A>(key, this.instance.constructor).get();
+    }
+
+    retrieveMethodData<A> (key: symbol) {
+        return manageMethodData<A>(key, this.instance, this.propertyKey).get();
+    }
+
+    addData (key: string, value: unknown) {
+        this.data[key] = value;
+    }
+
+    getData (key: string) {
+        return this.data[key] ?? null;
+    }
 }
 
 function isNotEmpty<TValue> (value: TValue | null | undefined): value is TValue {
@@ -61,14 +145,10 @@ function createClassDecorator<T> (key: symbol, value: T): ClassDecorator {
     return applyDecorators(Injectable(), SetMetadata(key, value));
 }
 
-function getClassMetadata<T> (key: symbol, target: any): T | null {
-    return Reflect.getMetadata(key, target) ?? null;
-}
-
 function manageClassData<A> (key: symbol, target: any) {
     return {
         get () {
-            return Reflect.getMetadata(key, target) as A;
+            return (Reflect.getMetadata(key, target) ?? null) as A | null;
         },
         set (value: A) {
             Reflect.defineMetadata(key, value, target);
@@ -77,10 +157,12 @@ function manageClassData<A> (key: symbol, target: any) {
 }
 
 function manageMethodData<A> (key: symbol, target: any, propertyKey: string) {
+    function getter () {
+        return (Reflect.getMetadata(key, target, propertyKey) ?? null) as A | null;
+    }
+
     return {
-        get () {
-            return Reflect.getMetadata(key, target, propertyKey) as A;
-        },
+        get: getter,
         set (value: A) {
             Reflect.defineMetadata(key, value, target, propertyKey);
         },
@@ -120,22 +202,26 @@ function manageHandlers<Request, Response> (key: symbol, target: any) {
 }
 
 function manageParameters (target: any, propertyKey: string) {
-    function getter () {
-        return Reflect.getMetadata(parametersKey, target, propertyKey) as ParamDecoratorMetadata[] ?? [];
-    }
+    const { get, set } = manageMethodData<ParamDecoratorMetadata[]>(
+        parametersKey,
+        target,
+        propertyKey,
+    );
 
     return {
-        get: getter,
-        set (index: number, callback: (request: NestRequest, response: NestResponse) => unknown) {
-            const handlers = getter();
+        get () {
+            return get() || [];
+        },
+        set (index: number, callback: (context: Context) => unknown | Promise<unknown>) {
+            const handlers = get() || [];
 
-            Reflect.defineMetadata(parametersKey, [
+            set([
                 ...handlers,
                 {
                     index,
                     callback,
                 },
-            ], target, propertyKey);
+            ]);
         },
     };
 }
@@ -179,35 +265,35 @@ export function PondGuards (...guards: Constructor<CanActivate>[]) {
                 propertyKey,
             );
 
-            set([...get(), ...guards]);
+            set([...(get() ?? []), ...guards]);
         } else {
             const { get, set } = manageClassData<Constructor<CanActivate>[]>(
                 pondGuardsKey,
                 target,
             );
 
-            set([...get(), ...guards]);
+            set([...(get() ?? []), ...guards]);
         }
     };
 }
 
-async function resolveGuards (moduleRef: ModuleRef, request: NestRequest, target: any, propertyKey: string) {
-    const { get: getClassGuards } = manageClassData<Constructor<CanActivate>[]>(
-        pondGuardsKey,
-        target,
-    );
+async function resolveGuards (moduleRef: ModuleRef, context: Context) {
+    const retrieveGuard = (Guard: Constructor<CanActivate>) => {
+        try {
+            return moduleRef.get(Guard, { strict: false });
+        } catch (e) {
+            console.warn(`Unable to resolve guard: ${Guard.name}, creating new instance, WARNING: this will not inject dependencies. To fix this, add the guard to the providers array of the PondSocketModule.`);
 
-    const { get: getMethodGuards } = manageMethodData<Constructor<CanActivate>[]>(
-        pondGuardsKey,
-        target,
-        propertyKey.toString(),
-    );
+            return new Guard();
+        }
+    };
 
-    const classGuards = getClassGuards() ?? [];
-    const methodGuards = getMethodGuards() ?? [];
-    const instances = [...classGuards, ...methodGuards].map((guard) => moduleRef.get(guard, { strict: false }));
+    const classGuards = context.retrieveClassData<Constructor<CanActivate>[]>(pondGuardsKey) ?? [];
+    const methodGuards = context.retrieveMethodData<Constructor<CanActivate>[]>(pondGuardsKey) ?? [];
+    const instances = [...classGuards, ...methodGuards].map((guard) => retrieveGuard(guard));
 
-    const promises = instances.map((instance) => instance.canActivate(request));
+    // @ts-ignore
+    const promises = instances.map((instance) => instance.canActivate(context));
     const results = await Promise.all(promises);
 
     return results.every((result) => result);
@@ -250,21 +336,19 @@ export function createParamDecorator<Input> (callback: ParamDecoratorCallback<In
     return (data: Input): ParameterDecorator => (target, propertyKey, index) => {
         const { set } = manageParameters(target, propertyKey as string);
 
-        set(index, (request, response) => callback(data, request, response));
+        // @ts-ignore
+        set(index, (context) => callback(data, context));
     };
 }
 
-function resolveParameters (
-    request: NestRequest,
-    response: NestResponse,
-    target: any,
-    propertyKey: string,
-) {
-    const { get } = manageParameters(target, propertyKey);
+function resolveParameters (context: Context) {
+    const gottenValues = context.retrieveMethodData<ParamDecoratorMetadata[]>(
+        parametersKey,
+    ) ?? [];
 
-    const values = get()
+    const values = gottenValues
         .map(({ callback, index }) => ({
-            value: callback(request, response),
+            value: callback(context),
             index,
         }));
 
@@ -274,224 +358,218 @@ function resolveParameters (
 }
 
 export function GetUserData () {
-    return createParamDecorator((_, request) => {
-        const { joinRequest, eventRequest } = request;
+    return createParamDecorator((_, context) => {
+        const userData = context.user;
 
-        if (joinRequest) {
-            return joinRequest.user;
-        } else if (eventRequest) {
-            return eventRequest.user;
+        if (!userData) {
+            throw new Error('Invalid decorator usage: GetUserData');
         }
 
-        throw new Error('Invalid decorator usage: GetUserData');
+        return userData;
     })(null);
 }
 
 export function GetInternalChannel () {
-    return createParamDecorator((_, request) => {
-        const { joinRequest, eventRequest } = request;
+    return createParamDecorator((_, context) => {
+        const channel = context.channel;
 
-        if (joinRequest) {
-            return joinRequest.channel;
-        } else if (eventRequest) {
-            return eventRequest.channel;
+        if (!channel) {
+            throw new Error('Invalid decorator usage: GetInternalChannel');
         }
 
-        throw new Error('Invalid decorator usage: GetInternalChannel');
+        return channel;
     })(null);
 }
 
 export function GetUserPresences () {
-    return createParamDecorator((_, request) => {
-        const { joinRequest, eventRequest } = request;
+    return createParamDecorator((_, context) => {
+        const presences = context.presence;
 
-        if (joinRequest) {
-            return joinRequest.presence;
-        } else if (eventRequest) {
-            return eventRequest.presence;
+        if (!presences) {
+            throw new Error('Invalid decorator usage: GetUserPresences');
         }
 
-        throw new Error('Invalid decorator usage: GetUserPresences');
+        return presences;
     })(null);
 }
 
 export function GetConnectionRequest () {
-    return createParamDecorator((_, request) => {
-        const { connection } = request;
+    return createParamDecorator((_, context) => {
+        const connection = context.connection;
 
-        if (connection) {
-            return connection;
+        if (!connection) {
+            throw new Error('Invalid decorator usage: GetConnectionRequest');
         }
 
-        throw new Error('Invalid decorator usage: GetConnectionRequest');
+        return connection;
     })(null);
 }
 
 export function GetConnectionResponse () {
-    return createParamDecorator((_, __, response) => {
-        const { connection } = response;
+    return createParamDecorator((_, context) => {
+        const response = context.connectionResponse;
 
-        if (connection) {
-            return connection;
+        if (!response) {
+            throw new Error('Invalid decorator usage: GetConnectionResponse');
         }
 
-        throw new Error('Invalid decorator usage: GetConnectionResponse');
+        return response;
     })(null);
 }
 
 export function GetConnectionRequestId () {
-    return createParamDecorator((_, request) => {
-        const { connection } = request;
+    return createParamDecorator((_, context) => {
+        const connection = context.connection;
 
-        if (connection) {
-            return connection.id;
+        if (!connection) {
+            throw new Error('Invalid decorator usage: GetConnectionRequestId');
         }
 
-        throw new Error('Invalid decorator usage: GetConnectionRequestId');
+        return connection.id;
     })(null);
 }
 
 export function GetConnectionParams () {
-    return createParamDecorator((_, request) => {
-        const { connection } = request;
+    return createParamDecorator((_, context) => {
+        const connection = context.connection;
 
-        if (connection) {
-            return connection.params;
+        if (!connection) {
+            throw new Error('Invalid decorator usage: GetConnectionParams');
         }
 
-        throw new Error('Invalid decorator usage: GetConnectionParams');
+        return connection.params;
     })(null);
 }
 
 export function GetConnectionHeaders () {
-    return createParamDecorator((_, request) => {
-        const { connection } = request;
+    return createParamDecorator((_, context) => {
+        const connection = context.connection;
 
-        if (connection) {
-            return connection.headers;
+        if (!connection) {
+            throw new Error('Invalid decorator usage: GetConnectionHeaders');
         }
 
-        throw new Error('Invalid decorator usage: GetConnectionHeaders');
+        return connection.headers;
     })(null);
 }
 
 export function GetConnectionQuery () {
-    return createParamDecorator((_, request) => {
-        const { connection } = request;
+    return createParamDecorator((_, context) => {
+        const connection = context.connection;
 
-        if (connection) {
-            return connection.query;
+        if (!connection) {
+            throw new Error('Invalid decorator usage: GetConnectionQuery');
         }
 
-        throw new Error('Invalid decorator usage: GetConnectionQuery');
+        return connection.query;
     })(null);
 }
 
 export function GetJoinRequest () {
-    return createParamDecorator((_, request) => {
-        const { joinRequest } = request;
+    return createParamDecorator((_, context) => {
+        const joinRequest = context.joinRequest;
 
-        if (joinRequest) {
-            return joinRequest;
+        if (!joinRequest) {
+            throw new Error('Invalid decorator usage: GetJoinRequest');
         }
 
-        throw new Error('Invalid decorator usage: GetJoinRequest');
+        return joinRequest;
     })(null);
 }
 
 export function GetJoinResponse () {
-    return createParamDecorator((_, __, response) => {
-        const { joinResponse } = response;
+    return createParamDecorator((_, context) => {
+        const joinResponse = context.joinResponse;
 
-        if (joinResponse) {
-            return joinResponse;
+        if (!joinResponse) {
+            throw new Error('Invalid decorator usage: GetJoinResponse');
         }
 
-        throw new Error('Invalid decorator usage: GetJoinResponse');
+        return joinResponse;
     })(null);
 }
 
 export function GetJoinParams () {
-    return createParamDecorator((_, request) => {
-        const { joinRequest } = request;
+    return createParamDecorator((_, context) => {
+        const joinRequest = context.joinRequest;
 
-        if (joinRequest) {
-            return joinRequest.joinParams;
+        if (!joinRequest) {
+            throw new Error('Invalid decorator usage: GetJoinParams');
         }
 
-        throw new Error('Invalid decorator usage: GetJoinParams');
+        return joinRequest.joinParams;
     })(null);
 }
 
 export function GetEventPayload () {
     return createParamDecorator((_, request) => {
-        const { eventRequest } = request;
+        const eventRequest = request.eventRequest;
 
-        if (eventRequest) {
-            return eventRequest.event.payload;
+        if (!eventRequest) {
+            throw new Error('Invalid decorator usage: GetEventPayload');
         }
 
-        throw new Error('Invalid decorator usage: GetEventPayload');
+        return eventRequest.event.payload;
     })(null);
 }
 
 export function GetEventParams () {
-    return createParamDecorator((_, request) => {
-        const { eventRequest } = request;
+    return createParamDecorator((_, context) => {
+        const params = context.event?.params;
 
-        if (eventRequest) {
-            return eventRequest.event.params;
+        if (!params) {
+            throw new Error('Invalid decorator usage: GetEventParams');
         }
 
-        throw new Error('Invalid decorator usage: GetEventParams');
+        return params;
     })(null);
 }
 
 export function GetEventQuery () {
     return createParamDecorator((_, request) => {
-        const { eventRequest } = request;
+        const query = request.event?.query;
 
-        if (eventRequest) {
-            return eventRequest.event.query;
+        if (!query) {
+            throw new Error('Invalid decorator usage: GetEventQuery');
         }
 
-        throw new Error('Invalid decorator usage: GetEventQuery');
+        return query;
     })(null);
 }
 
 export function GetEventResponse () {
-    return createParamDecorator((_, __, response) => {
-        const { eventResponse } = response;
+    return createParamDecorator((_, context) => {
+        const response = context.eventResponse;
 
-        if (eventResponse) {
-            return eventResponse;
+        if (!response) {
+            throw new Error('Invalid decorator usage: GetEventResponse');
         }
 
-        throw new Error('Invalid decorator usage: GetEventResponse');
+        return response;
     })(null);
 }
 
 export function GetEventRequest () {
-    return createParamDecorator((_, request) => {
-        const { eventRequest } = request;
+    return createParamDecorator((_, context) => {
+        const request = context.eventRequest;
 
-        if (eventRequest) {
-            return eventRequest;
+        if (!request) {
+            throw new Error('Invalid decorator usage: GetEventRequest');
         }
 
-        throw new Error('Invalid decorator usage: GetEventRequest');
+        return request;
     })(null);
 }
 
 export function GetLeaveEvent () {
-    return createParamDecorator((_, request) => {
-        const { leveeEvent } = request;
+    return createParamDecorator((_, context) => {
+        const event = context.leveeEvent;
 
-        if (leveeEvent) {
-            return leveeEvent;
+        if (!event) {
+            throw new Error('Invalid decorator usage: GetLeaveEvent');
         }
 
-        throw new Error('Invalid decorator usage: GetLeaveEvent');
+        return event;
     })(null);
 }
 
@@ -511,12 +589,14 @@ export function OnConnectionRequest () {
                     connection: response,
                 };
 
-                const canProceed = await resolveGuards(moduleRef, req, target, propertyKey);
+                const context = new Context(req, res, instance, propertyKey);
+
+                const canProceed = await resolveGuards(moduleRef, context);
 
                 if (canProceed) {
                     const data = await originalMethod.apply(
                         instance,
-                        resolveParameters(req, res, target, propertyKey),
+                        resolveParameters(context),
                     );
 
                     if (!response.hasResponded) {
@@ -552,8 +632,6 @@ export function OnJoinRequest () {
         set('', async (instance, moduleRef, request, response) => {
             try {
                 const req: NestRequest = {
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-expect-error
                     joinRequest: request,
                 };
 
@@ -561,12 +639,14 @@ export function OnJoinRequest () {
                     joinResponse: response,
                 };
 
-                const canProceed = await resolveGuards(moduleRef, req, target, propertyKey);
+                const context = new Context(req, res, instance, propertyKey);
+
+                const canProceed = await resolveGuards(moduleRef, context);
 
                 if (canProceed) {
                     const data = await originalMethod.apply(
                         instance,
-                        resolveParameters(req, res, target, propertyKey),
+                        resolveParameters(context),
                     );
 
                     if (!response.hasResponded) {
@@ -603,28 +683,6 @@ export function OnJoinRequest () {
     };
 }
 
-export function OnLeaveEvent () {
-    return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
-        const originalMethod = descriptor.value;
-        const { set } = manageOnLeaveHandlers(target);
-
-        set('', async (instance, _, event) => {
-            try {
-                await originalMethod.apply(
-                    instance,
-                    resolveParameters({
-                        leveeEvent: event,
-                    }, {}, target, propertyKey),
-                );
-            } catch (error) {
-                if (error instanceof Error) {
-                    console.error(error.message);
-                }
-            }
-        });
-    };
-}
-
 export function OnEvent (event = '*') {
     return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value;
@@ -633,8 +691,6 @@ export function OnEvent (event = '*') {
         set(event, async (instance, moduleRef, request, response) => {
             try {
                 const req: NestRequest = {
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-expect-error
                     eventRequest: request,
                 };
 
@@ -642,12 +698,14 @@ export function OnEvent (event = '*') {
                     eventResponse: response,
                 };
 
-                const canProceed = await resolveGuards(moduleRef, req, target, propertyKey);
+                const context = new Context(req, res, instance, propertyKey);
+
+                const canProceed = await resolveGuards(moduleRef, context);
 
                 if (canProceed) {
                     const data = await originalMethod.apply(
                         instance,
-                        resolveParameters(req, res, target, propertyKey),
+                        resolveParameters(context),
                     );
 
                     if (!response.hasResponded) {
@@ -687,6 +745,35 @@ export function OnEvent (event = '*') {
     };
 }
 
+export function OnLeaveEvent () {
+    return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+        const originalMethod = descriptor.value;
+        const { set } = manageOnLeaveHandlers(target);
+
+        set('', async (instance, _, event) => {
+            try {
+                const context = new Context(
+                    {
+                        leveeEvent: event,
+                    },
+                    {},
+                    instance,
+                    propertyKey,
+                );
+
+                await originalMethod.apply(
+                    instance,
+                    resolveParameters(context),
+                );
+            } catch (error) {
+                if (error instanceof Error) {
+                    console.error(error.message);
+                }
+            }
+        });
+    };
+}
+
 export function ChannelInstance (name?: string) {
     return (target: any, propertyKey: string) => {
         const { build } = manageChannelInstance(target);
@@ -715,10 +802,10 @@ const setEndpoint = (path = '*') => createClassDecorator(endpointClassKey, path)
 
 const setChannels = (channels: Constructor<NonNullable<unknown>>[]) => createClassDecorator(channelsClassKey, channels);
 
-const getChannels = (target: any) => getClassMetadata<Constructor<NonNullable<unknown>>[]>(
+const getChannels = (target: any) => manageClassData<Constructor<NonNullable<unknown>>[]>(
     channelsClassKey,
     target,
-) ?? [];
+).get() ?? [];
 
 export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(setChannels(metadata.channels), setEndpoint(metadata.path));
 
@@ -745,10 +832,10 @@ class PondSocketService {
         socket: PondSocket,
         endpoint: Constructor<NonNullable<Record<string, unknown>>>,
     ) {
-        const endpointMetadata = getClassMetadata<string>(
+        const endpointMetadata = manageClassData<string>(
             endpointClassKey,
             endpoint,
-        );
+        ).get();
 
         if (!endpointMetadata) {
             return;
@@ -782,7 +869,7 @@ class PondSocketService {
         channel: Constructor<NonNullable<Record<string, unknown>>>,
         endpoint: PondEndpoint,
     ) {
-        const channelMetadata = getClassMetadata<string>(channelClassKey, channel);
+        const channelMetadata = manageClassData<string>(channelClassKey, channel).get();
 
         if (!channelMetadata) {
             return;
@@ -847,8 +934,8 @@ export class PondSocketModule {
         };
 
         return {
+            imports,
             module: PondSocketModule,
-            imports: [...imports, ...endpoints, ...channels],
             providers: [...providers, ...endpoints, ...channels, pondSocketProvider],
             exports: [...exports, ...channels],
             global: isGlobal,

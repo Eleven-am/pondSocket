@@ -87,20 +87,7 @@ interface LeaveEvent {
 
 type LeaveCallback = (event: LeaveEvent) => void;
 
-interface NestRequest {
-    connection?: IncomingConnection<string>;
-    joinRequest?: JoinRequest<string>;
-    eventRequest?: EventRequest<string>;
-    leveeEvent?: LeaveEvent;
-}
-
-interface NestResponse {
-    connection?: ConnectionResponse;
-    joinResponse?: JoinResponse;
-    eventResponse?: EventResponse;
-}
-
-type ParamDecoratorCallback<Input> = (data: Input, request: NestRequest, response: NestResponse) => unknown;
+type ParamDecoratorCallback<Input> = (data: Input, context: Context) => unknown | Promise<unknown>;
 
 interface UserData {
     assigns: PondAssigns;
@@ -112,9 +99,9 @@ export interface CanActivate {
 
     /**
      * @desc Whether the client can continue with the request
-     * @param request - the request to check
+     * @param context - The context of the request
      */
-    canActivate(request: NestRequest): boolean | Promise<boolean>;
+    canActivate(context: Context): boolean | Promise<boolean>;
 }
 
 export enum ChannelState {
@@ -123,6 +110,88 @@ export enum ChannelState {
     JOINED = 'JOINED',
     STALLED = 'STALLED',
     CLOSED = 'CLOSED',
+}
+
+declare class Context {
+    /**
+     * @desc The request object, available in onJoin handlers
+     */
+    joinRequest: JoinRequest<string> | null;
+
+    /**
+     * @desc The request object, available in onEvent handlers
+     */
+    eventRequest: EventRequest<string> | null;
+
+    /**
+     * @desc The request object, available in onConnection handlers
+     */
+    connection: IncomingConnection<string> | null;
+
+    /**
+     * @desc The leave event, available in onLeave handlers
+     */
+    leveeEvent: LeaveEvent | null;
+
+    /**
+     * @desc The response object, available in onJoin handlers
+     */
+    joinResponse: JoinResponse | null;
+
+    /**
+     * @desc The response object, available in onEvent handlers
+     */
+    eventResponse: EventResponse | null;
+
+    /**
+     * @desc The response object, available in onConnection handlers
+     */
+    connectionResponse: ConnectionResponse | null;
+
+    /**
+     * @desc The user data, available in onJoin, onEvent handlers
+     */
+    user: UserData | null;
+
+    /**
+     * @desc The channel, available in onJoin, onEvent handlers
+     */
+    channel: Channel | null;
+
+    /**
+     * @desc The assigns, available in onJoin, onEvent handlers
+     */
+    presence: UserPresences | null;
+
+    /**
+     * @desc The assigns, available in onJoin, onEvent handlers
+     */
+    event: EventParams<string> | null;
+
+    /**
+     * @desc Retrieves metadata associated with the class
+     * @param key - the key to retrieve
+     */
+    public retrieveClassData<A = unknown>(key: symbol): A | null;
+
+    /**
+     * @desc Retrieves metadata associated with the method
+     * @param key - the key to retrieve
+     */
+    public retrieveMethodData<A = unknown>(key: symbol): A | null;
+
+    /**
+     * @desc Adds request data to the context
+     * @param key - the key to add
+     * @param value - the value to add
+     */
+    public addData(key: string, value: unknown): void;
+
+    /**
+     * @desc Retrieves request data from the context
+     * @param key - the key to retrieve
+     */
+    public getData<A = unknown>(key: string): A | null;
 }
 
 declare class AbstractRequest<Path extends string> {
@@ -836,7 +905,7 @@ declare function DEndpoint(metadata: EndpointMetadata): ClassDecorator;
  * Decorator to add a guard to a class or method.
  * @param guards - The guards to add.
  */
-declare function PondGuards (...guards: Constructor<CanActivate>[]): ClassDecorator | MethodDecorator;
+declare function PondGuards (...guards: Constructor<CanActivate>[]): MethodDecorator & ClassDecorator;
 
 declare class PondSocketModule {
     /**
