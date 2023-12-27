@@ -36,6 +36,7 @@ type Params<Path> = {
 interface EndpointMetadata {
     path?: string;
     channels: Constructor<NonNullable<unknown>>[];
+    guards?: Constructor<CanActivate>[];
 }
 
 type PondPath<Path extends string> = Path | RegExp;
@@ -112,21 +113,21 @@ export enum ChannelState {
     CLOSED = 'CLOSED',
 }
 
-declare class Context {
+declare class Context<Path extends string = string> {
     /**
      * @desc The request object, available in onJoin handlers
      */
-    joinRequest: JoinRequest<string> | null;
+    joinRequest: JoinRequest<Path> | null;
 
     /**
      * @desc The request object, available in onEvent handlers
      */
-    eventRequest: EventRequest<string> | null;
+    eventRequest: EventRequest<Path> | null;
 
     /**
      * @desc The request object, available in onConnection handlers
      */
-    connection: IncomingConnection<string> | null;
+    connection: IncomingConnection<Path> | null;
 
     /**
      * @desc The leave event, available in onLeave handlers
@@ -166,7 +167,7 @@ declare class Context {
     /**
      * @desc The assigns, available in onJoin, onEvent handlers
      */
-    event: EventParams<string> | null;
+    event: PondEvent<Path> | null;
 
     /**
      * @desc Retrieves metadata associated with the class
@@ -854,7 +855,7 @@ declare function GetLeaveEvent(): ParameterDecorator;
  * @param callback - The callback to call when the decorator is used
  * @returns {ReturnType<callback>}
  */
-declare function createParamDecorator<Input> (callback: ParamDecoratorCallback<Input>): ParameterDecorator;
+declare function createParamDecorator<Input> (callback: ParamDecoratorCallback<Input>): (input: Input) => ParameterDecorator;
 
 /**
  * @desc Marks a method as a handler for JoinRequest events. Throwing an error will reject the request with the error message.

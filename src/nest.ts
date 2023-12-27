@@ -27,6 +27,7 @@ import type {
     ParamDecoratorCallback,
     EndpointMetadata, Constructor, Metadata, CanActivate,
 } from './typedefs';
+import { PondEvent } from './types';
 
 const onJoinHandlerKey = Symbol('onJoinHandlerKey');
 const onEventHandlerKey = Symbol('onEventHandlerKey');
@@ -38,6 +39,7 @@ const endpointClassKey = Symbol('endpoint');
 const channelsClassKey = Symbol('channels');
 const parametersKey = Symbol('generalParametersKey');
 const pondGuardsKey = Symbol('pondGuardsKey');
+const endpointGuardsKey = Symbol('endpointGuardsKey');
 
 interface HandlerData<Req, Res> {
     path: string;
@@ -60,77 +62,6 @@ interface NestResponse {
     connection?: ConnectionResponse;
     joinResponse?: JoinResponse;
     eventResponse?: EventResponse;
-}
-
-class Context {
-    private readonly data: Record<string, unknown> = {};
-
-    constructor (
-        private readonly request: NestRequest,
-        private readonly response: NestResponse,
-        private readonly instance: any,
-        private readonly propertyKey: string,
-    ) {}
-
-    get joinRequest () {
-        return this.request.joinRequest ?? null;
-    }
-
-    get eventRequest () {
-        return this.request.eventRequest ?? null;
-    }
-
-    get connection () {
-        return this.request.connection ?? null;
-    }
-
-    get leveeEvent () {
-        return this.request.leveeEvent ?? null;
-    }
-
-    get joinResponse () {
-        return this.response.joinResponse ?? null;
-    }
-
-    get eventResponse () {
-        return this.response.eventResponse ?? null;
-    }
-
-    get connectionResponse () {
-        return this.response.connection ?? null;
-    }
-
-    get user () {
-        return this.joinRequest?.user ?? this.eventRequest?.user ?? null;
-    }
-
-    get channel () {
-        return this.joinRequest?.channel ?? this.eventRequest?.channel ?? null;
-    }
-
-    get presence () {
-        return this.joinRequest?.presence ?? this.eventRequest?.presence ?? null;
-    }
-
-    get event () {
-        return (this.joinRequest ?? this.eventRequest)?.event ?? null;
-    }
-
-    retrieveClassData<A> (key: symbol) {
-        return manageClassData<A>(key, this.instance.constructor).get();
-    }
-
-    retrieveMethodData<A> (key: symbol) {
-        return manageMethodData<A>(key, this.instance, this.propertyKey).get();
-    }
-
-    addData (key: string, value: unknown) {
-        this.data[key] = value;
-    }
-
-    getData (key: string) {
-        return this.data[key] ?? null;
-    }
 }
 
 function isNotEmpty<TValue> (value: TValue | null | undefined): value is TValue {
@@ -292,11 +223,97 @@ async function resolveGuards (moduleRef: ModuleRef, context: Context) {
     const methodGuards = context.retrieveMethodData<Constructor<CanActivate>[]>(pondGuardsKey) ?? [];
     const instances = [...classGuards, ...methodGuards].map((guard) => retrieveGuard(guard));
 
-    // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
     const promises = instances.map((instance) => instance.canActivate(context));
     const results = await Promise.all(promises);
 
     return results.every((result) => result);
+}
+
+class Context {
+    private readonly data: Record<string, unknown> = {};
+
+    // eslint-disable-next-line no-useless-constructor
+    constructor (
+        private readonly request: NestRequest,
+        private readonly response: NestResponse,
+        private readonly instance: any,
+        private readonly propertyKey: string,
+    ) {}
+
+    get joinRequest () {
+        return this.request.joinRequest ?? null;
+    }
+
+    get eventRequest () {
+        return this.request.eventRequest ?? null;
+    }
+
+    get connection () {
+        return this.request.connection ?? null;
+    }
+
+    get leveeEvent () {
+        return this.request.leveeEvent ?? null;
+    }
+
+    get joinResponse () {
+        return this.response.joinResponse ?? null;
+    }
+
+    get eventResponse () {
+        return this.response.eventResponse ?? null;
+    }
+
+    get connectionResponse () {
+        return this.response.connection ?? null;
+    }
+
+    get user () {
+        return this.joinRequest?.user ?? this.eventRequest?.user ?? null;
+    }
+
+    get channel () {
+        return this.joinRequest?.channel ?? this.eventRequest?.channel ?? null;
+    }
+
+    get presence () {
+        return this.joinRequest?.presence ?? this.eventRequest?.presence ?? null;
+    }
+
+    get event () {
+        if (this.connection) {
+            const event: PondEvent<string> = {
+                params: this.connection.params,
+                query: this.connection.query,
+                payload: {},
+                event: 'CONNECTION',
+            };
+
+            return event;
+        } else if (this.joinRequest || this.eventRequest) {
+            return this.joinRequest?.event ?? this.eventRequest?.event ?? null;
+        }
+
+        return null;
+    }
+
+    retrieveClassData<A> (key: symbol) {
+        return manageClassData<A>(key, this.instance.constructor).get();
+    }
+
+    retrieveMethodData<A> (key: symbol) {
+        return manageMethodData<A>(key, this.instance, this.propertyKey).get();
+    }
+
+    addData (key: string, value: unknown) {
+        this.data[key] = value;
+    }
+
+    getData (key: string) {
+        return this.data[key] ?? null;
+    }
 }
 
 function manageConnectionHandlers (target: any) {
@@ -336,7 +353,8 @@ export function createParamDecorator<Input> (callback: ParamDecoratorCallback<In
     return (data: Input): ParameterDecorator => (target, propertyKey, index) => {
         const { set } = manageParameters(target, propertyKey as string);
 
-        // @ts-ignore
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
         set(index, (context) => callback(data, context));
     };
 }
@@ -800,6 +818,8 @@ export const Channel = (path = '*') => createClassDecorator(channelClassKey, pat
 
 const setEndpoint = (path = '*') => createClassDecorator(endpointClassKey, path);
 
+const setGuards = (guards: Constructor<CanActivate>[]) => createClassDecorator(endpointGuardsKey, guards);
+
 const setChannels = (channels: Constructor<NonNullable<unknown>>[]) => createClassDecorator(channelsClassKey, channels);
 
 const getChannels = (target: any) => manageClassData<Constructor<NonNullable<unknown>>[]>(
@@ -807,7 +827,27 @@ const getChannels = (target: any) => manageClassData<Constructor<NonNullable<unk
     target,
 ).get() ?? [];
 
-export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(setChannels(metadata.channels), setEndpoint(metadata.path));
+const getGuards = (target: any) => {
+    const classGuards = manageClassData<Constructor<CanActivate>[]>(
+        pondGuardsKey,
+        target,
+    ).get() ?? [];
+
+    const methodGuards = Object.getOwnPropertyNames(target.prototype)
+        .map((propertyKey) => manageMethodData<Constructor<CanActivate>[]>(
+            pondGuardsKey,
+            target.prototype,
+            propertyKey,
+        ).get() ?? []);
+
+    return [...classGuards, ...methodGuards.flat()];
+};
+
+export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(
+    setChannels(metadata.channels),
+    setEndpoint(metadata.path),
+    setGuards(metadata.guards ?? []),
+);
 
 class PondSocketService {
     constructor (
@@ -841,6 +881,11 @@ class PondSocketService {
             return;
         }
 
+        const endpointGuards = manageClassData<Constructor<CanActivate>[]>(
+            endpointGuardsKey,
+            endpoint,
+        ).get() ?? [];
+
         const instance = this.moduleRef.get(endpoint, { strict: false });
         const { set } = manageEndpointInstance(instance);
 
@@ -861,12 +906,13 @@ class PondSocketService {
         set(pondEndpoint);
 
         getChannels(endpoint).forEach((channel) => {
-            this.manageChannel(channel, pondEndpoint);
+            this.manageChannel(channel, endpointGuards, pondEndpoint);
         });
     }
 
     manageChannel (
         channel: Constructor<NonNullable<Record<string, unknown>>>,
+        guards: Constructor<CanActivate>[],
         endpoint: PondEndpoint,
     ) {
         const channelMetadata = manageClassData<string>(channelClassKey, channel).get();
@@ -874,6 +920,13 @@ class PondSocketService {
         if (!channelMetadata) {
             return;
         }
+
+        const { get, set: setGuards } = manageClassData<Constructor<CanActivate>[]>(
+            pondGuardsKey,
+            channel,
+        );
+
+        setGuards([...guards, ...(get() ?? [])]);
 
         const instance = this.moduleRef.get(channel, { strict: false });
 
@@ -921,7 +974,12 @@ export class PondSocketModule {
         exports = [],
         isGlobal = false,
     }: Metadata): DynamicModule {
-        const channels = endpoints.flatMap((endpoint) => getChannels(endpoint));
+        const endpointsSet = new Set(endpoints);
+        const channels = Array.from(endpointsSet).flatMap((endpoint) => getChannels(endpoint));
+        const channelsSet = new Set(channels);
+
+        const guards = Array.from(new Set([...endpointsSet, ...channelsSet])).flatMap(((target) => getGuards(target)));
+        const guardsSet = new Set(guards);
 
         const pondSocketProvider: Provider = {
             provide: PondSocketService,
@@ -933,11 +991,13 @@ export class PondSocketModule {
             inject: [ModuleRef, HttpAdapterHost],
         };
 
+        const providersSet = new Set([...providers, ...guardsSet, ...channelsSet, ...endpointsSet, pondSocketProvider]);
+
         return {
             imports,
             module: PondSocketModule,
-            providers: [...providers, ...endpoints, ...channels, pondSocketProvider],
-            exports: [...exports, ...channels],
+            providers: [...providersSet],
+            exports: [...exports, ...channelsSet],
             global: isGlobal,
         };
     }
