@@ -5,6 +5,7 @@ import {
     Injectable,
     SetMetadata,
     DynamicModule, Provider,
+    HttpException,
 // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
@@ -316,6 +317,62 @@ class Context {
     }
 }
 
+function manageResponse (data: any, response: ConnectionResponse | JoinResponse | EventResponse) {
+    if (response.hasResponded || !isNotEmpty(data)) {
+        return;
+    }
+
+    const {
+        event,
+        presence,
+        updatePresence,
+        assigns,
+        broadcast,
+        accept = true,
+        ...rest
+    } = data;
+
+    if (event && typeof event === 'string' && isNotEmpty(rest)) {
+        response.send(event, rest, assigns);
+    }
+
+    if (broadcast && typeof broadcast === 'string' && isNotEmpty(rest) && 'broadcast' in response) {
+        response.broadcast(broadcast, rest);
+    }
+
+    if ('trackPresence' in response && presence) {
+        response.trackPresence(presence);
+    } else if ('updatePresence' in response && updatePresence) {
+        response.updatePresence(updatePresence);
+    }
+
+    if (response.hasResponded) {
+        return;
+    }
+
+    if (accept) {
+        if (isNotEmpty(assigns)) {
+            response.accept(assigns);
+        } else {
+            response.accept();
+        }
+    }
+}
+
+function manageError (error: unknown, response: ConnectionResponse | JoinResponse | EventResponse) {
+    if (response.hasResponded) {
+        return;
+    }
+
+    if (error instanceof HttpException) {
+        response.reject(error.message, error.getStatus());
+    }
+
+    if (error instanceof Error) {
+        response.reject(error.message, 500);
+    }
+}
+
 function manageConnectionHandlers (target: any) {
     return manageHandlers<IncomingConnection<string>, ConnectionResponse>(
         onConnectionHandlerKey,
@@ -591,6 +648,31 @@ export function GetLeaveEvent () {
     })(null);
 }
 
+async function manageAction (
+    req: NestRequest,
+    res: NestResponse,
+    instance: any,
+    moduleRef: ModuleRef,
+    originalMethod: (...args: any[]) => Promise<void>,
+    propertyKey: string,
+    response: ConnectionResponse | JoinResponse | EventResponse,
+) {
+    const context = new Context(req, res, instance, propertyKey);
+
+    const canProceed = await resolveGuards(moduleRef, context);
+
+    if (canProceed) {
+        const data = await originalMethod.apply(
+            instance,
+            resolveParameters(context),
+        );
+
+        manageResponse(data, response);
+    } else {
+        response.reject('Unauthorized', 401);
+    }
+}
+
 export function OnConnectionRequest () {
     return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value;
@@ -607,36 +689,9 @@ export function OnConnectionRequest () {
                     connection: response,
                 };
 
-                const context = new Context(req, res, instance, propertyKey);
-
-                const canProceed = await resolveGuards(moduleRef, context);
-
-                if (canProceed) {
-                    const data = await originalMethod.apply(
-                        instance,
-                        resolveParameters(context),
-                    );
-
-                    if (!response.hasResponded) {
-                        if (data) {
-                            const { event, assigns, ...rest } = data;
-
-                            if (typeof event === 'string' && isNotEmpty(rest)) {
-                                response.send(event, rest, assigns);
-                            } else {
-                                response.accept(typeof assigns === 'object' ? assigns : {});
-                            }
-                        } else {
-                            response.accept();
-                        }
-                    }
-                } else {
-                    response.reject('Unauthorized', 401);
-                }
+                await manageAction(req, res, instance, moduleRef, originalMethod, propertyKey, response);
             } catch (error) {
-                if (!response.hasResponded && error instanceof Error) {
-                    response.reject(error.message);
-                }
+                manageError(error, response);
             }
         });
     };
@@ -657,45 +712,9 @@ export function OnJoinRequest () {
                     joinResponse: response,
                 };
 
-                const context = new Context(req, res, instance, propertyKey);
-
-                const canProceed = await resolveGuards(moduleRef, context);
-
-                if (canProceed) {
-                    const data = await originalMethod.apply(
-                        instance,
-                        resolveParameters(context),
-                    );
-
-                    if (!response.hasResponded) {
-                        if (data) {
-                            const {
-                                event,
-                                presence,
-                                assigns,
-                                ...rest
-                            } = data;
-
-                            if (typeof event === 'string' && isNotEmpty(rest)) {
-                                response.send(event, rest, assigns);
-                            } else {
-                                response.accept(typeof assigns === 'object' ? assigns : {});
-                            }
-
-                            if (presence) {
-                                response.trackPresence(presence);
-                            }
-                        } else {
-                            response.accept();
-                        }
-                    }
-                } else {
-                    response.reject('Unauthorized', 401);
-                }
+                await manageAction(req, res, instance, moduleRef, originalMethod, propertyKey, response);
             } catch (error) {
-                if (!response.hasResponded && error instanceof Error) {
-                    response.reject(error.message);
-                }
+                manageError(error, response);
             }
         });
     };
@@ -716,48 +735,9 @@ export function OnEvent (event = '*') {
                     eventResponse: response,
                 };
 
-                const context = new Context(req, res, instance, propertyKey);
-
-                const canProceed = await resolveGuards(moduleRef, context);
-
-                if (canProceed) {
-                    const data = await originalMethod.apply(
-                        instance,
-                        resolveParameters(context),
-                    );
-
-                    if (!response.hasResponded) {
-                        if (data) {
-                            const {
-                                event,
-                                presence,
-                                updatePresence,
-                                assigns,
-                                ...rest
-                            } = data;
-
-                            if (typeof event === 'string' && isNotEmpty(rest)) {
-                                response.send(event, rest, assigns);
-                            } else {
-                                response.accept(typeof assigns === 'object' ? assigns : {});
-                            }
-
-                            if (presence) {
-                                response.trackPresence(presence);
-                            } else if (updatePresence) {
-                                response.updatePresence(updatePresence);
-                            }
-                        } else {
-                            response.accept();
-                        }
-                    }
-                } else {
-                    response.reject('Unauthorized', 401);
-                }
+                await manageAction(req, res, instance, moduleRef, originalMethod, propertyKey, response);
             } catch (error) {
-                if (!response.hasResponded && error instanceof Error) {
-                    response.reject(error.message);
-                }
+                manageError(error, response);
             }
         });
     };
@@ -769,25 +749,19 @@ export function OnLeaveEvent () {
         const { set } = manageOnLeaveHandlers(target);
 
         set('', async (instance, _, event) => {
-            try {
-                const context = new Context(
-                    {
-                        leveeEvent: event,
-                    },
-                    {},
-                    instance,
-                    propertyKey,
-                );
+            const context = new Context(
+                {
+                    leveeEvent: event,
+                },
+                {},
+                instance,
+                propertyKey,
+            );
 
-                await originalMethod.apply(
-                    instance,
-                    resolveParameters(context),
-                );
-            } catch (error) {
-                if (error instanceof Error) {
-                    console.error(error.message);
-                }
-            }
+            await originalMethod.apply(
+                instance,
+                resolveParameters(context),
+            );
         });
     };
 }

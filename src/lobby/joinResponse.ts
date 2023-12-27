@@ -61,13 +61,11 @@ export class JoinResponse extends PondResponse {
     public reject (message?: string, errorCode?: number): JoinResponse {
         this.#performChecks();
 
-        const text = `Request to join channel ${this.#engine.name} rejected: ${message || 'Unauthorized request'}`;
-
         const errorMessage: ChannelEvent = {
             event: ErrorTypes.UNAUTHORIZED_JOIN_REQUEST,
             payload: {
-                message: text,
-                code: errorCode || 403,
+                message: message || 'Unauthorized connection',
+                code: errorCode || 401,
             },
             channelName: this.#engine.name,
             action: ServerActions.ERROR,
