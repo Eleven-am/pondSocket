@@ -520,14 +520,14 @@ export function GetJoinParams () {
 }
 
 export function GetEventPayload () {
-    return createParamDecorator((_, request) => {
-        const eventRequest = request.eventRequest;
+    return createParamDecorator((_, context) => {
+        const payload = context.event?.payload;
 
-        if (!eventRequest) {
+        if (!payload) {
             throw new Error('Invalid decorator usage: GetEventPayload');
         }
 
-        return eventRequest.event.payload;
+        return payload;
     })(null);
 }
 
