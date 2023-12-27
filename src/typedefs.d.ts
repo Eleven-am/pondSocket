@@ -1,6 +1,6 @@
 import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
 
-import type { ModuleMetadata, DynamicModule } from '@nestjs/common';
+import type { ModuleMetadata, DynamicModule, Type } from '@nestjs/common';
 import type { Express } from 'express';
 import { WebSocketServer } from 'ws';
 
@@ -36,7 +36,6 @@ type Params<Path> = {
 interface EndpointMetadata {
     path?: string;
     channels: Constructor<NonNullable<unknown>>[];
-    guards?: Constructor<CanActivate>[];
 }
 
 type PondPath<Path extends string> = Path | RegExp;
@@ -67,6 +66,7 @@ interface UserAssigns {
 
 interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     endpoints: Constructor<NonNullable<unknown>>[];
+    guards?: Constructor<CanActivate>[];
     isGlobal?: boolean;
 }
 
@@ -170,16 +170,15 @@ declare class Context<Path extends string = string> {
     event: PondEvent<Path> | null;
 
     /**
-     * @desc Retrieves metadata associated with the class
-     * @param key - the key to retrieve
+     * @desc Returns the *type* of the controller class which the current handler belongs to.
      */
-    public retrieveClassData<A = unknown>(key: symbol): A | null;
+    getClass<T = any>(): Type<T>;
 
     /**
-     * @desc Retrieves metadata associated with the method
-     * @param key - the key to retrieve
+     * @desc Returns a reference to the handler (method) that will be invoked next in the
+     * request pipeline.
      */
-    public retrieveMethodData<A = unknown>(key: symbol): A | null;
+    getHandler(): Function;
 
     /**
      * @desc Adds request data to the context
@@ -459,7 +458,7 @@ export declare class Channel {
     /**
      * @desc Gets the current assign data for the channel.
      */
-    get getAssigns (): UserAssigns;
+    getAssigns (): UserAssigns;
 
     /**
      * @desc Gets the assign date for a specific user.

@@ -2,8 +2,6 @@ import { createServer } from 'http';
 
 import {
     applyDecorators,
-    Injectable,
-    SetMetadata,
     DynamicModule, Provider,
     HttpException,
 // eslint-disable-next-line import/no-unresolved
@@ -24,11 +22,11 @@ import { PondSocket } from './server/pondSocket';
 import type {
     IncomingConnection,
     LeaveEvent,
+    PondEvent,
     ParameterDecorator,
     ParamDecoratorCallback,
     EndpointMetadata, Constructor, Metadata, CanActivate,
 } from './typedefs';
-import { PondEvent } from './types';
 
 const onJoinHandlerKey = Symbol('onJoinHandlerKey');
 const onEventHandlerKey = Symbol('onEventHandlerKey');
@@ -40,7 +38,6 @@ const endpointClassKey = Symbol('endpoint');
 const channelsClassKey = Symbol('channels');
 const parametersKey = Symbol('generalParametersKey');
 const pondGuardsKey = Symbol('pondGuardsKey');
-const endpointGuardsKey = Symbol('endpointGuardsKey');
 
 interface HandlerData<Req, Res> {
     path: string;
@@ -72,11 +69,6 @@ function isNotEmpty<TValue> (value: TValue | null | undefined): value is TValue 
         Object.keys(value).length !== 0;
 }
 
-function createClassDecorator<T> (key: symbol, value: T): ClassDecorator {
-    // eslint-disable-next-line new-cap
-    return applyDecorators(Injectable(), SetMetadata(key, value));
-}
-
 function manageClassData<A> (key: symbol, target: any) {
     return {
         get () {
@@ -85,6 +77,14 @@ function manageClassData<A> (key: symbol, target: any) {
         set (value: A) {
             Reflect.defineMetadata(key, value, target);
         },
+    };
+}
+
+function createClassDecorator <A> (key: symbol, path: A) {
+    return (target: any) => {
+        const { set } = manageClassData<A>(key, target);
+
+        set(path);
     };
 }
 
@@ -308,6 +308,14 @@ class Context {
         return manageMethodData<A>(key, this.instance, this.propertyKey).get();
     }
 
+    getClass () {
+        return this.instance.constructor;
+    }
+
+    getHandler () {
+        return this.instance[this.propertyKey];
+    }
+
     addData (key: string, value: unknown) {
         this.data[key] = value;
     }
@@ -328,12 +336,13 @@ function manageResponse (data: any, response: ConnectionResponse | JoinResponse 
         updatePresence,
         assigns,
         broadcast,
-        accept = true,
         ...rest
     } = data;
 
     if (event && typeof event === 'string' && isNotEmpty(rest)) {
         response.send(event, rest, assigns);
+    } else if (isNotEmpty(assigns)) {
+        response.accept(assigns);
     }
 
     if (broadcast && typeof broadcast === 'string' && isNotEmpty(rest) && 'broadcast' in response) {
@@ -345,31 +354,19 @@ function manageResponse (data: any, response: ConnectionResponse | JoinResponse 
     } else if ('updatePresence' in response && updatePresence) {
         response.updatePresence(updatePresence);
     }
-
-    if (response.hasResponded) {
-        return;
-    }
-
-    if (accept) {
-        if (isNotEmpty(assigns)) {
-            response.accept(assigns);
-        } else {
-            response.accept();
-        }
-    }
 }
 
 function manageError (error: unknown, response: ConnectionResponse | JoinResponse | EventResponse) {
     if (response.hasResponded) {
-        return;
+        return response;
     }
 
     if (error instanceof HttpException) {
-        response.reject(error.message, error.getStatus());
+        return response.reject(error.message, error.getStatus());
     }
 
     if (error instanceof Error) {
-        response.reject(error.message, 500);
+        return response.reject(error.message, 500);
     }
 }
 
@@ -649,14 +646,27 @@ export function GetLeaveEvent () {
 }
 
 async function manageAction (
-    req: NestRequest,
-    res: NestResponse,
     instance: any,
     moduleRef: ModuleRef,
     originalMethod: (...args: any[]) => Promise<void>,
     propertyKey: string,
+    request: IncomingConnection<string> | JoinRequest<string> | EventRequest<string>,
     response: ConnectionResponse | JoinResponse | EventResponse,
 ) {
+    const req: NestRequest = {};
+    const res: NestResponse = {};
+
+    if (request instanceof JoinRequest && response instanceof JoinResponse) {
+        req.joinRequest = request;
+        res.joinResponse = response;
+    } else if (request instanceof EventRequest && response instanceof EventResponse) {
+        req.eventRequest = request;
+        res.eventResponse = response;
+    } else if ('headers' in request && response instanceof ConnectionResponse) {
+        req.connection = request;
+        res.connection = response;
+    }
+
     const context = new Context(req, res, instance, propertyKey);
 
     const canProceed = await resolveGuards(moduleRef, context);
@@ -681,15 +691,7 @@ export function OnConnectionRequest () {
 
         set('', async (instance, moduleRef, request, response) => {
             try {
-                const req: NestRequest = {
-                    connection: request,
-                };
-
-                const res: NestResponse = {
-                    connection: response,
-                };
-
-                await manageAction(req, res, instance, moduleRef, originalMethod, propertyKey, response);
+                await manageAction(instance, moduleRef, originalMethod, propertyKey, request, response);
             } catch (error) {
                 manageError(error, response);
             }
@@ -704,15 +706,7 @@ export function OnJoinRequest () {
 
         set('', async (instance, moduleRef, request, response) => {
             try {
-                const req: NestRequest = {
-                    joinRequest: request,
-                };
-
-                const res: NestResponse = {
-                    joinResponse: response,
-                };
-
-                await manageAction(req, res, instance, moduleRef, originalMethod, propertyKey, response);
+                await manageAction(instance, moduleRef, originalMethod, propertyKey, request, response);
             } catch (error) {
                 manageError(error, response);
             }
@@ -727,15 +721,7 @@ export function OnEvent (event = '*') {
 
         set(event, async (instance, moduleRef, request, response) => {
             try {
-                const req: NestRequest = {
-                    eventRequest: request,
-                };
-
-                const res: NestResponse = {
-                    eventResponse: response,
-                };
-
-                await manageAction(req, res, instance, moduleRef, originalMethod, propertyKey, response);
+                await manageAction(instance, moduleRef, originalMethod, propertyKey, request, response);
             } catch (error) {
                 manageError(error, response);
             }
@@ -792,8 +778,6 @@ export const Channel = (path = '*') => createClassDecorator(channelClassKey, pat
 
 const setEndpoint = (path = '*') => createClassDecorator(endpointClassKey, path);
 
-const setGuards = (guards: Constructor<CanActivate>[]) => createClassDecorator(endpointGuardsKey, guards);
-
 const setChannels = (channels: Constructor<NonNullable<unknown>>[]) => createClassDecorator(channelsClassKey, channels);
 
 const getChannels = (target: any) => manageClassData<Constructor<NonNullable<unknown>>[]>(
@@ -820,13 +804,13 @@ const getGuards = (target: any) => {
 export const Endpoint = (metadata: EndpointMetadata) => applyDecorators(
     setChannels(metadata.channels),
     setEndpoint(metadata.path),
-    setGuards(metadata.guards ?? []),
 );
 
 class PondSocketService {
     constructor (
         readonly moduleRef: ModuleRef,
         readonly adapterHost: HttpAdapterHost,
+        readonly externalGuards: Constructor<CanActivate>[],
         private readonly endpoints: Constructor<NonNullable<unknown>>[],
     ) {
         const httpAdapter = this.adapterHost.httpAdapter;
@@ -855,10 +839,12 @@ class PondSocketService {
             return;
         }
 
-        const endpointGuards = manageClassData<Constructor<CanActivate>[]>(
-            endpointGuardsKey,
+        const { get, set: setGuards } = manageClassData<Constructor<CanActivate>[]>(
+            pondGuardsKey,
             endpoint,
-        ).get() ?? [];
+        );
+
+        setGuards([...this.externalGuards, ...(get() ?? [])]);
 
         const instance = this.moduleRef.get(endpoint, { strict: false });
         const { set } = manageEndpointInstance(instance);
@@ -880,13 +866,12 @@ class PondSocketService {
         set(pondEndpoint);
 
         getChannels(endpoint).forEach((channel) => {
-            this.manageChannel(channel, endpointGuards, pondEndpoint);
+            this.manageChannel(channel, pondEndpoint);
         });
     }
 
     manageChannel (
         channel: Constructor<NonNullable<Record<string, unknown>>>,
-        guards: Constructor<CanActivate>[],
         endpoint: PondEndpoint,
     ) {
         const channelMetadata = manageClassData<string>(channelClassKey, channel).get();
@@ -900,7 +885,7 @@ class PondSocketService {
             channel,
         );
 
-        setGuards([...guards, ...(get() ?? [])]);
+        setGuards([...this.externalGuards, ...(get() ?? [])]);
 
         const instance = this.moduleRef.get(channel, { strict: false });
 
@@ -943,6 +928,7 @@ class PondSocketService {
 export class PondSocketModule {
     static forRoot ({
         endpoints,
+        guards = [],
         providers = [],
         imports = [],
         exports = [],
@@ -951,15 +937,17 @@ export class PondSocketModule {
         const endpointsSet = new Set(endpoints);
         const channels = Array.from(endpointsSet).flatMap((endpoint) => getChannels(endpoint));
         const channelsSet = new Set(channels);
+        const uniqueGuards = new Set(guards);
 
-        const guards = Array.from(new Set([...endpointsSet, ...channelsSet])).flatMap(((target) => getGuards(target)));
-        const guardsSet = new Set(guards);
+        const allGuards = Array.from(new Set([...endpointsSet, ...channelsSet])).flatMap(((target) => getGuards(target)));
+        const guardsSet = new Set([...uniqueGuards, ...allGuards]);
 
         const pondSocketProvider: Provider = {
             provide: PondSocketService,
             useFactory: (moduleRef: ModuleRef, adapterHost: HttpAdapterHost) => new PondSocketService(
                 moduleRef,
                 adapterHost,
+                Array.from(uniqueGuards),
                 endpoints,
             ),
             inject: [ModuleRef, HttpAdapterHost],
