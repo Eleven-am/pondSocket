@@ -84,11 +84,26 @@ type IncomingConnection<Path> = EventParams<Path> & {
 interface LeaveEvent {
     userId: string;
     assigns: PondAssigns;
+    channel: Channel;
 }
 
 type LeaveCallback = (event: LeaveEvent) => void;
 
 type ParamDecoratorCallback<Input> = (data: Input, context: Context) => unknown | Promise<unknown>;
+
+type PondEvenType = { [key: string]: PondMessage };
+
+type NestFuncType<Event extends string, Payload extends PondMessage> = {
+    event?: Event;
+    broadcast?: Event;
+    assigns?: PondAssigns;
+    presence?: PondPresence;
+    updatePresence?: PondPresence;
+} & Payload;
+
+type NestReturnType<EventType extends PondEvenType, Event extends keyof EventType> = Event extends string ?
+    NestFuncType<Event, EventType[Event]> :
+    never;
 
 interface UserData {
     assigns: PondAssigns;
@@ -170,6 +185,11 @@ declare class Context<Path extends string = string> {
     event: PondEvent<Path> | null;
 
     /**
+     * @desc The assigns, available in onJoin, onEvent handlers
+     */
+    assigns: PondAssigns | null;
+
+    /**
      * @desc Returns the *type* of the controller class which the current handler belongs to.
      */
     getClass<T = any>(): Type<T>;
@@ -204,42 +224,13 @@ declare class AbstractRequest<Path extends string> {
     presence: UserPresences;
 }
 
-declare abstract class PondResponse {
-    /**
-     * @desc Whether the server has responded to the request
-     */
-    public abstract hasResponded: boolean;
-
-    /**
-     * @desc Rejects the request with the given error message
-     * @param message - the error message
-     * @param errorCode - the error code
-     * @param assigns - the data to assign to the client
-     */
-    abstract reject (message?: string, errorCode?: number, assigns?: PondAssigns): void;
-
-    /**
-     * @desc Emits a direct message to the client
-     * @param event - the event name
-     * @param payload - the payload to send
-     * @param assigns - the data to assign to the client
-     */
-    abstract send (event: string, payload: PondMessage, assigns?: PondAssigns): void;
-
-    /**
-     * @desc Accepts the request and optionally assigns data to the client
-     * @param assigns - the data to assign to the client
-     */
-    abstract accept (assigns?: PondAssigns): void;
-}
-
 declare class EventRequest<Path extends string> extends AbstractRequest<Path> {
     user: UserData;
 
     channel: Channel;
 }
 
-declare class EventResponse extends PondResponse {
+declare class EventResponse<EventType extends PondEvenType = PondEvenType> {
     /**
      * @desc Whether the server has responded to the request
      */
@@ -260,7 +251,7 @@ declare class EventResponse extends PondResponse {
     reject (message?: string, errorCode?: number, assigns?: PondAssigns): EventResponse;
 
     /**
-     * @desc Emits a direct message to the client
+     * @desc Emits a direct message to the client, accepting the request
      * @param event - the event name
      * @param payload - the payload to send
      * @param assigns - the data to assign to the client
@@ -268,18 +259,26 @@ declare class EventResponse extends PondResponse {
     send (event: string, payload: PondMessage, assigns?: PondAssigns): void;
 
     /**
+     * @desc Emits a direct message to the client without accepting the request
+     * @param event - the event name
+     * @param payload - the payload to send
+     * @param assigns - the data to assign to the client
+     */
+    sendOnly <Key extends keyof EventType> (event: Key, payload: EventType[Key], assigns?: PondAssigns): void;
+
+    /**
      * @desc Sends a message to all clients in the channel
      * @param event - the event to send
      * @param payload - the payload to send
      */
-    broadcast (event: string, payload: PondMessage): EventResponse;
+    broadcast <Key extends keyof EventType> (event: Key, payload: EventType[Key]): EventResponse;
 
     /**
      * @desc Sends a message to all clients in the channel except the client making the request
      * @param event - the event to send
      * @param payload - the payload to send
      */
-    broadcastFromUser (event: string, payload: PondMessage): EventResponse;
+    broadcastFromUser <Key extends keyof EventType> (event: Key, payload: EventType[Key]): EventResponse;
 
     /**
      * @desc Sends a message to a set of clients in the channel
@@ -287,7 +286,7 @@ declare class EventResponse extends PondResponse {
      * @param payload - the payload to send
      * @param userIds - the ids of the clients to send the message to
      */
-    sendToUsers (event: string, payload: PondMessage, userIds: string[]): EventResponse;
+    sendToUsers <Key extends keyof EventType> (event: Key, payload: EventType[Key], userIds: string[]): EventResponse;
 
     /**
      * @desc Tracks a user's presence in the channel
@@ -323,7 +322,7 @@ declare class EventResponse extends PondResponse {
     closeChannel (reason: string): void;
 }
 
-export declare class ClientChannel {
+export declare class ClientChannel<EventType extends PondEvenType = PondEvenType> {
     channelState: ChannelState;
 
     /**
@@ -340,14 +339,14 @@ export declare class ClientChannel {
      * @desc Monitors the channel for messages.
      * @param callback - The callback to call when a message is received.
      */
-    onMessage (callback: (event: string, message: PondMessage) => void): Unsubscribe;
+    onMessage (callback: (event: keyof EventType, message: EventType[keyof EventType]) => void): Unsubscribe;
 
     /**
      * @desc Monitors the channel for messages.
      * @param event - The event to monitor.
      * @param callback - The callback to call when a message is received.
      */
-    onMessageEvent (event: string, callback: (message: PondMessage) => void): Unsubscribe;
+    onMessageEvent <Key extends keyof EventType> (event: Key, callback: (message: EventType[Key]) => void): Unsubscribe;
 
     /**
      * @desc Monitors the channel state of the channel.
@@ -379,21 +378,29 @@ export declare class ClientChannel {
      * @param payload - The message to send.
      * @param recipient - The clients to send the message to.
      */
-    sendMessage (event: string, payload: PondMessage, recipient: string[]): void;
+    sendMessage <Key extends keyof EventType> (event: Key, payload: EventType[Key], recipient: string[]): void;
+
+    /**
+     * @desc Sends a message to the server and waits for a response.
+     * @param sentEvent - The event to send.
+     * @param payload - The message to send.
+     * @param responseEvent - The event to wait for.
+     */
+    sendForResponse <ResponseKey extends keyof EventType, SentKey extends keyof EventType> (sentEvent: SentKey, payload: EventType[SentKey], responseEvent: ResponseKey): Promise<EventType[ResponseKey]>;
 
     /**
      * @desc Broadcasts a message to every other client in the channel except yourself.
      * @param event - The event to send.
      * @param payload - The message to send.
      */
-    broadcastFrom (event: string, payload: PondMessage): void;
+    broadcastFrom <Key extends keyof EventType> (event: Key, payload: EventType[Key]): void;
 
     /**
      * @desc Broadcasts a message to the channel, including yourself.
      * @param event - The event to send.
      * @param payload - The message to send.
      */
-    broadcast (event: string, payload: PondMessage): void;
+    broadcast <Key extends keyof EventType> (event: Key, payload: EventType[Key]): void;
 
     /**
      * @desc Gets the current presence of the channel.
@@ -407,15 +414,31 @@ export declare class ClientChannel {
     onUsersChange (callback: (users: PondPresence[]) => void): Unsubscribe;
 
     /**
-     * @desc Gets the current connection state of the channel.
+     * @desc Checks if the channel is connected.
      */
     isConnected (): boolean;
+
+    /**
+     * @desc Checks if the channel is stalled.
+     */
+    isStalled (): boolean;
+
+    /**
+     * @desc Checks if the channel is closed.
+     */
+    isClosed (): boolean;
 
     /**
      * @desc Monitors the connection state of the channel.
      * @param callback - The callback to call when the connection state changes.
      */
     onConnectionChange (callback: (connected: boolean) => void): Unsubscribe;
+
+    /**
+     * @desc Gets the first response from the channel.
+     * @param event - The event to monitor.
+     */
+    getFirstResponse <Key extends keyof EventType> (event: Key): Promise<EventType[Key]>;
 }
 
 declare class Endpoint {
@@ -449,7 +472,7 @@ declare class Endpoint {
     closeConnection (clientIds: string | string[]): void;
 }
 
-export declare class Channel {
+export declare class Channel<EventType extends PondEvenType = PondEvenType> {
     /**
      * The name of the channel.
      */
@@ -471,7 +494,15 @@ export declare class Channel {
      * @param event - The event to send.
      * @param payload - The message to send.
      */
-    broadcastMessage (event: string, payload: PondMessage): void;
+    broadcastMessage <Key extends keyof EventType> (event: Key, payload: EventType[Key]): void;
+
+    /**
+     * @desc Broadcasts a message to every client in the channel except the sender,
+     * @param userId - The id of the user to send the message from.
+     * @param event - The event to send.
+     * @param payload - The message to send.
+     */
+    broadcastMessageFromUser <Key extends keyof EventType> (userId: string, event: Key, payload: EventType[Key]): void;
 
     /**
      * @desc Sends a message to a specific client in the channel.
@@ -479,7 +510,7 @@ export declare class Channel {
      * @param event - The event to send.
      * @param payload - The message to send.
      */
-    sendToUser (userId: string, event: string, payload: PondMessage): void;
+    sendToUser <Key extends keyof EventType> (userId: string, event: Key, payload: EventType[Key]): void;
 
     /**
      * @desc Sends a message to specific clients in the channel.
@@ -487,7 +518,7 @@ export declare class Channel {
      * @param event - The event to send.
      * @param payload - The message to send.
      */
-    sendToUsers (userIds: string[], event: string, payload: PondMessage): void;
+    sendToUsers <Key extends keyof EventType> (userIds: string[], event: Key, payload: EventType[Key]): void;
 
     /**
      * @desc Bans a user from the channel.
@@ -525,7 +556,7 @@ declare class JoinRequest<Path extends string> extends AbstractRequest<Path> {
     channel: Channel;
 }
 
-declare class JoinResponse extends PondResponse {
+declare class JoinResponse<EventType extends PondEvenType = PondEvenType> {
     /**
      * @desc Whether the server has responded to the request
      */
@@ -550,21 +581,21 @@ declare class JoinResponse extends PondResponse {
      * @param payload - the payload to send
      * @param assigns - the data to assign to the client
      */
-    send (event: string, payload: PondMessage, assigns?: PondAssigns): this;
+    send <Key extends keyof EventType> (event: Key, payload: EventType[Key], assigns?: PondAssigns): JoinResponse;
 
     /**
      * @desc Emits a message to all clients in the channel
      * @param event - the event name
      * @param payload - the payload to send
      */
-    broadcast (event: string, payload: PondMessage): JoinResponse;
+    broadcast <Key extends keyof EventType> (event: Key, payload: EventType[Key]): JoinResponse;
 
     /**
      * @desc Emits a message to all clients in the channel except the sender
      * @param event - the event name
      * @param payload - the payload to send
      */
-    broadcastFromUser (event: string, payload: PondMessage): JoinResponse;
+    broadcastFromUser <Key extends keyof EventType> (event: Key, payload: EventType[Key]): JoinResponse;
 
     /**
      * @desc Emits a message to a specific set of clients
@@ -572,7 +603,7 @@ declare class JoinResponse extends PondResponse {
      * @param payload  - the payload to send
      * @param userIds - the ids of the clients to send the message to
      */
-    sendToUsers (event: string, payload: PondMessage, userIds: string[]): JoinResponse;
+    sendToUsers <Key extends keyof EventType> (event: Key, payload: EventType[Key], userIds: string[]): JoinResponse;
 
     /**
      * @desc tracks the presence of a client
@@ -581,7 +612,7 @@ declare class JoinResponse extends PondResponse {
     trackPresence (presence: PondPresence): JoinResponse;
 }
 
-declare class ConnectionResponse extends PondResponse {
+declare class ConnectionResponse {
     /**
      * @desc Whether the server has responded to the request
      */
@@ -609,7 +640,7 @@ declare class ConnectionResponse extends PondResponse {
     send (event: string, payload: PondMessage, assigns?: PondAssigns): void;
 }
 
-export declare class PondChannel {
+export declare class PondChannel <EventType extends PondEvenType = PondEvenType> {
     /**
      * @desc Handles an event request made by a user
      * @param event - The event to listen for
@@ -621,7 +652,7 @@ export declare class PondChannel {
      *     });
      * });
      */
-    onEvent<Event extends string> (event: PondPath<Event>, handler: (request: EventRequest<Event>, response: EventResponse) => void | Promise<void>): void;
+    onEvent<Event extends string> (event: PondPath<Event>, handler: (request: EventRequest<Event>, response: EventResponse<EventType>) => void | Promise<void>): void;
 
     /**
      * @desc Broadcasts a message to all users in a channel
@@ -635,7 +666,7 @@ export declare class PondChannel {
      *    channel: 'my_channel',
      *});
      */
-    broadcast (event: string, payload: PondMessage, channelName?: string): void;
+    broadcast <Key extends keyof EventType> (event: Key, payload: EventType[Key], channelName?: string): void;
 
     /**
      * @desc Handles the leave event for a user, can occur when a user disconnects or leaves a channel, use this to clean up any resources
@@ -647,7 +678,7 @@ export declare class PondChannel {
      * @desc Gets a channel by name
      * @param channelName - The name of the channel to get
      */
-    public getChannel (channelName: string): Channel | null;
+    public getChannel <EventType extends PondEvenType = PondEvenType> (channelName: string): Channel<EventType> | null;
 }
 
 declare class PondSocket {
@@ -730,7 +761,7 @@ declare class PondClient {
      * @param name - The name of the channel.
      * @param params - The params to send to the server.
      */
-    createChannel (name: string, params?: JoinParams): ClientChannel;
+    createChannel <EventType extends PondEvenType = PondEvenType> (name: string, params?: JoinParams): ClientChannel<EventType>;
 
     /**
      * @desc Subscribes to the connection state.
@@ -848,6 +879,12 @@ declare function GetConnectionQuery(): ParameterDecorator;
  * @returns {LeaveEvent}
  */
 declare function GetLeaveEvent(): ParameterDecorator;
+
+/**
+ * @desc The Decorator for retrieving the Channel object from the request in a handler
+ * @returns {Channel}
+ */
+declare function GetChannel (): ParameterDecorator;
 
 /**
  * @desc Function to create a param decorator

@@ -1,11 +1,4 @@
-import {
-    ChannelState,
-    ClientActions,
-    ServerActions,
-    PresenceEventTypes,
-    ChannelReceiver,
-    Events,
-} from '../enums';
+import { ChannelState, ClientActions, ServerActions, PresenceEventTypes, ChannelReceiver, Events } from '../enums';
 import { SimpleSubject, SimpleBehaviorSubject } from '../subjects/subject';
 import type {
     JoinParams,
@@ -39,8 +32,7 @@ export class Channel {
 
     readonly #presenceSub: Unsubscribe;
 
-    constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<boolean>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams = {
-    }) {
+    constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<boolean>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams) {
         this.#name = name;
         this.#queue = [];
         this.#presence = [];
@@ -50,6 +42,13 @@ export class Channel {
         this.#receiver = new SimpleSubject<ChannelEvent>();
         this.#joinState = new SimpleBehaviorSubject<ChannelState>(ChannelState.IDLE);
         this.#presenceSub = this.#init(receiver);
+    }
+
+    /**
+     * @desc Gets the current connection state of the channel.
+     */
+    public get channelState (): ChannelState {
+        return this.#joinState.value as ChannelState;
     }
 
     /**
@@ -83,8 +82,7 @@ export class Channel {
             action: ClientActions.LEAVE_CHANNEL,
             channelName: this.#name,
             event: ClientActions.LEAVE_CHANNEL,
-            payload: {
-            },
+            payload: {},
         };
 
         this.#publish(leaveMessage);
@@ -174,6 +172,23 @@ export class Channel {
     }
 
     /**
+     * @desc Sends a message to the server and waits for a response.
+     * @param sentEvent - The event to send.
+     * @param payload - The message to send.
+     * @param responseEvent - The event to wait for.
+     */
+    public sendForResponse (sentEvent: string, payload: PondMessage, responseEvent: string) {
+        return new Promise<PondMessage>((resolve) => {
+            const unsub = this.onMessageEvent(responseEvent, (message) => {
+                resolve(message);
+                unsub();
+            });
+
+            this.#send(sentEvent, payload);
+        });
+    }
+
+    /**
      * @desc Broadcasts a message to every other client in the channel except yourself.
      * @param event - The event to send.
      * @param payload - The message to send.
@@ -192,13 +207,6 @@ export class Channel {
     }
 
     /**
-     * @desc Gets the current connection state of the channel.
-     */
-    public get channelState (): ChannelState {
-        return this.#joinState.value as ChannelState;
-    }
-
-    /**
      * @desc Gets the current presence of the channel.
      */
     public getPresence (): PondPresence[] {
@@ -214,10 +222,24 @@ export class Channel {
     }
 
     /**
-     * @desc Gets the current connection state of the channel.
+     * @desc Checks if the channel is connected.
      */
     public isConnected () {
         return this.#joinState.value === ChannelState.JOINED || this.#joinState.value === ChannelState.STALLED;
+    }
+
+    /**
+     * @desc Checks if the channel is stalled.
+     */
+    public isStalled () {
+        return this.#joinState.value === ChannelState.STALLED;
+    }
+
+    /**
+     * @desc Checks if the channel is closed.
+     */
+    public isClosed () {
+        return this.#joinState.value === ChannelState.CLOSED;
     }
 
     /**
@@ -227,6 +249,19 @@ export class Channel {
     public onConnectionChange (callback: (connected: boolean) => void) {
         return this.onChannelStateChange((state) => {
             callback(state === ChannelState.JOINED || state === ChannelState.STALLED);
+        });
+    }
+
+    /**
+     * @desc Gets the first response from the channel.
+     * @param event - The event to monitor.
+     */
+    public getFirstResponse (event: string) {
+        return new Promise<PondMessage>((resolve) => {
+            const unsub = this.onMessageEvent(event, (message) => {
+                resolve(message);
+                unsub();
+            });
         });
     }
 
@@ -332,8 +367,6 @@ export class Channel {
             .forEach((message) => {
                 this.#publisher(message);
             });
-
-        this.#joinState.publish(ChannelState.JOINED);
 
         this.#queue = [];
     }

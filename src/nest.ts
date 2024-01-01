@@ -10,7 +10,7 @@ import {
 import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
 import 'reflect-metadata';
-
+import { LeaveEvent, Channel as IChannel } from './channel/channel';
 import { EventRequest } from './channel/eventRequest';
 import { EventResponse } from './channel/eventResponse';
 import { Endpoint as PondEndpoint } from './endpoint/endpoint';
@@ -21,7 +21,6 @@ import { PondChannel } from './lobby/lobby';
 import { PondSocket } from './server/pondSocket';
 import type {
     IncomingConnection,
-    LeaveEvent,
     PondEvent,
     ParameterDecorator,
     ParamDecoratorCallback,
@@ -300,6 +299,10 @@ class Context {
         return null;
     }
 
+    get assigns () {
+        return this.joinRequest?.user.assigns ?? this.eventRequest?.user.assigns ?? this.leveeEvent?.assigns ?? null;
+    }
+
     retrieveClassData<A> (key: symbol) {
         return manageClassData<A>(key, this.instance.constructor).get();
     }
@@ -325,8 +328,12 @@ class Context {
     }
 }
 
-function manageResponse (data: any, response: ConnectionResponse | JoinResponse | EventResponse) {
-    if (response.hasResponded || !isNotEmpty(data)) {
+function manageResponse (
+    data: any,
+    channel: IChannel | null,
+    response?: ConnectionResponse | JoinResponse | EventResponse,
+) {
+    if (response && response.hasResponded || !isNotEmpty(data)) {
         return;
     }
 
@@ -339,20 +346,28 @@ function manageResponse (data: any, response: ConnectionResponse | JoinResponse 
         ...rest
     } = data;
 
-    if (event && typeof event === 'string' && isNotEmpty(rest)) {
-        response.send(event, rest, assigns);
-    } else if (isNotEmpty(assigns)) {
-        response.accept(assigns);
-    }
+    if (response) {
+        if (event && typeof event === 'string' && isNotEmpty(rest)) {
+            if (response instanceof EventResponse) {
+                response.sendOnly(event, rest, assigns);
+            } else {
+                response.send(event, rest, assigns);
+            }
+        } else if (isNotEmpty(assigns)) {
+            response.accept(assigns);
+        }
 
-    if (broadcast && typeof broadcast === 'string' && isNotEmpty(rest) && 'broadcast' in response) {
-        response.broadcast(broadcast, rest);
-    }
+        if (broadcast && typeof broadcast === 'string' && isNotEmpty(rest) && 'broadcast' in response) {
+            response.broadcast(broadcast, rest);
+        }
 
-    if ('trackPresence' in response && presence) {
-        response.trackPresence(presence);
-    } else if ('updatePresence' in response && updatePresence) {
-        response.updatePresence(updatePresence);
+        if ('trackPresence' in response && presence) {
+            response.trackPresence(presence);
+        } else if ('updatePresence' in response && updatePresence) {
+            response.updatePresence(updatePresence);
+        }
+    } else if (channel && broadcast && typeof broadcast === 'string' && isNotEmpty(rest)) {
+        channel.broadcastMessage(broadcast, rest);
     }
 }
 
@@ -645,26 +660,47 @@ export function GetLeaveEvent () {
     })(null);
 }
 
+export function GetChannel () {
+    return createParamDecorator((_, context) => {
+        const channel = context.channel;
+
+        if (!channel) {
+            throw new Error('Invalid decorator usage: GetChannel');
+        }
+
+        return channel;
+    })(null);
+}
+
 async function manageAction (
     instance: any,
     moduleRef: ModuleRef,
     originalMethod: (...args: any[]) => Promise<void>,
     propertyKey: string,
-    request: IncomingConnection<string> | JoinRequest<string> | EventRequest<string>,
-    response: ConnectionResponse | JoinResponse | EventResponse,
+    leaveEvent: LeaveEvent | null,
+    request?: IncomingConnection<string> | JoinRequest<string> | EventRequest<string>,
+    response?: ConnectionResponse | JoinResponse | EventResponse,
 ) {
     const req: NestRequest = {};
     const res: NestResponse = {};
+    let channel: IChannel | null = null;
 
-    if (request instanceof JoinRequest && response instanceof JoinResponse) {
-        req.joinRequest = request;
-        res.joinResponse = response;
-    } else if (request instanceof EventRequest && response instanceof EventResponse) {
-        req.eventRequest = request;
-        res.eventResponse = response;
-    } else if ('headers' in request && response instanceof ConnectionResponse) {
-        req.connection = request;
-        res.connection = response;
+    if (request && response) {
+        if (request instanceof JoinRequest && response instanceof JoinResponse) {
+            channel = request.channel;
+            req.joinRequest = request;
+            res.joinResponse = response;
+        } else if (request instanceof EventRequest && response instanceof EventResponse) {
+            channel = request.channel;
+            req.eventRequest = request;
+            res.eventResponse = response;
+        } else if ('headers' in request && response instanceof ConnectionResponse) {
+            req.connection = request;
+            res.connection = response;
+        }
+    } else if (leaveEvent) {
+        channel = leaveEvent.channel;
+        req.leveeEvent = leaveEvent;
     }
 
     const context = new Context(req, res, instance, propertyKey);
@@ -677,8 +713,8 @@ async function manageAction (
             resolveParameters(context),
         );
 
-        manageResponse(data, response);
-    } else {
+        manageResponse(data, channel, response);
+    } else if (response) {
         response.reject('Unauthorized', 401);
     }
 }
@@ -691,7 +727,7 @@ export function OnConnectionRequest () {
 
         set('', async (instance, moduleRef, request, response) => {
             try {
-                await manageAction(instance, moduleRef, originalMethod, propertyKey, request, response);
+                await manageAction(instance, moduleRef, originalMethod, propertyKey, null, request, response);
             } catch (error) {
                 manageError(error, response);
             }
@@ -706,7 +742,7 @@ export function OnJoinRequest () {
 
         set('', async (instance, moduleRef, request, response) => {
             try {
-                await manageAction(instance, moduleRef, originalMethod, propertyKey, request, response);
+                await manageAction(instance, moduleRef, originalMethod, propertyKey, null, request, response);
             } catch (error) {
                 manageError(error, response);
             }
@@ -721,7 +757,7 @@ export function OnEvent (event = '*') {
 
         set(event, async (instance, moduleRef, request, response) => {
             try {
-                await manageAction(instance, moduleRef, originalMethod, propertyKey, request, response);
+                await manageAction(instance, moduleRef, originalMethod, propertyKey, null, request, response);
             } catch (error) {
                 manageError(error, response);
             }
@@ -734,20 +770,8 @@ export function OnLeaveEvent () {
         const originalMethod = descriptor.value;
         const { set } = manageOnLeaveHandlers(target);
 
-        set('', async (instance, _, event) => {
-            const context = new Context(
-                {
-                    leveeEvent: event,
-                },
-                {},
-                instance,
-                propertyKey,
-            );
-
-            await originalMethod.apply(
-                instance,
-                resolveParameters(context),
-            );
+        set('', async (instance, moduleRef, event) => {
+            await manageAction(instance, moduleRef, originalMethod, propertyKey, event);
         });
     };
 }

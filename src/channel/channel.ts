@@ -28,9 +28,10 @@ export type BroadcastEvent = Omit<InternalChannelEvent, 'action' | 'payload'> & 
     payload: PondMessage;
 }
 
-interface LeaveEvent {
+export interface LeaveEvent {
     userId: string;
     assigns: PondAssigns;
+    channel: Channel;
 }
 
 export type LeaveCallback = (event: LeaveEvent) => void;
@@ -39,6 +40,58 @@ export type ParentEngine = {
     destroyChannel: () => void;
     execute: MiddlewareFunction<EventRequest<string>, EventResponse>;
     leaveCallback?: LeaveCallback;
+}
+
+export class Channel {
+    #engine: ChannelEngine;
+
+    constructor (engine: ChannelEngine) {
+        this.#engine = engine;
+    }
+
+    get name () {
+        return this.#engine.name;
+    }
+
+    public getAssigns () {
+        return this.#engine.getAssigns();
+    }
+
+    public getUserData (userId: string) {
+        return this.#engine.getUserData(userId);
+    }
+
+    public broadcastMessage (event: string, payload: PondMessage) {
+        this.#engine.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+    }
+
+    public broadcastMessageFromUser (userId: string, event: string, payload: PondMessage) {
+        this.#engine.sendMessage(userId, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
+    }
+
+    public sendToUser (userId: string, event: string, payload: PondMessage) {
+        this.#engine.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.BROADCAST, event, payload);
+    }
+
+    public sendToUsers (userIds: string[], event: string, payload: PondMessage) {
+        this.#engine.sendMessage(SystemSender.CHANNEL, userIds, ServerActions.BROADCAST, event, payload);
+    }
+
+    public evictUser (userId: string, reason?: string) {
+        this.#engine.kickUser(userId, reason ?? 'You have been banned from the channel');
+    }
+
+    public trackPresence (userId: string, presence: PondPresence) {
+        this.#engine.presenceEngine.trackPresence(userId, presence);
+    }
+
+    public removePresence (userId: string) {
+        this.#engine.presenceEngine.removePresence(userId);
+    }
+
+    public updatePresence (userId: string, presence: PondPresence) {
+        this.#engine.presenceEngine.updatePresence(userId, presence);
+    }
 }
 
 export class ChannelEngine {
@@ -97,6 +150,7 @@ export class ChannelEngine {
                 this.#parentEngine.leaveCallback({
                     userId,
                     assigns: user,
+                    channel: new Channel(this),
                 });
             }
 
@@ -311,50 +365,3 @@ export class ChannelEngine {
     }
 }
 
-export class Channel {
-    #engine: ChannelEngine;
-
-    constructor (engine: ChannelEngine) {
-        this.#engine = engine;
-    }
-
-    get name () {
-        return this.#engine.name;
-    }
-
-    public getAssigns () {
-        return this.#engine.getAssigns();
-    }
-
-    public getUserData (userId: string) {
-        return this.#engine.getUserData(userId);
-    }
-
-    public broadcastMessage (event: string, payload: PondMessage) {
-        this.#engine.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
-    }
-
-    public sendToUser (userId: string, event: string, payload: PondMessage) {
-        this.#engine.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.BROADCAST, event, payload);
-    }
-
-    public sendToUsers (userIds: string[], event: string, payload: PondMessage) {
-        this.#engine.sendMessage(SystemSender.CHANNEL, userIds, ServerActions.BROADCAST, event, payload);
-    }
-
-    public evictUser (userId: string, reason?: string) {
-        this.#engine.kickUser(userId, reason ?? 'You have been banned from the channel');
-    }
-
-    public trackPresence (userId: string, presence: PondPresence) {
-        this.#engine.presenceEngine.trackPresence(userId, presence);
-    }
-
-    public removePresence (userId: string) {
-        this.#engine.presenceEngine.removePresence(userId);
-    }
-
-    public updatePresence (userId: string, presence: PondPresence) {
-        this.#engine.presenceEngine.updatePresence(userId, presence);
-    }
-}

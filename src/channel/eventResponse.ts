@@ -55,13 +55,24 @@ export class EventResponse extends PondResponse {
     }
 
     /**
-     * @desc Emits a direct message to the client
+     * @desc Emits a direct message to the client, accepting the request
      * @param event - the event name
      * @param payload - the payload to send
      * @param assigns - the data to assign to the client
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
         this.accept(assigns);
+        this.#engine.sendMessage(SystemSender.CHANNEL, [this.#event.sender], ServerActions.SYSTEM, event, payload);
+    }
+
+    /**
+     * @desc Emits a direct message to the client without accepting the request
+     * @param event - the event name
+     * @param payload - the payload to send
+     * @param assigns - the data to assign to the client
+     */
+    public sendOnly (event: string, payload: PondMessage, assigns?: PondAssigns) {
+        this.#manageAssigns(assigns);
         this.#engine.sendMessage(SystemSender.CHANNEL, [this.#event.sender], ServerActions.SYSTEM, event, payload);
     }
 

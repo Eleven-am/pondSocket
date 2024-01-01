@@ -3,6 +3,8 @@ import { ChannelState } from './enums';
 import { SimpleSubject, SimpleBehaviorSubject } from './subjects/subject';
 import type { ChannelEvent, JoinParams, ClientMessage } from './types';
 
+export { ChannelState };
+
 export default class PondClient {
     protected readonly _address: URL;
 
@@ -94,7 +96,7 @@ export default class PondClient {
 
         const publisher = this.#createPublisher();
 
-        const channel = new Channel(publisher, this._connectionState, name, this._broadcaster, params);
+        const channel = new Channel(publisher, this._connectionState, name, this._broadcaster, params || {});
 
         this.#channels[name] = channel;
 
