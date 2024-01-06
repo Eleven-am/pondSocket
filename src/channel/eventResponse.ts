@@ -12,7 +12,7 @@ export class EventResponse extends PondResponse {
     #executed: boolean;
 
     constructor (event: BroadcastEvent, engine: ChannelEngine) {
-        super();
+        super(event.requestId);
         this.#event = event;
         this.#engine = engine;
         this.#executed = false;
@@ -31,7 +31,7 @@ export class EventResponse extends PondResponse {
      */
     public accept (assigns?: PondAssigns): EventResponse {
         this.#manageAssigns(assigns);
-        this.#engine.sendMessage(this.#event.sender, this.#event.recipients, this.#event.action, this.#event.event, this.#event.payload);
+        this.#engine.sendMessage(this.requestId, this.#event.sender, this.#event.recipients, this.#event.action, this.#event.event, this.#event.payload);
 
         return this;
     }
@@ -46,7 +46,7 @@ export class EventResponse extends PondResponse {
         this.#manageAssigns(assigns);
         const text = message || 'Unauthorized request';
 
-        this.#engine.sendMessage(SystemSender.CHANNEL, [this.#event.sender], ServerActions.ERROR, ErrorTypes.UNAUTHORIZED_BROADCAST, {
+        this.#engine.sendMessage(this.requestId, SystemSender.CHANNEL, [this.#event.sender], ServerActions.ERROR, ErrorTypes.UNAUTHORIZED_BROADCAST, {
             message: text,
             code: errorCode || 403,
         });
@@ -62,7 +62,7 @@ export class EventResponse extends PondResponse {
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns) {
         this.accept(assigns);
-        this.#engine.sendMessage(SystemSender.CHANNEL, [this.#event.sender], ServerActions.SYSTEM, event, payload);
+        this.#engine.sendMessage(this.requestId, SystemSender.CHANNEL, [this.#event.sender], ServerActions.SYSTEM, event, payload);
     }
 
     /**
@@ -73,7 +73,7 @@ export class EventResponse extends PondResponse {
      */
     public sendOnly (event: string, payload: PondMessage, assigns?: PondAssigns) {
         this.#manageAssigns(assigns);
-        this.#engine.sendMessage(SystemSender.CHANNEL, [this.#event.sender], ServerActions.SYSTEM, event, payload);
+        this.#engine.sendMessage(this.requestId, SystemSender.CHANNEL, [this.#event.sender], ServerActions.SYSTEM, event, payload);
     }
 
     /**
@@ -82,7 +82,7 @@ export class EventResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcast (event: string, payload: PondMessage): EventResponse {
-        this.#engine.sendMessage(this.#event.sender, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(this.requestId, this.#event.sender, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -93,7 +93,7 @@ export class EventResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcastFromUser (event: string, payload: PondMessage): EventResponse {
-        this.#engine.sendMessage(this.#event.sender, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(this.requestId, this.#event.sender, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -105,7 +105,7 @@ export class EventResponse extends PondResponse {
      * @param userIds - the ids of the clients to send the message to
      */
     public sendToUsers (event: string, payload: PondMessage, userIds: string[]): EventResponse {
-        this.#engine.sendMessage(this.#event.sender, userIds, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(this.requestId, this.#event.sender, userIds, ServerActions.BROADCAST, event, payload);
 
         return this;
     }

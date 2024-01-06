@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import { ZodError } from 'zod';
 
 import { Middleware } from '../abstracts/middleware';
 import { ChannelEngine } from '../channel/channel';
@@ -8,7 +9,9 @@ import { JoinRequest } from '../lobby/joinRequest';
 import { JoinResponse } from '../lobby/joinResponse';
 import { LobbyEngine, PondChannel } from '../lobby/lobby';
 import { parseAddress } from '../matcher/matcher';
-import type { PondAssigns, ClientMessage, PondMessage, ChannelEvent, JoinParams, PondPath } from '../types';
+import { uuid } from '../misc/uuid';
+import { ClientMessage, clientMessageSchema } from '../schema';
+import type { PondAssigns, PondMessage, ChannelEvent, JoinParams, PondPath } from '../types';
 
 type AuthorizationHandler<Event extends string> = (request: JoinRequest<Event>, response: JoinResponse) => void | Promise<void>;
 
@@ -20,6 +23,7 @@ export interface SocketCache {
 
 export interface RequestCache extends SocketCache {
     channelName: string;
+    requestId: string;
 }
 
 export class Endpoint {
@@ -97,6 +101,7 @@ export class Endpoint {
             const message: ChannelEvent = {
                 event,
                 payload,
+                requestId: uuid(),
                 action: ServerActions.BROADCAST,
                 channelName: SystemSender.ENDPOINT,
             };
@@ -157,11 +162,13 @@ export class Endpoint {
      * @param channel - The channel to add the client to
      * @param socket - The client to add to the channel
      * @param joinParams - The parameters to pass to the channel
+     * @param requestId - The id of the request
      * @private
      */
-    #joinChannel (channel: string, socket: SocketCache, joinParams: Record<string, any>) {
+    #joinChannel (channel: string, socket: SocketCache, joinParams: Record<string, any>, requestId: string) {
         const cache: RequestCache = {
             ...socket,
+            requestId,
             channelName: channel,
         };
 
@@ -197,7 +204,7 @@ export class Endpoint {
     #handleMessage (cache: SocketCache, message: ClientMessage) {
         switch (message.action) {
             case ClientActions.JOIN_CHANNEL:
-                this.#joinChannel(message.channelName, cache, message.payload);
+                this.#joinChannel(message.channelName, cache, message.payload, message.requestId);
                 break;
 
             case ClientActions.LEAVE_CHANNEL:
@@ -228,33 +235,23 @@ export class Endpoint {
             event: ErrorTypes.INVALID_MESSAGE,
             action: ServerActions.ERROR,
             channelName: SystemSender.ENDPOINT,
+            requestId: uuid(),
             payload: {},
         };
 
         try {
-            const data = JSON.parse(message) as ClientMessage;
+            const data = JSON.parse(message);
 
-            if (!data.action) {
-                errorMessage.payload = {
-                    message: 'No action provided',
-                };
-            } else if (!data.channelName) {
-                errorMessage.payload = {
-                    message: 'No channel name provided',
-                };
-            } else if (!data.payload) {
-                errorMessage.payload = {
-                    message: 'No payload provided',
-                };
-            }
+            const result = clientMessageSchema.parse(data);
 
-            if (!this.#isObjectEmpty(errorMessage.payload)) {
-                this.#sendMessage(cache.socket, errorMessage);
-            } else {
-                this.#handleMessage(cache, data);
-            }
+            this.#handleMessage(cache, result);
         } catch (e) {
-            if (e instanceof SyntaxError) {
+            if (e instanceof ZodError) {
+                errorMessage.payload = {
+                    message: e.message,
+                    code: 400,
+                };
+            } else if (e instanceof SyntaxError) {
                 errorMessage.payload = {
                     message: 'Invalid JSON',
                 };
@@ -284,18 +281,13 @@ export class Endpoint {
                     message: e.message,
                     code: e.code,
                 };
+            } else {
+                errorMessage.payload = {
+                    message: 'Unknown error',
+                };
             }
 
             this.#sendMessage(cache.socket, errorMessage);
         }
-    }
-
-    /**
-     * @desc Checks if an object is empty
-     * @param obj - The object to check
-     * @private
-     */
-    #isObjectEmpty (obj: Record<string, any>) {
-        return Object.keys(obj).length === 0;
     }
 }

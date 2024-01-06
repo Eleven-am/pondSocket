@@ -1,6 +1,7 @@
 import { ChannelEngine } from '../channel/channel';
 import { PresenceEventTypes, SystemSender, ServerActions } from '../enums';
 import { PresenceError } from '../errors/pondError';
+import { uuid } from '../misc/uuid';
 import type { PondPresence, UserPresences, PresencePayload } from '../types';
 
 export class PresenceEngine {
@@ -116,6 +117,7 @@ export class PresenceEngine {
         }
 
         this.#channel.sendMessage(
+            uuid(),
             SystemSender.CHANNEL,
             recipients,
             ServerActions.PRESENCE,

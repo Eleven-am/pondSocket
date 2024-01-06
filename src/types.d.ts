@@ -1,6 +1,6 @@
 import { IncomingHttpHeaders } from 'http';
 
-import { PresenceEventTypes, ChannelReceiver, ClientActions } from './enums';
+import { PresenceEventTypes, ChannelReceiver } from './enums';
 
 export type Unsubscribe = () => void;
 
@@ -52,6 +52,7 @@ export interface Event {
     event: string;
     payload: PondMessage;
     channelName: string;
+    requestId: string;
 }
 
 interface PresenceEventMessage {
@@ -59,6 +60,7 @@ interface PresenceEventMessage {
     event: PresenceEventTypes;
     channelName: string;
     payload: PresencePayload;
+    requestId: string;
 }
 
 export type ChannelEvent = Event | PresenceEventMessage;
@@ -72,14 +74,6 @@ export type IncomingConnection<Path> = EventParams<Path> & {
     id: string;
     headers: IncomingHttpHeaders;
     address: string;
-}
-
-export interface ClientMessage {
-    action: ClientActions;
-    channelName: string;
-    event: string;
-    payload: PondMessage;
-    addresses?: ChannelReceivers;
 }
 
 export interface UserData {

@@ -1,16 +1,17 @@
 import { Channel } from './client/channel';
 import { ChannelState } from './enums';
+import { ClientMessage } from './schema';
 import { SimpleSubject, SimpleBehaviorSubject } from './subjects/subject';
-import type { ChannelEvent, JoinParams, ClientMessage } from './types';
+import type { ChannelEvent, JoinParams } from './types';
 
 export { ChannelState };
 
 export default class PondClient {
     protected readonly _address: URL;
 
-    protected _socket: WebSocket | any | undefined;
-
     #channels: Record<string, Channel>;
+
+    protected _socket: WebSocket | any | undefined;
 
     protected readonly _broadcaster: SimpleSubject<ChannelEvent>;
 

@@ -1,6 +1,14 @@
 import type { PondAssigns, PondMessage } from '../types';
 
 export abstract class PondResponse {
+    protected requestId: string;
+
+    protected constructor (
+        requestId: string,
+    ) {
+        this.requestId = requestId;
+    }
+
     /**
      * @desc Rejects the request with the given error message
      * @param message - the error message

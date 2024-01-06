@@ -30,7 +30,8 @@
   },
   "dependencies": {
     "websocket": "^1.0.34",
-    "ws": "^8.16.0"
+    "ws": "^8.16.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@nestjs/common": "^10.3.0",

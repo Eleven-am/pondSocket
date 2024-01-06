@@ -3,6 +3,7 @@ import { ChannelEngine, ParentEngine, LeaveCallback, Channel } from '../channel/
 import { EventRequest } from '../channel/eventRequest';
 import { EventResponse } from '../channel/eventResponse';
 import { ServerActions, ChannelReceiver, SystemSender } from '../enums';
+import { uuid } from '../misc/uuid';
 import type { PondPath, PondMessage } from '../types';
 
 export class LobbyEngine {
@@ -66,10 +67,10 @@ export class LobbyEngine {
                 throw new Error(`GatewayEngine: Channel ${channelName} does not exist`);
             }
 
-            channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
+            channel.sendMessage(uuid(), SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
         } else {
             this.#channels.forEach((channel) => {
-                channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
+                channel.sendMessage(uuid(), SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
             });
         }
     }

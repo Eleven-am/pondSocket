@@ -4,6 +4,7 @@ import { Endpoint, SocketCache } from './endpoint';
 import { PondResponse } from '../abstracts/abstractResponse';
 import { ServerActions, ErrorTypes, SystemSender } from '../enums';
 import { EndpointError } from '../errors/pondError';
+import { uuid } from '../misc/uuid';
 import type { PondAssigns, PondMessage } from '../types';
 
 export class ConnectionResponse extends PondResponse {
@@ -16,7 +17,7 @@ export class ConnectionResponse extends PondResponse {
     #executed: boolean;
 
     constructor (webSocket: WebSocket, engine: Endpoint, clientId: string) {
-        super();
+        super(uuid());
         this.#webSocket = webSocket;
         this.#engine = engine;
         this.#clientId = clientId;
@@ -86,9 +87,10 @@ export class ConnectionResponse extends PondResponse {
      */
     #sendMessage (action: ServerActions, event: string, payload: PondMessage) {
         const message = {
-            action,
             event,
+            action,
             payload,
+            requestId: this.requestId,
             channelName: SystemSender.ENDPOINT,
         };
 

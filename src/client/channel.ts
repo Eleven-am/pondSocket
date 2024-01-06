@@ -1,9 +1,10 @@
 import { ChannelState, ClientActions, ServerActions, PresenceEventTypes, ChannelReceiver, Events } from '../enums';
+import { uuid } from '../misc/uuid';
+import { ClientMessage } from '../schema';
 import { SimpleSubject, SimpleBehaviorSubject } from '../subjects/subject';
 import type {
     JoinParams,
     ChannelEvent,
-    ClientMessage,
     Unsubscribe,
     PondPresence,
     PondMessage,
@@ -16,21 +17,21 @@ type Publisher = (data: ClientMessage) => void;
 export class Channel {
     readonly #name: string;
 
+    #queue: ClientMessage[];
+
+    #presence: PondPresence[];
+
+    readonly #publisher: Publisher;
+
     readonly #joinParams: JoinParams;
+
+    readonly #presenceSub: Unsubscribe;
 
     readonly #receiver: SimpleSubject<ChannelEvent>;
 
     readonly #clientState: SimpleBehaviorSubject<boolean>;
 
     readonly #joinState: SimpleBehaviorSubject<ChannelState>;
-
-    readonly #publisher: Publisher;
-
-    #queue: ClientMessage[];
-
-    #presence: PondPresence[];
-
-    readonly #presenceSub: Unsubscribe;
 
     constructor (publisher: Publisher, clientState: SimpleBehaviorSubject<boolean>, name: string, receiver: SimpleSubject<ChannelEvent>, params: JoinParams) {
         this.#name = name;
@@ -59,12 +60,7 @@ export class Channel {
             throw new Error('This channel has been closed');
         }
 
-        const joinMessage: ClientMessage = {
-            action: ClientActions.JOIN_CHANNEL,
-            channelName: this.#name,
-            event: ClientActions.JOIN_CHANNEL,
-            payload: this.#joinParams,
-        };
+        const joinMessage = this.#buildJoinMessage();
 
         this.#joinState.publish(ChannelState.JOINING);
         if (this.#clientState.value) {
@@ -79,9 +75,11 @@ export class Channel {
      */
     public leave () {
         const leaveMessage: ClientMessage = {
+            addresses: ChannelReceiver.ALL_USERS,
             action: ClientActions.LEAVE_CHANNEL,
-            channelName: this.#name,
             event: ClientActions.LEAVE_CHANNEL,
+            channelName: this.#name,
+            requestId: uuid(),
             payload: {},
         };
 
@@ -95,10 +93,8 @@ export class Channel {
      * @param callback - The callback to call when a message is received.
      */
     public onMessage (callback: (event: string, message: PondMessage) => void) {
-        return this.#receiver.subscribe((data) => {
-            if (data.action !== ServerActions.PRESENCE) {
-                return callback(data.event, data.payload);
-            }
+        return this.#onMessage((event, message) => {
+            callback(event, message);
         });
     }
 
@@ -168,7 +164,9 @@ export class Channel {
      * @param recipient - The clients to send the message to.
      */
     public sendMessage (event: string, payload: PondMessage, recipient: string[]) {
-        this.#send(event, payload, recipient);
+        const requestId = uuid();
+
+        this.#send(event, requestId, payload, recipient);
     }
 
     /**
@@ -178,13 +176,17 @@ export class Channel {
      * @param responseEvent - The event to wait for.
      */
     public sendForResponse (sentEvent: string, payload: PondMessage, responseEvent: string) {
+        const requestId = uuid();
+
         return new Promise<PondMessage>((resolve) => {
-            const unsub = this.onMessageEvent(responseEvent, (message) => {
-                resolve(message);
-                unsub();
+            const unsub = this.#onMessage((event, message, responseId) => {
+                if (event === responseEvent && requestId === responseId) {
+                    resolve(message);
+                    unsub();
+                }
             });
 
-            this.#send(sentEvent, payload);
+            this.#send(sentEvent, requestId, payload);
         });
     }
 
@@ -194,7 +196,9 @@ export class Channel {
      * @param payload - The message to send.
      */
     public broadcastFrom (event: string, payload: PondMessage) {
-        this.#send(event, payload, ChannelReceiver.ALL_EXCEPT_SENDER);
+        const requestId = uuid();
+
+        this.#send(event, requestId, payload, ChannelReceiver.ALL_EXCEPT_SENDER);
     }
 
     /**
@@ -203,7 +207,9 @@ export class Channel {
      * @param payload - The message to send.
      */
     public broadcast (event: string, payload: PondMessage) {
-        this.#send(event, payload);
+        const requestId = uuid();
+
+        this.#send(event, requestId, payload);
     }
 
     /**
@@ -253,32 +259,21 @@ export class Channel {
     }
 
     /**
-     * @desc Gets the first response from the channel.
-     * @param event - The event to monitor.
-     */
-    public getFirstResponse (event: string) {
-        return new Promise<PondMessage>((resolve) => {
-            const unsub = this.onMessageEvent(event, (message) => {
-                resolve(message);
-                unsub();
-            });
-        });
-    }
-
-    /**
      * @desc Builds a message structure to and sends it to the server.
      * @param event - The event to send.
+     * @param requestId - The id of the request.
      * @param payload - The message to send.
      * @param receivers - The clients to send the message to.
      * @private
      */
-    #send (event: string, payload: PondMessage, receivers: ChannelReceivers = ChannelReceiver.ALL_USERS) {
+    #send (event: string, requestId: string, payload: PondMessage, receivers: ChannelReceivers = ChannelReceiver.ALL_USERS) {
         const message: ClientMessage = {
             action: ClientActions.BROADCAST,
             channelName: this.#name,
+            addresses: receivers,
+            requestId,
             event,
             payload,
-            addresses: receivers,
         };
 
         this.#publish(message);
@@ -333,12 +328,7 @@ export class Channel {
 
         const unsubStateChange = this.#clientState.subscribe((state) => {
             if (state && this.#joinState.value === ChannelState.STALLED) {
-                const joinMessage: ClientMessage = {
-                    action: ClientActions.JOIN_CHANNEL,
-                    channelName: this.#name,
-                    event: ClientActions.JOIN_CHANNEL,
-                    payload: this.#joinParams,
-                };
+                const joinMessage = this.#buildJoinMessage();
 
                 this.#publisher(joinMessage);
             } else if (!state && this.#joinState.value === ChannelState.JOINED) {
@@ -369,5 +359,28 @@ export class Channel {
             });
 
         this.#queue = [];
+    }
+
+    /**
+     * @desc Builds a message structure to join the channel.
+     * @private
+     */
+    #buildJoinMessage (): ClientMessage {
+        return {
+            addresses: ChannelReceiver.ALL_USERS,
+            action: ClientActions.JOIN_CHANNEL,
+            event: ClientActions.JOIN_CHANNEL,
+            payload: this.#joinParams,
+            channelName: this.#name,
+            requestId: uuid(),
+        };
+    }
+
+    #onMessage (callback: (event: string, message: PondMessage, requestId: string) => void) {
+        return this.#receiver.subscribe((data) => {
+            if (data.action !== ServerActions.PRESENCE) {
+                return callback(data.event, data.payload, data.requestId);
+            }
+        });
     }
 }

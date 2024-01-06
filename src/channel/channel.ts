@@ -3,7 +3,9 @@ import { EventResponse } from './eventResponse';
 import { MiddlewareFunction } from '../abstracts/middleware';
 import { SystemSender, ServerActions, ChannelReceiver, ErrorTypes } from '../enums';
 import { ChannelError } from '../errors/pondError';
+import { uuid } from '../misc/uuid';
 import { PresenceEngine } from '../presence/presence';
+import { ClientMessage } from '../schema';
 import { Subject } from '../subjects/subject';
 import type {
     PondMessage,
@@ -12,7 +14,6 @@ import type {
     UserAssigns,
     ChannelEvent,
     ChannelReceivers,
-    ClientMessage,
     UserData,
 } from '../types';
 
@@ -62,19 +63,19 @@ export class Channel {
     }
 
     public broadcastMessage (event: string, payload: PondMessage) {
-        this.#engine.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(uuid(), SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
     }
 
     public broadcastMessageFromUser (userId: string, event: string, payload: PondMessage) {
-        this.#engine.sendMessage(userId, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(uuid(), userId, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
     }
 
     public sendToUser (userId: string, event: string, payload: PondMessage) {
-        this.#engine.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(uuid(), SystemSender.CHANNEL, [userId], ServerActions.BROADCAST, event, payload);
     }
 
     public sendToUsers (userIds: string[], event: string, payload: PondMessage) {
-        this.#engine.sendMessage(SystemSender.CHANNEL, userIds, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(uuid(), SystemSender.CHANNEL, userIds, ServerActions.BROADCAST, event, payload);
     }
 
     public evictUser (userId: string, reason?: string) {
@@ -168,12 +169,12 @@ export class ChannelEngine {
      * @param reason - The reason for kicking the user
      */
     public kickUser (userId: string, reason: string) {
-        this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, 'kicked_out', {
+        this.sendMessage(uuid(), SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, 'kicked_out', {
             message: reason,
             code: 403,
         });
         this.removeUser(userId);
-        this.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, 'kicked', {
+        this.sendMessage(uuid(), SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, 'kicked', {
             userId,
             reason,
         });
@@ -184,7 +185,7 @@ export class ChannelEngine {
      * @param reason - The reason for self-destructing the channel
      */
     public destroy (reason: string) {
-        this.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.ERROR, 'destroyed', {
+        this.sendMessage(uuid(), SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.ERROR, 'destroyed', {
             message: reason ?? 'Channel has been destroyed',
         });
         this.#parentEngine.destroyChannel();
@@ -243,13 +244,14 @@ export class ChannelEngine {
 
     /**
      * @desc Sends a message to a specified set of users, from a specified sender
+     * @param requestId - The id of the request
      * @param sender - The sender of the message
      * @param recipient - The users to send the message to
      * @param action - The action of the message
      * @param event - The event name
      * @param payload - The payload of the message
      */
-    public sendMessage (sender: ChannelSenders, recipient: ChannelReceivers, action: ServerActions, event: string, payload: PondMessage) {
+    public sendMessage (requestId: string, sender: ChannelSenders, recipient: ChannelReceivers, action: ServerActions, event: string, payload: PondMessage) {
         if (!this.#users.has(sender) && sender !== SystemSender.CHANNEL) {
             throw new ChannelError(`ChannelEngine: User with id ${sender} does not exist in channel ${this.name}`, 404, this.name);
         }
@@ -257,6 +259,7 @@ export class ChannelEngine {
         const eventMessage = {
             recipients: this.#getUsersFromRecipients(recipient, sender),
             channelName: this.name,
+            requestId,
             action,
             payload,
             event,
@@ -281,6 +284,7 @@ export class ChannelEngine {
             payload: message.payload,
             action: ServerActions.BROADCAST,
             channelName: this.name,
+            requestId: message.requestId,
             recipients: this.#getUsersFromRecipients(message.addresses || ChannelReceiver.ALL_USERS, userId),
         };
 
@@ -288,7 +292,7 @@ export class ChannelEngine {
         const response = new EventResponse(responseEvent, this);
 
         this.#parentEngine.execute(request, response, () => {
-            this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.ERROR, ErrorTypes.HANDLER_NOT_FOUND, {
+            this.sendMessage(responseEvent.requestId, SystemSender.CHANNEL, [userId], ServerActions.ERROR, ErrorTypes.HANDLER_NOT_FOUND, {
                 message: 'A handler did not respond to the event',
                 code: 404,
             });
@@ -364,4 +368,3 @@ export class ChannelEngine {
         return users;
     }
 }
-

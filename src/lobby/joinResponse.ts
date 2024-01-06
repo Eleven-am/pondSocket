@@ -13,7 +13,7 @@ export class JoinResponse extends PondResponse {
     #executed: boolean;
 
     constructor (user: RequestCache, engine: ChannelEngine) {
-        super();
+        super(user.requestId);
         this.#user = user;
         this.#engine = engine;
         this.#executed = false;
@@ -42,6 +42,7 @@ export class JoinResponse extends PondResponse {
             action: ServerActions.SYSTEM,
             channelName: this.#engine.name,
             event: Events.ACKNOWLEDGE,
+            requestId: this.requestId,
             payload: {},
         };
 
@@ -69,6 +70,7 @@ export class JoinResponse extends PondResponse {
             },
             channelName: this.#engine.name,
             action: ServerActions.ERROR,
+            requestId: this.requestId,
         };
 
         this.#user.socket.send(JSON.stringify(errorMessage));
@@ -84,7 +86,7 @@ export class JoinResponse extends PondResponse {
      */
     public send (event: string, payload: PondMessage, assigns?: PondAssigns): JoinResponse {
         this.accept(assigns);
-        this.#engine.sendMessage(SystemSender.CHANNEL, [this.#user.clientId], ServerActions.SYSTEM, event, payload);
+        this.#engine.sendMessage(this.requestId, SystemSender.CHANNEL, [this.#user.clientId], ServerActions.SYSTEM, event, payload);
 
         return this;
     }
@@ -95,7 +97,7 @@ export class JoinResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcast (event: string, payload: PondMessage): JoinResponse {
-        this.#engine.sendMessage(this.#user.clientId, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(this.requestId, this.#user.clientId, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -106,7 +108,7 @@ export class JoinResponse extends PondResponse {
      * @param payload - the payload to send
      */
     public broadcastFromUser (event: string, payload: PondMessage): JoinResponse {
-        this.#engine.sendMessage(this.#user.clientId, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(this.requestId, this.#user.clientId, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
 
         return this;
     }
@@ -118,7 +120,7 @@ export class JoinResponse extends PondResponse {
      * @param userIds - the ids of the clients to send the message to
      */
     public sendToUsers (event: string, payload: PondMessage, userIds: string[]): JoinResponse {
-        this.#engine.sendMessage(this.#user.clientId, userIds, ServerActions.BROADCAST, event, payload);
+        this.#engine.sendMessage(this.requestId, this.#user.clientId, userIds, ServerActions.BROADCAST, event, payload);
 
         return this;
     }
