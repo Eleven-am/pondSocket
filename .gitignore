@@ -1,5 +1,4 @@
-# Project exclude paths
-/node_modules/
-/.idea/
-/dist/
-/coverage/
+#ignore all the node modules and dists in the packages subfolders
+packages/*/node_modules
+packages/*/dist
+packages/*/coverage

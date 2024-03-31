@@ -30,18 +30,6 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
 
 // Start the server
 pond.listen(3000);
-
-// Or alternatively, working with express
-import pondSocket from "@eleven-am/pondsocket/express";
-import express from "express";
-
-const app = pondSocket(express());
-
-const endpoint = app.upgrade('/api/socket', (req, res) => {
-    // Handle socket connection and authentication
-});
-
-app.listen(3000);
 ```
 
 Within each endpoint, sockets interact through channels. Channels provide an organized way to group users and manage efficient communication among them. When users join a channel, they can participate in real-time events and exchange information with other users in the same channel.
@@ -187,7 +175,7 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
         const role = getRoleFromToken(token);
 
         // Handle socket connection and authentication for valid users
-        res.accept({ role }); // Assign the user's role to the socket
+        res.accept({role}); // Assign the user's role to the socket
     } else {
         // Reject the connection for invalid users or without a token
         res.reject('Invalid token', 401);
@@ -198,9 +186,9 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
 const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res) => {
     // When joining the channel, any joinParams passed from the client will be available in the request payload
     // Also any previous assigns on the socket will be available in the request payload as well
-    const { role } = req.user.assigns;
-    const { username } = req.joinParams;
-    const { id } = req.event.params;
+    const {role} = req.user.assigns;
+    const {username} = req.joinParams;
+    const {id} = req.event.params;
 
     // maybe retrieve the previous messages from the database
     const messages = await getMessagesFromDatabase(id);
@@ -208,7 +196,7 @@ const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res)
     // Check if the user has the required role to join the channel
     if (role === 'admin') {
         // Accept the join request
-        res.accept({ username, profanityCount: 0 })
+        res.accept({username, profanityCount: 0})
             // optionally you can track the presence of the user in the channel
             .trackPresence({
                 username,
@@ -217,7 +205,7 @@ const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res)
                 onlineSince: Date.now(),
             })
             // and send the user the channel history
-            .sendToUsers('history', { messages }, [req.user.id]);
+            .sendToUsers('history', {messages}, [req.user.id]);
 
         // Alternatively, you can also send messages to the user, NOTE that the user would be automatically subscribed to the channel.
         // res.send('history', { messages }, { username, profanityCount: 0 })
@@ -229,19 +217,19 @@ const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res)
         //   });
     } else {
         // Reject the join request
-        res.reject('You do not have the required role to join this channel', 403);
+        res.decline('You do not have the required role to join this channel', 403);
     }
 });
 
 // Attach message event listener to the profanityChannel
 profanityChannel.onEvent('message', (req, res) => {
-    const { text } = req.event.payload;
+    const {text} = req.event.payload;
 
     // Check for profanity
     if (isTextProfane(text)) {
         // Reject the message if it contains profanity
-        res.reject('Profanity is not allowed', 400, {
-            profanityCount:  req.user.assigns.profanityCount + 1
+        res.decline('Profanity is not allowed', 400, {
+            profanityCount: req.user.assigns.profanityCount + 1
         });
 
         // note that profanityCount is updated so req.user.assigns.profanityCount will be updated
@@ -250,9 +238,9 @@ profanityChannel.onEvent('message', (req, res) => {
             res.evictUser('You have been kicked from the channel for using profanity');
         } else {
             // you can broadcast a message to all users or In the channel that profanity is not allowed
-            res.broadcast('profanity-warning', { message: 'Profanity is not allowed' })
+            res.broadcast('profanity-warning', {message: 'Profanity is not allowed'})
                 // or you can send a message to the user that profanity is not allowed
-                .sendToUsers('profanity-warning', { message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.` }, [req.user.id]);
+                .sendToUsers('profanity-warning', {message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.`}, [req.user.id]);
         }
     } else {
         // Accept the message to allow broadcasting to other clients in the channel
@@ -264,8 +252,8 @@ profanityChannel.onEvent('message', (req, res) => {
 });
 
 profanityChannel.onEvent('presence/:presence', (req, res) => {
-    const { presence } = req.event.params;
-    const { username } = req.user.assigns;
+    const {presence} = req.event.params;
+    const {username} = req.user.assigns;
 
     // Handle presence events
     res.updatePresence({
@@ -277,7 +265,7 @@ profanityChannel.onEvent('presence/:presence', (req, res) => {
 });
 
 profanityChannel.onLeave((event) => {
-    const { username } = event.assigns;
+    const {username} = event.assigns;
 
     // When a user leaves the channel, PondSocket will automatically remove the user from the presence list and inform other users in the channel
 
@@ -499,6 +487,8 @@ The `ClientChannel` class represents a channel in the PondClient.
 - `onPresenceChange(callback: (presence: PresencePayload) => void): Unsubscribe`: Detects when clients change their presence in the channel and calls the provided callback when a client changes their presence in the channel.
 
 - `sendMessage(event: string, payload: PondMessage, recipient: string[]): void`: Sends a message to specific clients in the channel with the specified event, payload, and recipient.
+
+- `sendForResponse(event: string, payload: PondMessage): Promise<PondMessage>`: Sends a message to the server with the specified event, payload, and returns a promise that resolves with the response.
 
 - `broadcastFrom(event: string, payload: PondMessage): void`: Broadcasts a message to every other client in the channel except yourself with the specified event and payload.
 

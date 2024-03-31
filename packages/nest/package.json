@@ -1,0 +1,65 @@
+{
+  "name": "@eleven-am/pondsocket-nest",
+  "version": "0.0.45",
+  "description": "PondSocket is a fast simple socket server",
+  "keywords": [
+    "socket",
+    "server",
+    "ws",
+    "websocket",
+    "pubsub",
+    "presence",
+    "realtime",
+    "realtime server"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Roy OSSAI",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "license": "GPL-3.0",
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "lint": "eslint --ext .ts src",
+    "lint:fix": "eslint --fix --ext .ts src",
+    "copy": "cp package.json dist && cp README.md dist && cp LICENSE dist && cp src/context.d.ts dist/index.d.ts",
+    "push": "npm version patch && npm run copy && cd dist && npm publish && cd ..",
+    "pipeline": "npm run lint && npm run build && npm run push"
+  },
+  "dependencies": {
+    "@eleven-am/pondsocket": "^0.1.152",
+    "@golevelup/nestjs-discovery": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^10.3.3",
+    "@nestjs/core": "^10.3.3",
+    "@types/jest": "^29.5.12",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "eslint-plugin-file-progress": "^1.3.0",
+    "eslint-plugin-import": "^2.29.1",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.5",
+    "ts-jest": "^29.1.2",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.test\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  }
+}
