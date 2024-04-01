@@ -30,5 +30,7 @@ export function performErrors (error: unknown, response: ConnectionResponse | Jo
         return response.decline(message, status);
     }
 
-    throw error;
+    if (process.env.NODE_ENV === 'development') {
+        console.error(error);
+    }
 }

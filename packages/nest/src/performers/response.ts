@@ -69,13 +69,7 @@ export function performResponse (
         }
 
         if (isNotEmpty(presence)) {
-            const existingPresence = channel.getPresences()[socketId];
-
-            if (existingPresence) {
-                channel.updatePresence(socketId, presence);
-            } else {
-                channel.trackPresence(socketId, presence);
-            }
+            channel.upsertPresence(socketId, presence);
         }
     }
 }
