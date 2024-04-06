@@ -4,7 +4,8 @@ import PondSocket from '@eleven-am/pondsocket';
 import type { Endpoint } from '@eleven-am/pondsocket/types';
 import { DiscoveryService } from '@golevelup/nestjs-discovery';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
-import type { Type } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
+import { Logger, Type } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { AbstractHttpAdapter, HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
@@ -21,6 +22,8 @@ import { manageLeave } from '../managers/leave';
 import { CanActivate, Constructor, GroupedInstances } from '../types';
 
 export class PondSocketService {
+    private readonly logger = new Logger(PondSocketService.name);
+
     constructor (
         private readonly moduleRef: ModuleRef,
         private readonly discovery: DiscoveryService,
@@ -76,18 +79,21 @@ export class PondSocketService {
             }
         });
 
+        this.logger.log(`Mapped {${metadata}} endpoint`);
+
         setEndpoint(endpoint);
 
         const channels = [...new Set([...groupedInstance.channels.map((channel) => channel)])];
 
         channels.forEach((channel) => {
-            this.manageChannel(channel, endpoint);
+            this.manageChannel(channel, endpoint, metadata);
         });
     }
 
     private manageChannel (
         channel: DiscoveredClass,
         endpoint: Endpoint,
+        endpointPath: string,
     ) {
         const instance = channel.instance;
         const constructor = instance.constructor;
@@ -113,6 +119,8 @@ export class PondSocketService {
             }
         });
 
+        this.logger.log(`Mapped {${endpointPath}:${path}} channel`);
+
         setChannel(channelInstance);
         const { get: getEventHandlers } = manageEvent(instance);
         const { get: getLeaveHandlers } = manageLeave(instance);
@@ -121,6 +129,8 @@ export class PondSocketService {
             channelInstance.onEvent(handler.path, async (request, response) => {
                 await handler.value(instance, this.moduleRef, request, response);
             });
+
+            this.logger.log(`Mapped {${endpointPath}:${path}} event {${handler.path}}`);
         });
 
         const [leaveHandler] = getLeaveHandlers();
@@ -129,6 +139,8 @@ export class PondSocketService {
             channelInstance.onLeave(async (event) => {
                 await leaveHandler.value(instance, this.moduleRef, event);
             });
+
+            this.logger.log(`Mapped {${endpointPath}:${path}} leave handler`);
         }
     }
 
@@ -177,14 +189,23 @@ export class PondSocketService {
             channels: instance.channels,
         }))).flat();
 
-        const baseEndpoint = endpoints.find((endpoint) => endpoint.discoveredClass.parentModule.name === 'AppModule');
+        const baseEndpoint = endpoints.length === 1 ?
+            endpoints[0].discoveredClass :
+            endpoints
+                .find((endpoint) => endpoint.discoveredClass.parentModule.name === 'AppModule')?.discoveredClass;
+
+        const groupedInstanceWithBaseEndpoint = groupedInstances.find((groupedInstance) => groupedInstance.endpoint.instance === baseEndpoint?.instance);
 
         if (channelsWithNoEndpoints.length > 0) {
-            if (baseEndpoint) {
+            if (groupedInstanceWithBaseEndpoint) {
+                const channels = channelsWithNoEndpoints.map((instance) => instance.channels).flat();
+
+                groupedInstanceWithBaseEndpoint.channels = [...new Set([...groupedInstanceWithBaseEndpoint.channels, ...channels])];
+            } else if (baseEndpoint) {
                 const channels = channelsWithNoEndpoints.map((instance) => instance.channels).flat();
 
                 groupedInstances.push({
-                    endpoint: baseEndpoint.discoveredClass,
+                    endpoint: baseEndpoint,
                     channels,
                 });
             } else {
