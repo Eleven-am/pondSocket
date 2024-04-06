@@ -149,6 +149,10 @@ describe('PresenceEngine', () => {
         it('should throw an error if the presence does not exist', () => {
             expect(() => presenceEngine.removePresence(presenceKey)).toThrowError(`PresenceEngine: Presence with key ${presenceKey} does not exist`);
         });
+
+        it('should not throw an error if the safe flag is true', () => {
+            expect(() => presenceEngine.removePresence(presenceKey, true)).not.toThrow();
+        });
     });
 
     describe('getPresence', () => {

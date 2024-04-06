@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket",
-  "version": "0.1.152",
+  "version": "0.1.153",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -39,10 +39,10 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
-    "@types/node": "^20.11.24",
+    "@types/node": "^20.12.5",
     "@types/websocket": "^1.0.10",
     "@types/ws": "^8.5.10",
-    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/eslint-plugin": "^7.5.0",
     "eslint": "^8.57.0",
     "eslint-plugin-file-progress": "^1.3.0",
     "eslint-plugin-import": "^2.29.1",
@@ -50,7 +50,7 @@
     "superwstest": "^2.0.3",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.4.4"
   },
   "jest": {
     "moduleFileExtensions": [

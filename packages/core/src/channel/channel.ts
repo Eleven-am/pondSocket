@@ -323,7 +323,7 @@ export class ChannelEngine {
 
         unsubscribe();
         this.#users.delete(userId);
-        const userPresence = this.#presenceEngine?.removePresence(userId);
+        const userPresence = this.#presenceEngine?.removePresence(userId, true);
 
         if (this.#parentEngine.leaveCallback) {
             this.#parentEngine.leaveCallback({

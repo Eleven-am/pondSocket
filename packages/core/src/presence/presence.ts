@@ -63,8 +63,9 @@ export class PresenceEngine {
     /**
      * @desc Removes a presence from the presence engine
      * @param presenceKey - The key of the presence
+     * @param safe - If true, it will not throw an error if the presence does not exist
      */
-    public removePresence (presenceKey: string) {
+    public removePresence (presenceKey: string, safe = false) {
         const presence = this.#presenceMap.get(presenceKey);
 
         if (presence) {
@@ -73,7 +74,7 @@ export class PresenceEngine {
                 changed: presence,
                 presence: Array.from(this.#presenceMap.values()),
             });
-        } else {
+        } else if (!safe) {
             const code = 404;
             const message = `PresenceEngine: Presence with key ${presenceKey} does not exist`;
 
