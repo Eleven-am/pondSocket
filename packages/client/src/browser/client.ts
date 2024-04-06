@@ -136,6 +136,7 @@ export default class PondClient {
             {},
         );
 
+        this.#channels[message.channelName] = channel;
         channel.acknowledge(this._broadcaster);
     }
 
