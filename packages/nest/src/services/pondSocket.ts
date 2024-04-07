@@ -32,11 +32,7 @@ export class PondSocketService {
     ) {
         const httpAdapter = this.adapterHost.httpAdapter;
 
-        httpAdapter.listen = async (...args: any[]) => {
-            const socket = await this.init(httpAdapter);
-
-            return socket.listen(...args);
-        };
+        void this.init(httpAdapter);
     }
 
     private async init (httpAdapter: AbstractHttpAdapter) {
@@ -49,7 +45,7 @@ export class PondSocketService {
             this.manageEndpoint(socket, groupedInstance);
         });
 
-        return socket;
+        httpAdapter.listen = (...args: any[]) => socket.listen(...args);
     }
 
     private manageEndpoint (
@@ -67,11 +63,11 @@ export class PondSocketService {
         }
 
         setGuards(this.externalGuards);
+        const { get } = manageConnection(instance);
+        const channels = [...new Set([...groupedInstance.channels.map((channel) => channel)])];
+        const [handler] = get();
 
         const endpoint = socket.createEndpoint(metadata, async (request, response) => {
-            const { get } = manageConnection(instance);
-            const [handler] = get();
-
             if (handler) {
                 await handler.value(instance, this.moduleRef, request, response);
             } else {
@@ -81,13 +77,12 @@ export class PondSocketService {
 
         this.logger.log(`Mapped {${metadata}} endpoint`);
 
+        if (handler) {
+            this.logger.log(`Mapped {${metadata}} connection handler`);
+        }
+
         setEndpoint(endpoint);
-
-        const channels = [...new Set([...groupedInstance.channels.map((channel) => channel)])];
-
-        channels.forEach((channel) => {
-            this.manageChannel(channel, endpoint, metadata);
-        });
+        channels.forEach((channel) => this.manageChannel(channel, endpoint, metadata));
     }
 
     private manageChannel (
@@ -105,13 +100,12 @@ export class PondSocketService {
 
         const { set: setGuards } = manageGuards(constructor);
         const { set: setChannel } = manageChannelInstance(instance);
+        const { get } = manageJoin(instance);
+        const [handler] = get();
 
         setGuards(this.externalGuards);
 
         const channelInstance = endpoint.createChannel(path, async (request, response) => {
-            const { get } = manageJoin(instance);
-            const [handler] = get();
-
             if (handler) {
                 await handler.value(instance, this.moduleRef, request, response);
             } else {
@@ -120,6 +114,10 @@ export class PondSocketService {
         });
 
         this.logger.log(`Mapped {${endpointPath}:${path}} channel`);
+
+        if (handler) {
+            this.logger.log(`Mapped {${endpointPath}:${path}} join handler`);
+        }
 
         setChannel(channelInstance);
         const { get: getEventHandlers } = manageEvent(instance);
