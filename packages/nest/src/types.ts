@@ -29,7 +29,7 @@ export interface NestResponse {
     eventResponse?: EventResponse;
 }
 
-export type ParamDecoratorCallback<Input> = (data: Input, context: Context) => unknown | Promise<unknown>;
+export type ParamDecoratorCallback<Input> = (data: Input, context: Context, type: unknown) => unknown | Promise<unknown>;
 
 export interface ParamDecoratorMetadata {
     index: number;

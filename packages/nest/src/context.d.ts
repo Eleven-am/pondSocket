@@ -18,7 +18,7 @@ import type { DynamicModule, ModuleMetadata } from '@nestjs/common';
 
 type Constructor<T> = new (...args: any[]) => T;
 
-type ParamDecoratorCallback<Input> = (data: Input, context: Context) => unknown | Promise<unknown>;
+type ParamDecoratorCallback<Input, ParamType> = (data: Input, context: Context, type: ParamType) => unknown | Promise<unknown>;
 
 interface CanActivate {
 
@@ -38,7 +38,7 @@ interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
 type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
     event?: Event;
     broadcast?: Event;
-    assigns?: Assigns;
+    assigns?: Partial<Assigns>;
     presence?: Presence;
     subscribeTo?: string[];
     unsubscribeFrom?: string[];
@@ -297,7 +297,7 @@ declare function PondGuards (...guards: Constructor<CanActivate>[]): ClassDecora
  * @desc Helper function that creates a parameter decorator
  * @param callback - The callback to run when the parameter is being retrieved
  */
-declare function createParamDecorator<Input>(callback: ParamDecoratorCallback<Input>): (data: Input) => ParameterDecorator;
+declare function createParamDecorator<Input, ParamType> (callback: ParamDecoratorCallback<Input, ParamType>): (data: Input) => ParameterDecorator;
 
 declare class PondSocketModule {
     static forRoot({ guards, providers, imports, exports, isGlobal, appModuleName }: Metadata): DynamicModule;

@@ -23,14 +23,16 @@ import { Context } from '../context/context';
 import { manageParameters } from '../managers/parametres';
 import { NestRequest, NestResponse, PondResponse } from '../types';
 
-function retrieveParameters (context: Context) {
+async function retrieveParameters (context: Context) {
     const gottenValues = manageParameters(context.getInstance(), context.getMethod()).get() ?? [];
 
-    const values = gottenValues
-        .map(({ callback, index }) => ({
-            value: callback(context),
+    const promises = gottenValues
+        .map(async ({ callback, index }) => ({
+            value: await callback(context),
             index,
         }));
+
+    const values = await Promise.all(promises);
 
     return values
         .sort((a, b) => a.index - b.index)
@@ -73,7 +75,7 @@ export async function performAction (
     if (canProceed) {
         const data = await originalMethod.apply(
             instance,
-            retrieveParameters(context),
+            await retrieveParameters(context),
         );
 
         performResponse(socketId, channel, data, response);

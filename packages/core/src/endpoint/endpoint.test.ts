@@ -269,13 +269,14 @@ describe('endpoint', () => {
             .close();
     });
 
-    it('should throw an error if accept, reject / send is called more than once', async () => {
+    it('should throw an error if accept, reject is called more than once', async () => {
         socket.createEndpoint('/api/:room', (_, res) => {
             res.reply('hello', {
                 test: 'test',
             });
 
-            expect(() => res.accept()).toThrowError('Cannot execute response more than once');
+            res.accept();
+            expect(() => res.decline()).toThrowError('Cannot execute response more than once');
         });
 
         await request(server)

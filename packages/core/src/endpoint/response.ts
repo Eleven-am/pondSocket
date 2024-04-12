@@ -107,7 +107,10 @@ export class ConnectionResponse {
      * @param payload - the payload to send
      */
     public reply (event: string, payload: PondMessage): ConnectionResponse {
-        this.#performChecks();
+        if (this.#webSocket.readyState !== WebSocket.OPEN) {
+            throw new EndpointError('Socket is not open', 400);
+        }
+
         this.#sendMessage(ServerActions.BROADCAST, event, payload);
 
         return this;
