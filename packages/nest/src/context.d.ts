@@ -275,7 +275,7 @@ declare function OnConnectionRequest(): MethodDecorator;
 /**
  * @desc Method decorator that marks a method as an onEvent handler
  */
-declare function OnEvent(path?: string): MethodDecorator;
+declare function OnEvent<EventType extends PondEvenType = PondEvenType>(path?: keyof EventType): MethodDecorator;
 
 /**
  * @desc Method decorator that marks a method as an onJoin handler
