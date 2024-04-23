@@ -300,8 +300,8 @@ import {
     GetEventParams,
     ChannelInstance,
 } from '@eleven-am/pondsocket-nest';
-import {JoinRequest, JoinResponse, PondChannel} from "@eleven-am/pondsocket/types";
-import {Params} from "./types";
+import { JoinRequest, JoinResponse, PondChannel, Params } from "@eleven-am/pondsocket/types";
+import { MessageService } from './message.service';
 
 @Injectable()
 @Endpoint('/api/socket')
