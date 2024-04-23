@@ -1,6 +1,6 @@
 import { IncomingHttpHeaders } from 'http';
 
-import { ChannelReceiver, PresenceEventTypes } from '../enums';
+import { ChannelReceiver, PresenceEventTypes, ServerActions } from '../enums';
 
 export type Unsubscribe = () => void;
 
@@ -33,7 +33,7 @@ export interface PresencePayload<Presence extends PondPresence = PondPresence> {
 }
 
 export interface Event {
-    action: 'SYSTEM' | 'BROADCAST' | 'ERROR';
+    action: ServerActions.CONNECT | ServerActions.BROADCAST | ServerActions.SYSTEM | ServerActions.ERROR;
     event: string;
     payload: PondMessage;
     channelName: string;
@@ -41,7 +41,7 @@ export interface Event {
 }
 
 interface PresenceEventMessage {
-    action: 'PRESENCE';
+    action: ServerActions.PRESENCE;
     event: PresenceEventTypes;
     channelName: string;
     payload: PresencePayload;

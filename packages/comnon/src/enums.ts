@@ -9,6 +9,7 @@ export enum ServerActions {
     SYSTEM = 'SYSTEM',
     BROADCAST = 'BROADCAST',
     ERROR = 'ERROR',
+    CONNECT = 'CONNECT',
 }
 
 export enum ClientActions {
@@ -49,4 +50,5 @@ export enum ChannelReceiver {
 
 export enum Events {
     ACKNOWLEDGE = 'ACKNOWLEDGE',
+    CONNECTION = 'CONNECTION',
 }

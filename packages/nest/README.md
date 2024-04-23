@@ -190,7 +190,7 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
         res.accept({role}); // Assign the user's role to the socket
     } else {
         // Reject the connection for invalid users or without a token
-        res.reject('Invalid token', 401);
+        res.decline('Invalid token', 401);
     }
 });
 
@@ -217,16 +217,7 @@ const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res)
                 onlineSince: Date.now(),
             })
             // and send the user the channel history
-            .sendToUsers('history', {messages}, [req.user.id]);
-
-        // Alternatively, you can also send messages to the user, NOTE that the user would be automatically subscribed to the channel.
-        // res.send('history', { messages }, { username, profanityCount: 0 })
-        //   .trackPresence({
-        //       username,
-        //       role,
-        //       status: 'online',
-        //       onlineSince: Date.now(),
-        //   });
+            .reply('history', {messages});
     } else {
         // Reject the join request
         res.decline('You do not have the required role to join this channel', 403);

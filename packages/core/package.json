@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket",
-  "version": "0.1.154",
+  "version": "0.1.155",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -34,7 +34,7 @@
     "url": "git+https://github.com/Eleven-am/pondSocket.git"
   },
   "dependencies": {
-    "@eleven-am/pondsocket-common": "^0.0.15",
+    "@eleven-am/pondsocket-common": "^0.0.18",
     "ws": "^8.16.0"
   },
   "devDependencies": {

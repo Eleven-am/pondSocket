@@ -10,11 +10,11 @@ export default class PondClient extends PondSocketClient {
      * @desc Connects to the server and returns the socket.
      */
     public connect (backoff = 1) {
+        this._disconnecting = false;
+
         const socket = new WebSocket(this._address.toString());
 
-        socket.onopen = () => {
-            this._connectionState.publish(true);
-        };
+        socket.onopen = () => this._connectionState.publish(true);
 
         socket.onmessage = (message) => {
             const data = JSON.parse(message.data as string) as ChannelEvent;
@@ -22,13 +22,17 @@ export default class PondClient extends PondSocketClient {
             this._broadcaster.publish(data);
         };
 
-        socket.onerror = () => {
-            this._connectionState.publish(false);
-            setTimeout(() => {
-                this.connect(backoff * 2);
-            }, backoff * 1000);
-        };
+        socket.onerror = () => socket.close();
 
-        this._socket = socket;
+        socket.onclose = () => {
+            this._connectionState.publish(false);
+            if (this._disconnecting) {
+                return;
+            }
+
+            setTimeout(() => {
+                this.connect();
+            }, 1000);
+        };
     }
 }

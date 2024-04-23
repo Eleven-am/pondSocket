@@ -1,4 +1,4 @@
-import { ClientActions } from '@eleven-am/pondsocket-common';
+import {ChannelEvent, ClientActions, Events, ServerActions} from '@eleven-am/pondsocket-common';
 
 import PondClient from './client';
 
@@ -30,9 +30,40 @@ describe('PondClient', () => {
         pondClient.connect();
         const mockWebSocket = pondClient['_socket'];
 
-        expect(mockWebSocket.onopen).toBeInstanceOf(Function);
         expect(mockWebSocket.onmessage).toBeInstanceOf(Function);
-        expect(mockWebSocket.onerror).toBeInstanceOf(Function);
+        expect(mockWebSocket.onclose).toBeInstanceOf(Function);
+    });
+
+    test('it should publish messages received from the server', () => {
+        pondClient.connect();
+        const mockWebSocket = pondClient['_socket'];
+        const broadcasterSpy = jest.spyOn(pondClient['_broadcaster'], 'publish');
+
+        mockWebSocket.onmessage({ data: JSON.stringify({ event: 'exampleEvent' }) });
+
+        expect(broadcasterSpy).toHaveBeenCalledTimes(1);
+        expect(broadcasterSpy).toHaveBeenCalledWith({ event: 'exampleEvent' });
+    });
+
+    test('socket should only pass to publish state when acknowledged event is received', () => {
+        pondClient.connect();
+        const mockWebSocket = pondClient['_socket'];
+        const mockCallback = jest.fn();
+
+        pondClient.onConnectionChange(mockCallback);
+
+        expect(mockCallback).not.toHaveBeenCalled();
+
+        const acknowledgeEvent: ChannelEvent = {
+            event: Events.CONNECTION,
+            action: ServerActions.CONNECT,
+            channelName: 'exampleChannel',
+            requestId: '123',
+            payload: {},
+        }
+
+        mockWebSocket.onmessage({ data: JSON.stringify(acknowledgeEvent) });
+        expect(mockCallback).toHaveBeenCalledWith(true);
     });
 
     test('disconnect method should close the socket and leave all channels', () => {
@@ -43,7 +74,15 @@ describe('PondClient', () => {
         pondClient.connect();
         const mockWebSocket = pondClient['_socket'];
 
-        mockWebSocket.onopen();
+        const acknowledgeEvent: ChannelEvent = {
+            event: Events.CONNECTION,
+            action: ServerActions.CONNECT,
+            channelName: 'exampleChannel',
+            requestId: '123',
+            payload: {},
+        }
+
+        mockWebSocket.onmessage({ data: JSON.stringify(acknowledgeEvent) });
         expect(mockCallback).toHaveBeenCalledWith(true);
 
         const channel = pondClient.createChannel('exampleChannel');
@@ -99,7 +138,15 @@ describe('PondClient', () => {
         const mockWebSocket = pondClient['_socket'];
         const channel = pondClient.createChannel('exampleChannel');
 
-        mockWebSocket.onopen();
+        const acknowledgeEvent: ChannelEvent = {
+            event: Events.CONNECTION,
+            action: ServerActions.CONNECT,
+            channelName: 'exampleChannel',
+            requestId: '123',
+            payload: {},
+        }
+
+        mockWebSocket.onmessage({ data: JSON.stringify(acknowledgeEvent) });
 
         channel.join();
 
@@ -128,28 +175,15 @@ describe('PondClient', () => {
         expect(connectSpy).toHaveBeenCalledTimes(1);
 
         connectSpy.mockClear();
-        mockWebSocket.onerror();
+        mockWebSocket.onclose();
         await new Promise((resolve) => setTimeout(resolve, 1000));
         expect(connectSpy).toHaveBeenCalledTimes(1);
         connectSpy.mockClear();
         mockWebSocket = pondClient['_socket'];
 
-        mockWebSocket.onerror();
+        mockWebSocket.onclose();
 
         await new Promise((resolve) => setTimeout(resolve, 2000));
         expect(connectSpy).toHaveBeenCalledTimes(1);
-    });
-
-    test('it should publish messages received from the server', () => {
-        pondClient.connect();
-        const mockWebSocket = pondClient['_socket'];
-        const broadcasterSpy = jest.spyOn(pondClient['_broadcaster'], 'publish');
-
-        mockWebSocket.onopen();
-
-        mockWebSocket.onmessage({ data: JSON.stringify({ event: 'exampleEvent' }) });
-
-        expect(broadcasterSpy).toHaveBeenCalledTimes(1);
-        expect(broadcasterSpy).toHaveBeenCalledWith({ event: 'exampleEvent' });
     });
 });

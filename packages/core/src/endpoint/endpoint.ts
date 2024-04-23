@@ -3,7 +3,7 @@ import {
     ClientActions,
     ClientMessage,
     clientMessageSchema,
-    ErrorTypes,
+    ErrorTypes, Events,
     JoinParams,
     PondAssigns,
     PondMessage,
@@ -159,6 +159,16 @@ export class EndpointEngine {
             this.#sockets.delete(cache.clientId);
             cache.subscriptions.forEach((unsubscribe) => unsubscribe());
         });
+
+        const event: ChannelEvent = {
+            event: Events.CONNECTION,
+            action: ServerActions.CONNECT,
+            channelName: SystemSender.ENDPOINT,
+            requestId: uuid(),
+            payload: {},
+        };
+
+        this.sendMessage(socket, event);
     }
 
     /**

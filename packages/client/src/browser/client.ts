@@ -1,12 +1,22 @@
-import { BehaviorSubject, ChannelEvent, ChannelState, Events, JoinParams, Subject } from '@eleven-am/pondsocket-common';
+import {
+    BehaviorSubject,
+    ChannelEvent,
+    ChannelState,
+    Events,
+    JoinParams,
+    ServerActions,
+    Subject
+} from '@eleven-am/pondsocket-common';
 
-import { Channel } from '../core/channel';
-import { ClientMessage } from '../types';
+import {Channel} from '../core/channel';
+import {ClientMessage} from '../types';
 
 export default class PondClient {
     protected readonly _address: URL;
 
     #channels: Record<string, Channel>;
+
+    protected _disconnecting: boolean;
 
     protected _socket: WebSocket | any | undefined;
 
@@ -24,6 +34,7 @@ export default class PondClient {
             address.pathname = endpoint;
         }
 
+        this._disconnecting = false;
         const query = new URLSearchParams(params);
 
         address.search = query.toString();
@@ -44,12 +55,10 @@ export default class PondClient {
     /**
      * @desc Connects to the server and returns the socket.
      */
-    public connect (backoff = 1) {
-        const socket = new WebSocket(this._address.toString());
+    public connect () {
+        this._disconnecting = false;
 
-        socket.onopen = () => {
-            this._connectionState.publish(true);
-        };
+        const socket = new WebSocket(this._address.toString());
 
         socket.onmessage = (message) => {
             const data = JSON.parse(message.data) as ChannelEvent;
@@ -57,11 +66,17 @@ export default class PondClient {
             this._broadcaster.publish(data);
         };
 
-        socket.onerror = () => {
+        socket.onerror = () => socket.close();
+
+        socket.onclose = () => {
             this._connectionState.publish(false);
+            if (this._disconnecting) {
+                return;
+            }
+
             setTimeout(() => {
-                this.connect(backoff * 2);
-            }, backoff * 1000);
+                this.connect();
+            }, 1000);
         };
 
         this._socket = socket;
@@ -80,6 +95,7 @@ export default class PondClient {
     public disconnect () {
         Object.values(this.#channels).forEach((channel) => channel.leave());
         this._connectionState.publish(false);
+        this._disconnecting = true;
         this._socket?.close();
         this.#channels = {};
     }
@@ -148,6 +164,8 @@ export default class PondClient {
         this._broadcaster.subscribe((message) => {
             if (message.event === Events.ACKNOWLEDGE) {
                 this.#handleAcknowledge(message);
+            } else if (message.event === Events.CONNECTION && message.action === ServerActions.CONNECT) {
+                this._connectionState.publish(true);
             }
         });
     }
