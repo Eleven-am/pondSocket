@@ -32,7 +32,7 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
 pond.listen(3000);
 
 // Or alternatively, working with express
-import pondSocket from "@eleven-am/pondsocket/express";
+import pondSocket from "@eleven-am/pondsocket-express";
 import express from "express";
 
 const app = pondSocket(express());
