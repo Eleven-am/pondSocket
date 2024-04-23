@@ -190,7 +190,7 @@ const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
         res.accept({ role }); // Assign the user's role to the socket
     } else {
         // Reject the connection for invalid users or without a token
-        res.reject('Invalid token', 401);
+        res.decline('Invalid token', 401);
     }
 });
 
@@ -217,16 +217,7 @@ const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res)
                 onlineSince: Date.now(),
             })
             // and send the user the channel history
-            .sendToUsers('history', { messages }, [req.user.id]);
-
-        // Alternatively, you can also send messages to the user, NOTE that the user would be automatically subscribed to the channel.
-        // res.send('history', { messages }, { username, profanityCount: 0 })
-        //   .trackPresence({
-        //       username,
-        //       role,
-        //       status: 'online',
-        //       onlineSince: Date.now(),
-        //   });
+            .reply('history', { messages });
     } else {
         // Reject the join request
         res.reject('You do not have the required role to join this channel', 403);
@@ -240,7 +231,7 @@ profanityChannel.onEvent('message', (req, res) => {
     // Check for profanity
     if (isTextProfane(text)) {
         // Reject the message if it contains profanity
-        res.reject('Profanity is not allowed', 400, {
+        res.decline('Profanity is not allowed', 400).assign({
             profanityCount:  req.user.assigns.profanityCount + 1
         });
 
@@ -252,7 +243,7 @@ profanityChannel.onEvent('message', (req, res) => {
             // you can broadcast a message to all users or In the channel that profanity is not allowed
             res.broadcast('profanity-warning', { message: 'Profanity is not allowed' })
                 // or you can send a message to the user that profanity is not allowed
-                .sendToUsers('profanity-warning', { message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.` }, [req.user.id]);
+                .reply('profanity-warning', { message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.` });
         }
     } else {
         // Accept the message to allow broadcasting to other clients in the channel
@@ -316,9 +307,9 @@ The `ConnectionResponse` class represents the response object for the incoming c
 
 - `accept(assigns?: PondAssigns): void`: Accepts the request and optionally assigns data to the client.
 
-- `reject(message?: string, errorCode?: number): void`: Rejects the request with the given error message and optional error code.
+- `decline(message?: string, errorCode?: number): void`: Rejects the request with the given error message and optional error code.
 
-- `send(event: string, payload: PondMessage, assigns?: PondAssigns): void`: Emits a direct message to the client with the specified event and payload.
+- `reply(event: string, payload: PondMessage, assigns?: PondAssigns): void`: Emits a direct message to the client with the specified event and payload.
 
 ### Endpoint
 
@@ -360,15 +351,15 @@ The `JoinResponse` class represents the response object for the join request.
 
 - `accept(assigns?: PondAssigns): JoinResponse`: Accepts the join request and optionally assigns data to the client.
 
-- `reject(message?: string, errorCode?: number): JoinResponse`: Rejects the join request with the given error message and optional error code.
+- `decline(message?: string, errorCode?: number): JoinResponse`: Rejects the join request with the given error message and optional error code.
 
-- `send(event: string, payload: PondMessage, assigns?: PondAssigns): JoinResponse`: Emits a direct message to the client with the specified event, payload, and optional assigns data.
+- `reply(event: string, payload: PondMessage, assigns?: PondAssigns): JoinResponse`: Emits a direct message to the client with the specified event, payload, and optional assigns data.
 
 - `broadcast(event: string, payload: PondMessage): JoinResponse`: Emits a message to all clients in the channel with the specified event and payload.
 
-- `broadcastFromUser(event: string, payload: PondMessage): JoinResponse`: Emits a message to all clients in the channel except the sender with the specified event and payload.
+- `broadcastFrom(event: string, payload: PondMessage): JoinResponse`: Emits a message to all clients in the channel except the sender with the specified event and payload.
 
-- `sendToUsers(event: string, payload: PondMessage, userIds: string[]): JoinResponse`: Emits a message to a specific set of clients identified by the provided userIds with the specified event and payload.
+- `broadcastTo(userIds: string | string[], event: string, payload: PondMessage): JoinResponse`: Emits a message to a specific set of clients identified by the provided userIds with the specified event and payload.
 
 - `trackPresence(presence: PondPresence): JoinResponse`: Tracks the presence of the client in the channel.
 
@@ -410,15 +401,15 @@ The `EventResponse` class represents the response object for handling events fro
 
 - `accept(assigns?: PondAssigns): EventResponse`: Accepts the request and optionally assigns data to the client.
 
-- `reject(message?: string, errorCode?: number, assigns?: PondAssigns): EventResponse`: Rejects the request with the given error message, optional error code, and optional assigns data.
+- `decline(message?: string, errorCode?: number, assigns?: PondAssigns): EventResponse`: Rejects the request with the given error message, optional error code, and optional assigns data.
 
-- `send(event: string, payload: PondMessage, assigns?: PondAssigns): void`: Emits a direct message to the client with the specified event, payload, and optional assigns data.
+- `reply(event: string, payload: PondMessage, assigns?: PondAssigns): void`: Emits a direct message to the client with the specified event, payload, and optional assigns data.
 
 - `broadcast(event: string, payload: PondMessage): EventResponse`: Sends a message to all clients in the channel with the specified event and payload.
 
-- `broadcastFromUser(event: string, payload: PondMessage): EventResponse`: Sends a message to all clients in the channel except the sender with the specified event and payload.
+- `broadcastFrom(event: string, payload: PondMessage): EventResponse`: Sends a message to all clients in the channel except the sender with the specified event and payload.
 
-- `sendToUsers(event: string, payload: PondMessage, userIds: string[]): EventResponse`: Sends a message to a specific set of clients identified by the provided userIds with the specified event and payload.
+- `broadcastFrom(userIds: string | string[], event: string, payload: PondMessage): EventResponse`: Sends a message to a specific set of clients identified by the provided userIds with the specified event and payload.
 
 - `trackPresence(presence: PondPresence, userId?: string): EventResponse`: Tracks a user's presence in the channel.
 
