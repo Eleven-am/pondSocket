@@ -300,14 +300,21 @@ import {
     GetEventParams,
     ChannelInstance,
 } from '@eleven-am/pondsocket-nest';
-import { JoinRequest, JoinResponse, PondChannel, Params } from "@eleven-am/pondsocket/types";
-import { MessageService } from './message.service';
+import {
+    JoinRequest,
+    JoinResponse,
+    PondChannel,
+    Params,
+    IncomingConnection,
+    ConnectionResponse
+} from "@eleven-am/pondsocket/types";
+import {MessageService} from './message.service';
 
 @Injectable()
 @Endpoint('/api/socket')
 export class SocketEndpoint {
     @OnConnection()
-    onConnection(@GetConnectionRequest() req, @GetConnectionResponse() res) {
+    onConnection(@GetConnectionRequest() req: IncomingConnection, @GetConnectionResponse() res: ConnectionResponse) {
         // Handle socket connection and authentication
         res.accept()
             .assign({role: 'user'});
@@ -320,7 +327,8 @@ export class ChannelHandler {
     @ChannelInstance()
     channel: PondChannel;
 
-    constructor(private readonly messageService: MessageService) {}
+    constructor(private readonly messageService: MessageService) {
+    }
 
     @OnJoin()
     // async onJoin(@GetJoinRequest() req: JoinRequest<'/channel/:id'>, @GetJoinResponse() res: JoinResponse) {
@@ -333,7 +341,7 @@ export class ChannelHandler {
         // if the object has a broadcast property (MUST BE STRING), the event will be broadcasted to the channel with the rest of the object as the payload
 
         const history = await this.messageService.getMessages(req.event.params.id);
-        
+
         if (!history) {
             // Any error thrown will be sent to the client as a decline
             throw new Error('Channel not found');
