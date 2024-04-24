@@ -38,6 +38,7 @@ interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
 type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
     event?: Event;
     broadcast?: Event;
+    broadcastFrom?: Event;
     assigns?: Partial<Assigns>;
     presence?: Presence;
     subscribeTo?: string[];

@@ -25,6 +25,7 @@ export function performResponse (
         presence,
         assigns,
         broadcast,
+        broadcastFrom,
         subscribeTo,
         unsubscribeFrom,
         ...rest
@@ -47,6 +48,10 @@ export function performResponse (
 
             if (broadcast && (isJoinResponse(response) || isEventResponse(response))) {
                 response.broadcast(broadcast, rest);
+            }
+
+            if (broadcastFrom && isEventResponse(response)) {
+                response.broadcastFrom(broadcastFrom, rest);
             }
         }
 
