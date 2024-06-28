@@ -1,14 +1,14 @@
-import {ChannelEvent, ClientActions, Events, ServerActions} from '@eleven-am/pondsocket-common';
+import { ChannelEvent, ClientActions, Events, ServerActions } from '@eleven-am/pondsocket-common';
 
 import PondClient from './client';
 
 class MockWebSocket {
-    // eslint-disable-next-line no-useless-constructor
-    constructor (readonly url: string) {}
-
     send: Function = jest.fn();
 
     close: Function = jest.fn();
+
+    // eslint-disable-next-line no-useless-constructor
+    constructor (readonly url: string) {}
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -39,10 +39,40 @@ describe('PondClient', () => {
         const mockWebSocket = pondClient['_socket'];
         const broadcasterSpy = jest.spyOn(pondClient['_broadcaster'], 'publish');
 
-        mockWebSocket.onmessage({ data: JSON.stringify({ event: 'exampleEvent' }) });
+        mockWebSocket.onmessage({
+            data: JSON.stringify({
+                action: ServerActions.SYSTEM,
+                channelName: 'exampleChannel',
+                requestId: '123',
+                payload: {},
+                event: 'exampleEvent',
+            }),
+        });
 
         expect(broadcasterSpy).toHaveBeenCalledTimes(1);
-        expect(broadcasterSpy).toHaveBeenCalledWith({ event: 'exampleEvent' });
+        expect(broadcasterSpy).toHaveBeenCalledWith({
+            action: ServerActions.SYSTEM,
+            channelName: 'exampleChannel',
+            requestId: '123',
+            payload: {},
+            event: 'exampleEvent',
+        });
+
+        broadcasterSpy.mockClear();
+
+        expect(() => {
+            mockWebSocket.onmessage({ data: 'invalid json' });
+        }).toThrow();
+
+        expect(broadcasterSpy).not.toHaveBeenCalled();
+
+        broadcasterSpy.mockClear();
+
+        expect(() => {
+            mockWebSocket.onmessage({ data: JSON.stringify({}) });
+        }).toThrow();
+
+        expect(broadcasterSpy).not.toHaveBeenCalled();
     });
 
     test('socket should only pass to publish state when acknowledged event is received', () => {
@@ -60,7 +90,7 @@ describe('PondClient', () => {
             channelName: 'exampleChannel',
             requestId: '123',
             payload: {},
-        }
+        };
 
         mockWebSocket.onmessage({ data: JSON.stringify(acknowledgeEvent) });
         expect(mockCallback).toHaveBeenCalledWith(true);
@@ -80,7 +110,7 @@ describe('PondClient', () => {
             channelName: 'exampleChannel',
             requestId: '123',
             payload: {},
-        }
+        };
 
         mockWebSocket.onmessage({ data: JSON.stringify(acknowledgeEvent) });
         expect(mockCallback).toHaveBeenCalledWith(true);
@@ -144,7 +174,7 @@ describe('PondClient', () => {
             channelName: 'exampleChannel',
             requestId: '123',
             payload: {},
-        }
+        };
 
         mockWebSocket.onmessage({ data: JSON.stringify(acknowledgeEvent) });
 

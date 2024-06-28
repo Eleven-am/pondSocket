@@ -5,16 +5,15 @@ import {
     Events,
     JoinParams,
     ServerActions,
-    Subject
+    Subject,
+    channelEventSchema,
 } from '@eleven-am/pondsocket-common';
 
-import {Channel} from '../core/channel';
-import {ClientMessage} from '../types';
+import { Channel } from '../core/channel';
+import { ClientMessage } from '../types';
 
 export default class PondClient {
     protected readonly _address: URL;
-
-    #channels: Record<string, Channel>;
 
     protected _disconnecting: boolean;
 
@@ -23,6 +22,8 @@ export default class PondClient {
     protected readonly _broadcaster: Subject<ChannelEvent>;
 
     protected readonly _connectionState: BehaviorSubject<boolean>;
+
+    #channels: Record<string, Channel>;
 
     constructor (endpoint: string, params: Record<string, any> = {}) {
         let address: URL;
@@ -61,9 +62,11 @@ export default class PondClient {
         const socket = new WebSocket(this._address.toString());
 
         socket.onmessage = (message) => {
-            const data = JSON.parse(message.data) as ChannelEvent;
+            const data = JSON.parse(message.data);
 
-            this._broadcaster.publish(data);
+            const event = channelEventSchema.parse(data);
+
+            this._broadcaster.publish(event);
         };
 
         socket.onerror = () => socket.close();
