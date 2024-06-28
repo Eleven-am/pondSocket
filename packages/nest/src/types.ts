@@ -65,9 +65,13 @@ export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
 export type PondResponse<Event extends string = string, Payload extends PondMessage = PondMessage, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> = {
     event?: Event;
     broadcast?: Event;
-    presence?: Presence;
     broadcastFrom?: Event;
     subscribeTo?: string[];
     unsubscribeFrom?: string[];
     assigns?: Partial<Assigns>;
+    presence?: Partial<Presence>;
+    broadcastTo?: {
+        event: Event;
+        users: string[];
+    };
 } & Payload;

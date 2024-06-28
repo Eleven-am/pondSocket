@@ -28,6 +28,7 @@ export function performResponse (
         broadcastFrom,
         subscribeTo,
         unsubscribeFrom,
+        broadcastTo,
         ...rest
     } = data;
 
@@ -46,12 +47,16 @@ export function performResponse (
                 response.reply(event, rest);
             }
 
-            if (broadcast && (isJoinResponse(response) || isEventResponse(response))) {
-                response.broadcast(broadcast, rest);
-            }
+            if (isJoinResponse(response) || isEventResponse(response)) {
+                if (broadcast || broadcastFrom) {
+                    const event = broadcastFrom || broadcast || '';
 
-            if (broadcastFrom && isEventResponse(response)) {
-                response.broadcastFrom(broadcastFrom, rest);
+                    response.broadcast(event, rest);
+                }
+
+                if (broadcastTo) {
+                    response.broadcastTo(broadcastTo.event, rest, broadcastTo.users);
+                }
             }
         }
 
