@@ -171,7 +171,7 @@ export declare class Channel<EventType extends PondEventMap = PondEventMap, Pres
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The message to send.
      */
-    broadcast<Key extends keyof EventType>(event: Key, payload: EventType[Key]): void;
+    broadcast<Key extends keyof EventType>(event: Key, payload: EventType[Key]): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc Broadcasts a message to every client in the channel except the sender,
@@ -179,7 +179,7 @@ export declare class Channel<EventType extends PondEventMap = PondEventMap, Pres
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The message to send.
      */
-    broadcastFrom<Key extends keyof EventType>(userId: string, event: Key, payload: EventType[Key]): void;
+    broadcastFrom<Key extends keyof EventType>(userId: string, event: Key, payload: EventType[Key]): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc Sends a message to a specific client in the channel.
@@ -187,55 +187,62 @@ export declare class Channel<EventType extends PondEventMap = PondEventMap, Pres
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The message to send.
      */
-    broadcastTo<Key extends keyof EventType>(clientIds: string | string[], event: Key, payload: EventType[Key]): void;
+    broadcastTo<Key extends keyof EventType>(clientIds: string | string[], event: Key, payload: EventType[Key]): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc Bans a user from the channel.
      * @param {string} userId - The id of the user to ban.
      * @param {string} reason - The reason for the ban.
      */
-    evictUser(userId: string, reason?: string): void;
+    evictUser(userId: string, reason?: string): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc tracks a user's presence in the channel
      * @param {string} userId - the id of the user to track
      * @param {PondPresence} presence - the presence data to track
      */
-    trackPresence(userId: string, presence: PresenceType): void;
+    trackPresence(userId: string, presence: PresenceType): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc removes a user's presence from the channel
      * @param {string} userId - the id of the user to remove
      */
-    removePresence(userId: string): void;
+    removePresence(userId: string): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc updates a user's presence in the channel
      * @param {string} userId - the id of the user to update
      * @param {PondPresence} presence - the presence data to update
      */
-    updatePresence(userId: string, presence: PresenceType): void;
+    updatePresence(userId: string, presence: Partial<PresenceType>): Channel<EventType, PresenceType, AssignType>;
+
+    /**
+     * @desc Updates a user's assigns in the channel
+     * @param userId - the id of the user to update
+     * @param assigns - the assigns data to update
+     */
+    updateAssigns(userId: string, assigns: Partial<AssignType>): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc Tracks or updates a user's presence in the channel
      * @param userId - the id of the user to upsert
      * @param presence - the presence data to upsert
      */
-    upsertPresence (userId: string, presence: PresenceType): void;
+    upsertPresence (userId: string, presence: PresenceType): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc Subscribes a user to a channel.
      * @param {string} userId - The id of the user.
      * @param {string} channel - The channel to subscribe to.
      */
-    subscribeTo(userId: string, channel: string): void;
+    subscribeTo(userId: string, channel: string): Channel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc Unsubscribes a user from a channel.
      * @param {string} userId - The id of the user.
      * @param {string} channel - The channel to unsubscribe from.
      */
-    unsubscribeFrom(userId: string, channel: string): void;
+    unsubscribeFrom(userId: string, channel: string): Channel<EventType, PresenceType, AssignType>;
 }
 
 export declare class AbstractRequest<Path extends string, PresenceType extends PondPresence, AssignType extends PondAssigns> {

@@ -385,40 +385,64 @@ export class Channel {
 
     public broadcast (event: string, payload: PondMessage) {
         this.#engine.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+
+        return this;
     }
 
     public broadcastFrom (userId: string, event: string, payload: PondMessage) {
         this.#engine.sendMessage(userId, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
+
+        return this;
     }
 
     public broadcastTo (userIds: string | string[], event: string, payload: PondMessage) {
         const users = Array.isArray(userIds) ? userIds : [userIds];
 
         this.#engine.sendMessage(SystemSender.CHANNEL, users, ServerActions.BROADCAST, event, payload);
+
+        return this;
     }
 
     public evictUser (userId: string, reason?: string) {
         this.#engine.kickUser(userId, reason ?? 'You have been banned from the channel');
+
+        return this;
     }
 
     public trackPresence (userId: string, presence: PondPresence) {
         this.#engine.presenceEngine.trackPresence(userId, presence);
+
+        return this;
     }
 
     public removePresence (userId: string) {
         this.#engine.presenceEngine.removePresence(userId);
+
+        return this;
     }
 
     public updatePresence (userId: string, presence: PondPresence) {
         this.#engine.presenceEngine.updatePresence(userId, presence);
+
+        return this;
+    }
+
+    public updateAssigns (userId: string, assigns: PondAssigns) {
+        this.#engine.updateAssigns(userId, assigns);
+
+        return this;
     }
 
     public subscribeTo (userId: string, channel: string) {
         this.#engine.subscribeTo(userId, channel);
+
+        return this;
     }
 
     public unsubscribeFrom (userId: string, channel: string) {
         this.#engine.unsubscribeFrom(userId, channel);
+
+        return this;
     }
 
     public upsertPresence (userId: string, presence: PondPresence) {
@@ -429,5 +453,7 @@ export class Channel {
         } else {
             this.#engine.presenceEngine.trackPresence(userId, presence);
         }
+
+        return this;
     }
 }
