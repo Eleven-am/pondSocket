@@ -52,6 +52,11 @@ export interface CanActivate {
     canActivate(context: Context): boolean | Promise<boolean>;
 }
 
+interface PubSubOptions {
+    redisUrl: string;
+    db: number;
+}
+
 export type GroupedInstances = {
     endpoint: DiscoveredClass;
     channels: DiscoveredClass[];
@@ -60,7 +65,14 @@ export type GroupedInstances = {
 export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
     isGlobal?: boolean;
+    options?: PubSubOptions;
 }
+
+export interface AsyncMetadata extends Metadata {
+    useFactory: (...args: any[]) => Promise<PubSubOptions> | PubSubOptions;
+    inject?: any[];
+}
+
 
 export type PondResponse<Event extends string = string, Payload extends PondMessage = PondMessage, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> = {
     event?: Event;

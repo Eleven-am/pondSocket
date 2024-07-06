@@ -1,11 +1,4 @@
-import {
-    ChannelReceiver,
-    PondMessage,
-    PondPath,
-    ServerActions,
-    SystemSender,
-    UserData,
-} from '@eleven-am/pondsocket-common';
+import { PondPath, UserData } from '@eleven-am/pondsocket-common';
 
 import { Middleware } from '../abstracts/middleware';
 import { Channel, ChannelEngine } from '../channel/channel';
@@ -86,50 +79,6 @@ export class LobbyEngine {
     }
 
     /**
-     * @desc Broadcasts a message to all users in a channel
-     * @param event - The event to broadcast
-     * @param payload - The payload to send
-     * @param channelName - The channel to broadcast to (if not specified, broadcast to all channels)
-     * @example
-     * pond.broadcast('echo', {
-     *    message: 'Hello World',
-     *    timestamp: Date.now(),
-     *    channel: 'my_channel',
-     *});
-     */
-    public broadcast (event: string, payload: PondMessage, channelName?: string) {
-        if (channelName) {
-            const channel = this.getChannel(channelName);
-
-            if (!channel) {
-                throw new Error(`GatewayEngine: Channel ${channelName} does not exist`);
-            }
-
-            channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
-        } else {
-            this.#channels.forEach((channel) => {
-                channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, event, payload);
-            });
-        }
-    }
-
-    /**
-     * @desc Executes a function on a channel
-     * @param channelName - The name of the channel to execute the function on
-     * @param handler - The function to execute
-     * @private
-     */
-    public execute<Return> (channelName: string, handler: ((channel: ChannelEngine) => Return)) {
-        const newChannel = this.getChannel(channelName);
-
-        if (newChannel) {
-            return handler(newChannel);
-        }
-
-        throw new Error(`GatewayEngine: Channel ${channelName} does not exist`);
-    }
-
-    /**
      * @desc Gets a channel by name
      * @param channelName - The name of the channel to get
      * @private
@@ -175,10 +124,6 @@ export class PondChannel {
 
     public onEvent<Event extends string> (event: PondPath<Event>, handler: (request: EventRequest<Event>, response: EventResponse) => void | Promise<void>) {
         this.#lobby.onEvent(event, handler);
-    }
-
-    public broadcast (event: string, payload: PondMessage, channelName?: string) {
-        this.#lobby.broadcast(event, payload, channelName);
     }
 
     public onLeave (callback: LeaveCallback) {

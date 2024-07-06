@@ -1,7 +1,7 @@
 import { createServer } from 'http';
 
 import PondSocket from '@eleven-am/pondsocket';
-import type { Endpoint } from '@eleven-am/pondsocket/types';
+import type { Endpoint, PondSocketOptions } from '@eleven-am/pondsocket/types';
 import { DiscoveryService } from '@golevelup/nestjs-discovery';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 // eslint-disable-next-line import/no-unresolved
@@ -29,17 +29,21 @@ export class PondSocketService {
         private readonly discovery: DiscoveryService,
         private readonly adapterHost: HttpAdapterHost,
         private readonly externalGuards: Constructor<CanActivate>[],
+        pubSubOptions: Omit<PondSocketOptions, 'server'>,
     ) {
         const httpAdapter = this.adapterHost.httpAdapter;
 
-        void this.init(httpAdapter);
+        void this.init(httpAdapter, pubSubOptions);
     }
 
-    private async init (httpAdapter: AbstractHttpAdapter) {
+    private async init (httpAdapter: AbstractHttpAdapter, options: Omit<PondSocketOptions, 'server'>) {
         const groupedInstances = await this.getGroupedInstances();
         const app = httpAdapter.getInstance();
         const server = createServer(app);
-        const socket = new PondSocket(server);
+        const socket = new PondSocket({
+            ...options,
+            server,
+        });
 
         groupedInstances.forEach((groupedInstance) => {
             this.manageEndpoint(socket, groupedInstance);

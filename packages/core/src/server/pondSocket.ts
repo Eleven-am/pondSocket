@@ -15,6 +15,7 @@ import { Middleware } from '../abstracts/middleware';
 import { Endpoint, EndpointEngine } from '../endpoint/endpoint';
 import { ConnectionResponse } from '../endpoint/response';
 import { parseAddress } from '../matcher/matcher';
+import { PubSubEngine } from '../pubSub/pubSubEngine';
 
 interface SocketRequest {
     id: string;
@@ -22,17 +23,36 @@ interface SocketRequest {
     address: string;
 }
 
+interface PondSocketOptions {
+    server?: HTTPServer;
+    socketServer?: WebSocketServer;
+    redisUrl?: string;
+    db?: number;
+}
+
 export class PondSocket {
     readonly #server: HTTPServer;
+
+    readonly #pubSubEngine: PubSubEngine;
 
     readonly #socketServer: WebSocketServer;
 
     readonly #middleware: Middleware<SocketRequest, WebSocket>;
 
-    constructor (server?: HTTPServer, socketServer?: WebSocketServer) {
+    constructor ({ server, socketServer, db, redisUrl }: PondSocketOptions = {}) {
         this.#server = server ?? new HTTPServer();
         this.#socketServer = socketServer ?? new WebSocketServer({ noServer: true });
         this.#middleware = new Middleware();
+
+        if (redisUrl && db) {
+            this.#pubSubEngine = new PubSubEngine({
+                redisUrl,
+                db,
+            });
+        } else {
+            this.#pubSubEngine = new PubSubEngine();
+        }
+
         this.#init();
     }
 
@@ -69,7 +89,8 @@ export class PondSocket {
      * })
      */
     public createEndpoint<Path extends string> (path: PondPath<Path>, handler: (request: IncomingConnection<Path>, response: ConnectionResponse) => void | Promise<void>) {
-        const endpoint = new EndpointEngine(this);
+        const client = this.#pubSubEngine.buildClient(path);
+        const endpoint = new EndpointEngine(this, client);
 
         this.#middleware.use((req, socket, next) => {
             const event = parseAddress(path, req.address);
@@ -125,11 +146,13 @@ export class PondSocket {
 
         this.#server.on('error', (error) => {
             clearInterval(timeout);
+            this.#pubSubEngine.close();
             throw new Error(error.message);
         });
 
         this.#server.on('close', () => {
             clearInterval(timeout);
+            this.#pubSubEngine.close();
         });
 
         this.#server.on('upgrade', (req, socket, head) => {

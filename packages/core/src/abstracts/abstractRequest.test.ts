@@ -4,13 +4,13 @@ import { createChannelEngine } from '../channel/eventResponse.test';
 const createMockChannelEngine = () => createChannelEngine().channelEngine;
 
 describe('AbstractRequest', () => {
-    it('should be able to be instantiated', () => {
+    it('should be able to be instantiated', async () => {
         const request = new AbstractRequest('/test', createMockChannelEngine(), {});
 
         expect(request).toBeTruthy();
         expect(request.channelName).toBe('test');
         expect(request.assigns).toEqual({});
-        expect(request.presence).toEqual({});
+        expect(await request.getPresence()).toEqual({});
     });
 
     it('should be able to parse queries', () => {

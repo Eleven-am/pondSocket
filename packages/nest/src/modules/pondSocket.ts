@@ -6,7 +6,7 @@ import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
 import { getLocalGuards } from '../managers/guards';
 import { PondSocketService } from '../services/pondSocket';
-import { Metadata } from '../types';
+import { Metadata, AsyncMetadata } from '../types';
 
 export class PondSocketModule {
     static forRoot ({
@@ -15,6 +15,7 @@ export class PondSocketModule {
         imports = [],
         exports = [],
         isGlobal = false,
+        options,
     }: Metadata): DynamicModule {
         const localGuards = getLocalGuards();
         const pondSocketProvider: Provider = {
@@ -24,6 +25,7 @@ export class PondSocketModule {
                 discovery,
                 adapterHost,
                 guards,
+                options ?? {},
             ),
             inject: [ModuleRef, HttpAdapterHost, DiscoveryService],
         };
@@ -37,6 +39,47 @@ export class PondSocketModule {
             module: PondSocketModule,
             providers: [
                 pondSocketProvider,
+                ...providers,
+                ...guards,
+            ],
+        };
+    }
+
+    static forRootAsync ({
+        guards = [],
+        providers = [],
+        imports = [],
+        exports = [],
+        isGlobal = false,
+        useFactory,
+        inject,
+    }: AsyncMetadata): DynamicModule {
+        const provider: Provider = {
+            provide: PondSocketService,
+            useFactory: async (moduleRef: ModuleRef, adapterHost: HttpAdapterHost, discovery: DiscoveryService, ...args: unknown[]) => {
+                const options = await useFactory(...args);
+                const localGuards = getLocalGuards();
+
+                guards = [...new Set([...localGuards, ...guards])];
+
+                return new PondSocketService(
+                    moduleRef,
+                    discovery,
+                    adapterHost,
+                    guards,
+                    options,
+                );
+            },
+            inject: [ModuleRef, HttpAdapterHost, DiscoveryService, ...(inject || [])],
+        };
+
+        return {
+            exports,
+            global: isGlobal,
+            imports: [...imports, DiscoveryModule],
+            module: PondSocketModule,
+            providers: [
+                provider,
                 ...providers,
                 ...guards,
             ],

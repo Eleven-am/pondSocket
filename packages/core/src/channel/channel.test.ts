@@ -15,6 +15,7 @@ import { RequestCache } from '../endpoint/endpoint';
 import { createEndpointEngine } from '../endpoint/endpoint.test';
 import { LobbyEngine } from '../lobby/lobby';
 
+
 export const createParentEngine = () => {
     const socket: RequestCache = {
         clientId: 'test2',
@@ -96,7 +97,7 @@ describe('ChannelEngine', () => {
 
     it('should update a users assigns', () => {
         const onMessage = jest.fn();
-        const { parentEngine, socket } = createParentEngine();
+        const { parentEngine } = createParentEngine();
         const channelEngine = new ChannelEngine('test', parentEngine);
 
         channelEngine.addUser('test', { test: 1 }, onMessage);
@@ -353,10 +354,6 @@ describe('ChannelEngine', () => {
     it('should broadcast a message to all users', () => {
         const onMessage = jest.fn();
         const { parentEngine } = createParentEngine();
-
-        parentEngine.middleware.run = (_, res) => {
-            // res.accept();
-        };
         const channelEngine = new ChannelEngine('test', parentEngine);
 
         channelEngine.addUser('test', { test: 1 }, onMessage);
@@ -393,10 +390,6 @@ describe('ChannelEngine', () => {
     it('should broadcast a message to all users except sender', () => {
         const onMessage = jest.fn();
         const { parentEngine } = createParentEngine();
-
-        parentEngine.middleware.run = (_, res) => {
-            // res.accept();
-        };
         const channelEngine = new ChannelEngine('test', parentEngine);
 
         channelEngine.addUser('test', { test: 1 }, onMessage);
@@ -432,10 +425,6 @@ describe('ChannelEngine', () => {
     it('should broadcast a message to  specific users', () => {
         const onMessage = jest.fn();
         const { parentEngine } = createParentEngine();
-
-        parentEngine.middleware.run = (_, res) => {
-            // res.accept();
-        };
         const channelEngine = new ChannelEngine('test', parentEngine);
 
         channelEngine.addUser('test', { test: 1 }, onMessage);

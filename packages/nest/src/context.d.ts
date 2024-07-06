@@ -29,10 +29,21 @@ interface CanActivate {
     canActivate(context: Context): boolean | Promise<boolean>;
 }
 
+interface PubSubOptions {
+    redisUrl: string;
+    db: number;
+}
+
 interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
     appModuleName?: string;
     isGlobal?: boolean;
+    options?: PubSubOptions;
+}
+
+interface AsyncMetadata extends Metadata {
+    useFactory: (...args: unknown[]) => Promise<PubSubOptions> | PubSubOptions;
+    inject: any[];
 }
 
 type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
@@ -302,5 +313,7 @@ declare function createParamDecorator<Input, ParamType> (callback: ParamDecorato
 
 declare class PondSocketModule {
     static forRoot({ guards, providers, imports, exports, isGlobal, appModuleName }: Metadata): DynamicModule;
+
+    static forRootAsync({ guards, providers, imports, exports, isGlobal, useFactory, inject }: AsyncMetadata): DynamicModule;
 }
 

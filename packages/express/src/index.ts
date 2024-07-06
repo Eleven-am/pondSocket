@@ -5,6 +5,11 @@ import type { ConnectionResponse, Endpoint, PondPath, IncomingConnection } from 
 // eslint-disable-next-line import/no-unresolved
 import { Express } from 'express';
 
+interface Options {
+    redisUrl?: string;
+    db?: number;
+}
+
 // eslint-disable-next-line import/no-unresolved
 
 declare global {
@@ -40,11 +45,17 @@ interface PondSocketExpressApp extends Express {
 /**
  * @desc Creates a pond socket server
  * @param app - The Express app to be used by the server
+ * @param redisUrl - The redis url to be used by the server
+ * @param db - The db number to be used by the server
  * @constructor
  */
-const pondSocket = (app: Express): PondSocketExpressApp => {
+const pondSocket = (app: Express, { redisUrl, db }: Options = {}): PondSocketExpressApp => {
     const server = createServer(app);
-    const pondSocket = new PondSocket(server);
+    const pondSocket = new PondSocket({
+        server,
+        redisUrl,
+        db,
+    });
 
     app.upgrade = (path, handler) => pondSocket.createEndpoint(path, handler);
     app.listen = (...args: any[]) => pondSocket.listen(...args);

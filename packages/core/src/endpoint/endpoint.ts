@@ -3,10 +3,10 @@ import {
     ClientActions,
     ClientMessage,
     clientMessageSchema,
-    ErrorTypes, Events,
+    ErrorTypes,
+    Events,
     JoinParams,
     PondAssigns,
-    PondMessage,
     PondPath,
     ServerActions,
     SystemSender,
@@ -23,6 +23,7 @@ import { JoinRequest } from '../lobby/joinRequest';
 import { JoinResponse } from '../lobby/joinResponse';
 import { LobbyEngine, PondChannel } from '../lobby/lobby';
 import { parseAddress } from '../matcher/matcher';
+import { PubSubClient } from '../pubSub/pubSubEngine';
 import { PondSocket } from '../server/pondSocket';
 
 type AuthorizationHandler<Event extends string> = (request: JoinRequest<Event>, response: JoinResponse) => void | Promise<void>;
@@ -42,17 +43,23 @@ export interface RequestCache extends SocketCache {
 export class EndpointEngine {
     readonly #middleware: Middleware<RequestCache, JoinParams>;
 
-    readonly #channels: Map<PondPath<string>, LobbyEngine>;
+    readonly #lobbyEngines: Map<PondPath<string>, LobbyEngine>;
+
+    readonly #channels: Map<string, ChannelEngine>;
 
     readonly #sockets: Map<string, SocketCache>;
 
     readonly #parentEngine: PondSocket;
 
-    constructor (parent: PondSocket) {
+    readonly #client: PubSubClient;
+
+    constructor (parent: PondSocket, client: PubSubClient) {
         this.#sockets = new Map();
         this.#middleware = new Middleware();
-        this.#channels = new Map();
+        this.#lobbyEngines = new Map();
         this.#parentEngine = parent;
+        this.#channels = new Map();
+        this.#client = client;
     }
 
     get parent () {
@@ -70,7 +77,7 @@ export class EndpointEngine {
      *         response.accept();
      *
      *     else
-     *         response.reject('You are not an admin', 403);
+     *         response.decline('You are not an admin', 403);
      * });
      */
     public createChannel<Path extends string> (path: PondPath<Path>, handler: AuthorizationHandler<Path>) {
@@ -80,19 +87,20 @@ export class EndpointEngine {
             const event = parseAddress(path, user.channelName);
 
             if (event) {
-                const newChannel = pondChannel.getChannel(user.channelName) || pondChannel.createChannel(user.channelName);
-                const request = new JoinRequest(user, joinParams, newChannel);
-                const response = new JoinResponse(user, newChannel);
+                const channel = pondChannel.getChannel(user.channelName) || pondChannel.createChannel(user.channelName);
+                const request = new JoinRequest(user, joinParams, channel);
+                const response = new JoinResponse(user, channel);
 
-                if (request._parseQueries(path)) {
-                    return handler(request as JoinRequest<Path>, response);
-                }
+                request._parseQueries(path);
+                this.#channels.set(user.channelName, channel);
+
+                return handler(request as JoinRequest<Path>, response);
             }
 
             next();
         });
 
-        this.#channels.set(path, pondChannel);
+        this.#lobbyEngines.set(path, pondChannel);
 
         return new PondChannel(pondChannel);
     }
@@ -102,25 +110,6 @@ export class EndpointEngine {
      */
     public getClients () {
         return [...this.#sockets.values()];
-    }
-
-    /**
-     * @desc Broadcasts a message to all clients connected to this endpoint
-     * @param event - The event to broadcast
-     * @param payload - The payload to broadcast
-     */
-    public broadcast (event: string, payload: PondMessage) {
-        this.#sockets.forEach(({ socket }) => {
-            const message: ChannelEvent = {
-                event,
-                payload,
-                requestId: uuid(),
-                action: ServerActions.BROADCAST,
-                channelName: SystemSender.ENDPOINT,
-            };
-
-            this.sendMessage(socket, message);
-        });
     }
 
     /**
@@ -229,6 +218,13 @@ export class EndpointEngine {
     }
 
     /**
+     * @desc Gets the PubSubClient for this endpoint
+     */
+    getPubSubClient () {
+        return this.#client;
+    }
+
+    /**
      * @desc Adds a new client to a channel on this endpoint
      * @param channel - The channel to add the client to
      * @param socket - The client to add to the channel
@@ -250,18 +246,18 @@ export class EndpointEngine {
 
     /**
      * @desc Executes a function on a channel
-     * @param channel - The channel to execute the function on
-     * @param handler - The function to execute
      * @private
+     * @param cache
+     * @param message
      */
-    #execute (channel: string, handler: ((manager: ChannelEngine) => void)) {
-        for (const [path, manager] of this.#channels) {
-            const event = parseAddress(path, channel);
+    #broadcastMessage (cache: SocketCache, message: ClientMessage) {
+        const engine = this.#channels.get(message.channelName);
 
-            if (event) {
-                return manager.execute(channel, handler);
-            }
+        if (!engine) {
+            throw new EndpointError(`GatewayEngine: Channel ${message.channelName} does not exist`, 404);
         }
+
+        engine.broadcastMessage(cache.clientId, message);
     }
 
     /**
@@ -272,7 +268,7 @@ export class EndpointEngine {
     #retrieveChannel (channel: string) {
         let channelEngine: ChannelEngine | undefined;
 
-        for (const [path, manager] of this.#channels) {
+        for (const [path, manager] of this.#lobbyEngines) {
             const event = parseAddress(path, channel);
 
             if (event) {
@@ -304,9 +300,7 @@ export class EndpointEngine {
                 break;
 
             case ClientActions.BROADCAST:
-                this.#execute(message.channelName, (channel) => {
-                    channel.broadcastMessage(cache.clientId, message);
-                });
+                this.#broadcastMessage(cache, message);
                 break;
 
             default:
@@ -425,10 +419,6 @@ export class Endpoint {
 
     public createChannel<Path extends string> (path: PondPath<Path>, handler: AuthorizationHandler<Path>) {
         return this.#engine.createChannel(path, handler);
-    }
-
-    public broadcast (event: string, payload: PondMessage) {
-        this.#engine.broadcast(event, payload);
     }
 
     public closeConnection (clientIds: string | string[]) {

@@ -52,3 +52,9 @@ export enum Events {
     ACKNOWLEDGE = 'ACKNOWLEDGE',
     CONNECTION = 'CONNECTION',
 }
+
+export enum PubSubEvents {
+    MESSAGE = 'MESSAGE',
+    PRESENCE = 'PRESENCE',
+    GET_PRESENCE = 'GET_PRESENCE',
+}

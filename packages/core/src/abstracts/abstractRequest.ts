@@ -1,4 +1,11 @@
-import { EventParams, PondEvent, PondMessage, PondPath, UserAssigns, UserPresences } from '@eleven-am/pondsocket-common';
+import {
+    EventParams,
+    PondEvent,
+    PondMessage,
+    PondPath,
+    UserAssigns,
+    UserPresences,
+} from '@eleven-am/pondsocket-common';
 
 import { ChannelEngine } from '../channel/channel';
 import { parseAddress } from '../matcher/matcher';
@@ -40,8 +47,14 @@ export class AbstractRequest<Path extends string> {
         return this._engine.getAssigns();
     }
 
-    public get presence (): UserPresences {
-        return this._engine.presenceEngine.getPresence();
+    public async getPresence (): Promise<UserPresences> {
+        const external = await this._engine.getPubSubPresence();
+        const internal = this._engine.presenceEngine.getPresence();
+
+        return {
+            ...internal,
+            ...external,
+        };
     }
 
     /**

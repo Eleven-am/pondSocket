@@ -22,6 +22,8 @@ import { EventResponse } from './eventResponse';
 import { ChannelError } from '../errors/pondError';
 import { LobbyEngine } from '../lobby/lobby';
 import { PresenceEngine } from '../presence/presence';
+import { PubSubClient } from '../pubSub/pubSubEngine';
+
 
 type ChannelSenders = SystemSender.CHANNEL | string;
 
@@ -40,6 +42,8 @@ export class ChannelEngine {
 
     readonly #receiver: Subject<InternalChannelEvent>;
 
+    readonly #pubSubCLient: PubSubClient;
+
     #presenceEngine: PresenceEngine | undefined;
 
     readonly #users: Map<string, PondAssigns>;
@@ -48,9 +52,12 @@ export class ChannelEngine {
 
     constructor (name: string, parent: LobbyEngine) {
         this.name = name;
-        this.#receiver = new Subject<InternalChannelEvent>();
-        this.#users = new Map<string, PondAssigns>();
         this.#parentEngine = parent;
+        this.#users = new Map<string, PondAssigns>();
+        this.#receiver = new Subject<InternalChannelEvent>();
+        this.#pubSubCLient = parent.parent.getPubSubClient();
+
+        this.#initPubSub();
     }
 
     /**
@@ -195,16 +202,21 @@ export class ChannelEngine {
             throw new ChannelError(`ChannelEngine: User with id ${sender} does not exist in channel ${this.name}`, 404, this.name);
         }
 
-        const eventMessage = {
-            recipients: this.#getUsersFromRecipients(recipient, sender),
+        const channelEvent = {
             channelName: this.name,
             requestId,
             action,
-            payload,
             event,
-        } as InternalChannelEvent;
+            payload,
+        } as ChannelEvent;
 
-        this.#receiver.publish(eventMessage);
+        this.#pubSubCLient.publish(recipient, channelEvent);
+        const recipients = this.#getUsersFromRecipients(recipient, sender);
+
+        this.#receiver.publish({
+            ...channelEvent,
+            recipients,
+        });
     }
 
     /**
@@ -253,6 +265,15 @@ export class ChannelEngine {
      */
     public unsubscribeFrom (userId: string, channel: string) {
         this.#parentEngine.parent.unsubscribeFrom(userId, channel);
+    }
+
+    /**
+     * @desc Gets the presence from the pubSub client
+     */
+    async getPubSubPresence () {
+        const presence = await this.#pubSubCLient.getPresence(this.name);
+
+        return presence.reduce((acc, value) => Object.assign(acc, value), {});
     }
 
     /**
@@ -358,6 +379,24 @@ export class ChannelEngine {
         unsubscribe();
         cachedUser.subscriptions.delete(this.name);
     }
+
+    /**
+     * @desc Initialises the pubSub client for the channel
+     * @private
+     */
+    #initPubSub () {
+        this.#pubSubCLient.subscribeToPresence(this.name, () => {
+            if (this.#presenceEngine) {
+                return this.#presenceEngine.getPresence();
+            }
+
+            return {};
+        });
+
+        this.#pubSubCLient.subscribe(this.name, (recipients, data) => {
+            this.sendMessage(SystemSender.CHANNEL, recipients, data.action, data.event, data.payload, data.requestId);
+        });
+    }
 }
 
 export class Channel {
@@ -375,8 +414,14 @@ export class Channel {
         return this.#engine.getAssigns();
     }
 
-    public getPresences () {
-        return this.#engine.presenceEngine.getPresence();
+    public async getPresences () {
+        const external = await this.#engine.getPubSubPresence();
+        const internal = this.#engine.presenceEngine.getPresence();
+
+        return {
+            ...internal,
+            ...external,
+        };
     }
 
     public getUserData (userId: string) {

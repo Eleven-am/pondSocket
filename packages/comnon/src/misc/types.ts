@@ -1,6 +1,6 @@
 import { IncomingHttpHeaders } from 'http';
 
-import { ChannelReceiver, PresenceEventTypes, ServerActions } from '../enums';
+import { ChannelReceiver, PresenceEventTypes, ServerActions, PubSubEvents } from '../enums';
 
 export type Unsubscribe = () => void;
 
@@ -60,6 +60,32 @@ export type IncomingConnection<Path> = EventParams<Path> & {
     headers: IncomingHttpHeaders;
     address: string;
 }
+
+interface PubSubGetPresenceCommand {
+    endpoint: PondPath<string>;
+    event: PubSubEvents.GET_PRESENCE;
+    pubSubId: string;
+    channel: string;
+}
+
+interface PubSubPresenceEvent {
+    channel: string;
+    pubSubId: string;
+    presence: UserPresences;
+    event: PubSubEvents.PRESENCE;
+    endpoint: PondPath<string>;
+}
+
+interface PubSubMessageEvent {
+    pubSubId: string;
+    channel: string;
+    message: ChannelEvent;
+    recipient: ChannelReceivers;
+    event: PubSubEvents.MESSAGE;
+    endpoint: PondPath<string>;
+}
+
+export type PubSubEvent = PubSubGetPresenceCommand | PubSubPresenceEvent | PubSubMessageEvent;
 
 export type PondEventMap = Record<string, [PondMessage, PondMessage] | PondMessage>;
 

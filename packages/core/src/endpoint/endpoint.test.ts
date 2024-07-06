@@ -14,6 +14,7 @@ import request from 'superwstest';
 import { EndpointEngine, SocketCache } from './endpoint';
 import { PondSocket } from '../server/pondSocket';
 
+
 /* eslint-disable line-comment-position, no-inline-comments */
 
 export const createEndpointEngine = (socket: SocketCache) => ({
@@ -27,6 +28,12 @@ export const createEndpointEngine = (socket: SocketCache) => ({
     subscribeTo: jest.fn(),
     unsubscribeFrom: jest.fn(),
     sendMessage: (socket: WebSocket, msg: ChannelEvent) => socket.send(JSON.stringify(msg)),
+    getPubSubClient: () => ({
+        publish: jest.fn(),
+        subscribeToPresence: jest.fn(),
+        subscribe: jest.fn(),
+        getPresence: () => new Promise((resolve) => setTimeout(() => resolve([]), 100)),
+    }),
 } as any as EndpointEngine);
 
 describe('endpoint', () => {
@@ -114,36 +121,6 @@ describe('endpoint', () => {
             .expectClosed();
 
         expect(count).toBe(1);
-    });
-
-    it('should be able to send a message to all connection', async () => {
-        const endpoint = socket.createEndpoint('/api/:room', (req, res) => {
-            if (req.params.room === 'socket') {
-                res.accept();
-
-                const connections = endpoint.getClients();
-
-                expect(connections).toHaveLength(1);
-
-                endpoint.broadcast('TEST', { test: 'test' });
-            } else {
-                res.decline();
-            }
-        });
-
-        await request(server)
-            .ws('/api/socket')
-            .expectUpgrade((res) => expect(res.statusCode).toBe(101))
-            .expectMessage(
-                expect.objectContaining({
-                    event: 'TEST',
-                    action: ServerActions.BROADCAST,
-                    channelName: SystemSender.ENDPOINT,
-                    payload: {
-                        test: 'test',
-                    },
-                }),
-            );
     });
 
     it('should be able to accept connections on this handler', async () => {
@@ -316,7 +293,11 @@ describe('endpoint', () => {
         });
 
         channel.onEvent('broadcast', (req) => {
-            channel.broadcast('broadcast', {
+            const internal = channel.getChannel('/test/socket');
+
+            expect(internal).toBeDefined();
+
+            internal!.broadcast('broadcast', {
                 ...req.event.payload,
                 broadcast: true,
             });
