@@ -44,7 +44,7 @@ export class PondSocket {
         this.#socketServer = socketServer ?? new WebSocketServer({ noServer: true });
         this.#middleware = new Middleware();
 
-        if (redisUrl && db) {
+        if (redisUrl && db !== undefined) {
             this.#pubSubEngine = new PubSubEngine({
                 redisUrl,
                 db,
