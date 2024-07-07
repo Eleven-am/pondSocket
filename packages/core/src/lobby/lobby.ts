@@ -1,4 +1,11 @@
-import { PondPath, UserData } from '@eleven-am/pondsocket-common';
+import {
+    PondPath,
+    UserData,
+    PondMessage,
+    ChannelReceiver,
+    SystemSender,
+    ServerActions,
+} from '@eleven-am/pondsocket-common';
 
 import { Middleware } from '../abstracts/middleware';
 import { Channel, ChannelEngine } from '../channel/channel';
@@ -107,11 +114,61 @@ export class LobbyEngine {
      * @private
      */
     public createChannel (channelName: string): ChannelEngine {
-        const newChannel: ChannelEngine = new ChannelEngine(channelName, this);
+        const newChannel = new ChannelEngine(channelName, this);
 
         this.#channels.add(newChannel);
 
         return newChannel;
+    }
+
+    /**
+     * @desc Sends a message to all clients in the channel
+     * @param channelName - the name of the channel to send the message to
+     * @param event - the event to send
+     * @param payload - the payload to send
+     */
+    public broadcast (channelName: string, event: string, payload: PondMessage) {
+        this.#performAction(channelName, (channel) => {
+            channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+        });
+    }
+
+    /**
+     * @desc Sends a message to all clients in the channel except the client making the request
+     * @param channelName - the name of the channel to send the message to
+     * @param event - the event to send
+     * @param payload - the payload to send
+     */
+    public broadcastFrom (channelName: string, event: string, payload: PondMessage) {
+        this.#performAction(channelName, (channel) => {
+            channel.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_EXCEPT_SENDER, ServerActions.BROADCAST, event, payload);
+        });
+    }
+
+    /**
+     * @desc Sends a message to a set of clients in the channel
+     * @param channelName - the name of the channel to send the message to
+     * @param event - the event to send
+     * @param payload - the payload to send
+     * @param userIds - the ids of the clients to send the message to
+     */
+    public broadcastTo (channelName: string, event: string, payload: PondMessage, userIds: string | string[]) {
+        const ids = Array.isArray(userIds) ? userIds : [userIds];
+
+        this.#performAction(channelName, (channel) => {
+            channel.sendMessage(SystemSender.CHANNEL, ids, ServerActions.BROADCAST, event, payload);
+        });
+    }
+
+    #performAction (channelName: string, handler: (channel: ChannelEngine) => void) {
+        const channel = this.getChannel(channelName) || this.createChannel(channelName);
+        const assigns = channel.getAssigns();
+
+        handler(channel);
+
+        if (Object.keys(assigns).length === 0) {
+            this.destroyChannel(channelName);
+        }
     }
 }
 
@@ -138,5 +195,17 @@ export class PondChannel {
         }
 
         return null;
+    }
+
+    public broadcast (channelName: string, event: string, payload: PondMessage) {
+        this.#lobby.broadcast(channelName, event, payload);
+    }
+
+    public broadcastFrom (channelName: string, event: string, payload: PondMessage) {
+        this.#lobby.broadcastFrom(channelName, event, payload);
+    }
+
+    public broadcastTo (channelName: string, event: string, payload: PondMessage, userIds: string | string[]) {
+        this.#lobby.broadcastTo(channelName, event, payload, userIds);
     }
 }

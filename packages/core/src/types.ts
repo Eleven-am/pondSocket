@@ -149,6 +149,31 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
      * const channel = pond.getChannel('my_channel')!;
      */
     getChannel(channelName: string): Channel<EventType, PresenceType, AssignType> | null;
+
+    /**
+     * Broadcasts a message to all clients in the channel
+     * @param channelName - The name of the channel to broadcast to
+     * @param event - The event to send
+     * @param payload - The payload to send
+     */
+    broadcast (channelName: string, event: string, payload: PondMessage): void;
+
+    /**
+     * Broadcasts a message to all clients in the channel except the sender
+     * @param channelName - The name of the channel to broadcast to
+     * @param event - The event to send
+     * @param payload - The payload to send
+     */
+    broadcastFrom (channelName: string, event: string, payload: PondMessage): void;
+
+    /**
+     * Broadcasts a message to a specific set of clients
+     * @param channelName - The name of the channel to broadcast to
+     * @param event - The event to send
+     * @param payload - The payload to send
+     * @param userIds - The ids of the clients to send the message to
+     */
+    broadcastTo (channelName: string, event: string, payload: PondMessage, userIds: string | string[]): void;
 }
 
 export declare class Channel<EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
