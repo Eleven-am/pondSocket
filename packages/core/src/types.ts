@@ -54,7 +54,7 @@ export declare class PondSocket {
      * const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
      *    const token = req.query.token;
      *    if (!token)
-     *       return res.reject('No token provided');
+     *       return res.decline('No token provided');
      *    res.accept({
      *       assign: {
      *           token
@@ -78,7 +78,7 @@ export declare class Endpoint {
      *         response.accept();
      *
      *     else
-     *         response.reject('You are not an admin', 403);
+     *         response.decline('You are not an admin', 403);
      * });
      */
     createChannel<Path extends string, EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns>(path: PondPath<Path>, handler: RequestHandler<JoinRequest<Path, PresenceType, AssignType>, JoinResponse<EventType, PresenceType, AssignType>>): PondChannel<EventType, PresenceType, AssignType>;
@@ -118,20 +118,6 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
     onEvent<Event extends string>(event: PondPath<Event>, handler: RequestHandler<EventRequest<Event, PresenceType, AssignType>, EventResponse<EventType, PresenceType, AssignType>>): void;
 
     /**
-     * @desc Broadcasts a message to all users in a channel
-     * @param event - The event to broadcast
-     * @param payload - The payload to send
-     * @param channelName - The channel to broadcast to (if not specified, broadcast to all channels)
-     * @example
-     * pond.broadcast('echo', {
-     *    message: 'Hello World',
-     *    timestamp: Date.now(),
-     *    channel: 'my_channel',
-     *});
-     */
-    broadcast<Key extends keyof EventType>(event: Key, payload: EventType[Key], channelName?: string): void;
-
-    /**
      * @desc Handles the leave event for a user, can occur when a user disconnects or leaves a channel, use this to clean up any resources
      * @param {LeaveCallback} callback - The callback to execute when a user leaves
      * @example
@@ -147,6 +133,11 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
      * @returns {Channel} - The channel instance
      * @example
      * const channel = pond.getChannel('my_channel')!;
+     *
+     * if (channel === null) {
+     *    console.log('Channel not found');
+     *    return;
+     * }
      */
     getChannel(channelName: string): Channel<EventType, PresenceType, AssignType> | null;
 
@@ -155,16 +146,26 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
      * @param channelName - The name of the channel to broadcast to
      * @param event - The event to send
      * @param payload - The payload to send
+     * @example
+     *
+     * pond.broadcast('my_channel', 'message', {
+     *     text: 'Hello, world!'
+     * });
      */
-    broadcast (channelName: string, event: string, payload: PondMessage): void;
+    broadcast <Key extends keyof EventType>(channelName: string, event: Key, payload: EventType[Key]): void;
 
     /**
      * Broadcasts a message to all clients in the channel except the sender
      * @param channelName - The name of the channel to broadcast to
      * @param event - The event to send
      * @param payload - The payload to send
+     * @example
+     *
+     * pond.broadcastFrom('my_channel', 'message', {
+     *     text: 'Hello, everyone but me!'
+     * });
      */
-    broadcastFrom (channelName: string, event: string, payload: PondMessage): void;
+    broadcastFrom <Key extends keyof EventType> (channelName: string, event: Key, payload: EventType[Key]): void
 
     /**
      * Broadcasts a message to a specific set of clients
@@ -172,8 +173,13 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
      * @param event - The event to send
      * @param payload - The payload to send
      * @param userIds - The ids of the clients to send the message to
+     * @example
+     *
+     * pond.broadcastTo('my_channel', 'message', {
+     *    text: 'Hello, specific people!'
+     * }, ['user1', 'user2']);
      */
-    broadcastTo (channelName: string, event: string, payload: PondMessage, userIds: string | string[]): void;
+    broadcastTo <Key extends keyof EventType> (channelName: string, event: Key, payload: EventType[Key], userIds: string | string[]): void;
 }
 
 export declare class Channel<EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {

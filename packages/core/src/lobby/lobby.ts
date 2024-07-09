@@ -12,6 +12,8 @@ import { Channel, ChannelEngine } from '../channel/channel';
 import { EventRequest } from '../channel/eventRequest';
 import { EventResponse } from '../channel/eventResponse';
 import { EndpointEngine } from '../endpoint/endpoint';
+import { EndpointError } from '../errors/pondError';
+import { parseAddress } from '../matcher/matcher';
 
 export interface LeaveEvent {
     user: UserData;
@@ -29,10 +31,13 @@ export class LobbyEngine {
 
     readonly #parentEngine: EndpointEngine;
 
-    constructor (endpointEngine: EndpointEngine) {
+    readonly #path: PondPath<string>;
+
+    constructor (endpointEngine: EndpointEngine, path: PondPath<string>) {
         this.#parentEngine = endpointEngine;
         this.#channels = new Set<ChannelEngine>();
         this.#middleware = new Middleware();
+        this.#path = path;
     }
 
     /**
@@ -161,6 +166,12 @@ export class LobbyEngine {
     }
 
     #performAction (channelName: string, handler: (channel: ChannelEngine) => void) {
+        const matches = parseAddress(this.#path, channelName);
+
+        if (matches === null) {
+            throw new EndpointError('Invalid channel name', 402);
+        }
+
         const channel = this.getChannel(channelName) || this.createChannel(channelName);
         const assigns = channel.getAssigns();
 

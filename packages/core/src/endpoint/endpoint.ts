@@ -81,7 +81,7 @@ export class EndpointEngine {
      * });
      */
     public createChannel<Path extends string> (path: PondPath<Path>, handler: AuthorizationHandler<Path>) {
-        const pondChannel = new LobbyEngine(this);
+        const pondChannel = new LobbyEngine(this, path);
 
         this.#middleware.use((user, joinParams, next) => {
             const event = parseAddress(path, user.channelName);
