@@ -217,6 +217,6 @@ export class PubSubEngine {
             recipient: recipients,
         };
 
-        this.#pubSub?.publish('app:messages', JSON.stringify(message));
+        this.#redis?.publish('app:messages', JSON.stringify(message));
     }
 }
