@@ -129,7 +129,7 @@ export class PresenceEngine {
             recipients,
             ServerActions.PRESENCE,
             event,
-            payload as unknown as Record<string, any>,
+            payload,
         );
     }
 }

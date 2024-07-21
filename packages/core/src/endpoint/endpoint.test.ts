@@ -15,8 +15,6 @@ import { EndpointEngine, SocketCache } from './endpoint';
 import { PondSocket } from '../server/pondSocket';
 
 
-/* eslint-disable line-comment-position, no-inline-comments */
-
 export const createEndpointEngine = (socket: SocketCache) => ({
     createChannel: jest.fn(),
     listConnections: jest.fn(),
@@ -106,7 +104,7 @@ describe('endpoint', () => {
 
         await request(server)
             .ws('/api/socket')
-            .expectUpgrade((res) => expect(res.statusCode).toBe(101)) // the connection is still upgraded, so we can send error messages
+            .expectUpgrade((res) => expect(res.statusCode).toBe(101))
             .expectMessage(
                 expect.objectContaining({
                     action: ServerActions.ERROR,

@@ -47,14 +47,8 @@ export class AbstractRequest<Path extends string> {
         return this._engine.getAssigns();
     }
 
-    public async getPresence (): Promise<UserPresences> {
-        const external = await this._engine.getPubSubPresence();
-        const internal = this._engine.presenceEngine.getPresence();
-
-        return {
-            ...internal,
-            ...external,
-        };
+    public getPresence (): UserPresences {
+        return this._engine.presenceEngine.getPresence();
     }
 
     /**

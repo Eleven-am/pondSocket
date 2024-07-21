@@ -23,7 +23,6 @@ import { JoinRequest } from '../lobby/joinRequest';
 import { JoinResponse } from '../lobby/joinResponse';
 import { LobbyEngine, PondChannel } from '../lobby/lobby';
 import { parseAddress } from '../matcher/matcher';
-import { PubSubClient } from '../pubSub/pubSubEngine';
 import { PondSocket } from '../server/pondSocket';
 
 type AuthorizationHandler<Event extends string> = (request: JoinRequest<Event>, response: JoinResponse) => void | Promise<void>;
@@ -51,15 +50,12 @@ export class EndpointEngine {
 
     readonly #parentEngine: PondSocket;
 
-    readonly #client: PubSubClient;
-
-    constructor (parent: PondSocket, client: PubSubClient) {
+    constructor (parent: PondSocket) {
         this.#sockets = new Map();
         this.#middleware = new Middleware();
         this.#lobbyEngines = new Map();
         this.#parentEngine = parent;
         this.#channels = new Map();
-        this.#client = client;
     }
 
     get parent () {
@@ -215,13 +211,6 @@ export class EndpointEngine {
      */
     sendMessage (socket: WebSocket, message: ChannelEvent) {
         socket.send(JSON.stringify(message));
-    }
-
-    /**
-     * @desc Gets the PubSubClient for this endpoint
-     */
-    getPubSubClient () {
-        return this.#client;
     }
 
     /**

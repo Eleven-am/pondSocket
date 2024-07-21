@@ -65,12 +65,6 @@ export type GroupedInstances = {
 export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
     isGlobal?: boolean;
-    options?: PubSubOptions;
-}
-
-export interface AsyncMetadata extends Metadata {
-    useFactory: (...args: any[]) => Promise<PubSubOptions> | PubSubOptions;
-    inject?: any[];
 }
 
 

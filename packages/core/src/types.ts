@@ -27,8 +27,6 @@ export type RequestHandler<Request, Response> = (request: Request, response: Res
 export interface PondSocketOptions {
     server?: HTTPServer;
     socketServer?: WebSocketServer;
-    redisUrl?: string;
-    db?: number;
 }
 
 export declare class PondSocket {
@@ -196,7 +194,7 @@ export declare class Channel<EventType extends PondEventMap = PondEventMap, Pres
     /**
      * @desc Gets the current presence data for the channel.
      */
-    getPresences(): Promise<Record<string, PresenceType>>;
+    getPresences(): Record<string, PresenceType>;
 
     /**
      * @desc Gets the assign date for a specific user.
@@ -290,7 +288,7 @@ export declare class AbstractRequest<Path extends string, PresenceType extends P
 
     assigns: Record<string, AssignType>;
 
-    getPresence(): Promise<Record<string, PresenceType>>;
+    getPresence(): Record<string, PresenceType>;
 }
 
 export declare class JoinRequest<Path extends string, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> extends AbstractRequest<Path, PresenceType, AssignType> {

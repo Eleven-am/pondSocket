@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket-express",
-  "version": "0.0.15",
+  "version": "0.0.17",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -29,17 +29,17 @@
     "pipeline": "npm run lint && npm run build && npm run push"
   },
   "dependencies": {
-    "@eleven-am/pondsocket": "^0.1.165"
+    "@eleven-am/pondsocket": "^0.1.169"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/express": "^4.17.21",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "eslint-plugin-file-progress": "^1.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.16.1",
+    "eslint-plugin-file-progress": "^1.4.0",
     "eslint-plugin-import": "^2.29.1",
     "jest": "^29.7.0",
-    "prettier": "^3.3.2",
-    "ts-jest": "^29.1.5",
+    "prettier": "^3.3.3",
+    "ts-jest": "^29.2.3",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.3"
