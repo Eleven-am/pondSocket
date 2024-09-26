@@ -1,7 +1,7 @@
 import type { Channel, ConnectionResponse, EventResponse, JoinResponse } from '@eleven-am/pondsocket/types';
 
-import { isConnectionResponse, isEventResponse, isJoinResponse } from './narrow';
 import { PondResponse } from '../types';
+import { isConnectionResponse, isEventResponse, isJoinResponse } from './narrow';
 
 function isNotEmpty<TValue> (value: TValue | null | undefined): value is TValue {
     return value !== null &&
@@ -48,10 +48,12 @@ export function performResponse (
             }
 
             if (isJoinResponse(response) || isEventResponse(response)) {
-                if (broadcast || broadcastFrom) {
-                    const event = broadcastFrom || broadcast || '';
+                if (broadcast) {
+                    response.broadcast(broadcast, rest);
+                }
 
-                    response.broadcast(event, rest);
+                if (broadcastFrom) {
+                    response.broadcastFrom(broadcastFrom, rest);
                 }
 
                 if (broadcastTo) {
