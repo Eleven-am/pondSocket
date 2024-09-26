@@ -76,8 +76,16 @@ export function performResponse (
     }
 
     if (channel) {
-        if (isNotEmpty(rest) && broadcast && !response) {
-            channel.broadcast(broadcast, rest);
+        if (isNotEmpty(rest) && !response) {
+            if (broadcast || event) {
+                const newEvent = (broadcast || event) as string;
+
+                channel.broadcast(newEvent, rest);
+            }
+
+            if (broadcastTo) {
+                channel.broadcastTo(broadcastTo.users, broadcastTo.event, rest);
+            }
         }
 
         if (isNotEmpty(presence)) {
