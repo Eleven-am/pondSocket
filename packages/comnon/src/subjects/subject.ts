@@ -1,10 +1,20 @@
 import { Subscriber, Unsubscribe } from './types';
 
 export class Subject<T> {
+    #isClosed: boolean;
+
     readonly #observers: Set<Subscriber<T>>;
 
     constructor () {
+        this.#isClosed = false;
         this.#observers = new Set<Subscriber<T>>();
+    }
+
+    /**
+     * @desc Returns the number of subscribers
+     */
+    get size () {
+        return this.#observers.size;
     }
 
     /**
@@ -12,6 +22,10 @@ export class Subject<T> {
      * @param observer - The observer to subscribe
      */
     subscribe (observer: Subscriber<T>): Unsubscribe {
+        if (this.#isClosed) {
+            throw new Error('Cannot subscribe to a closed subject');
+        }
+
         this.#observers.add(observer);
 
         return () => this.#observers.delete(observer);
@@ -26,9 +40,10 @@ export class Subject<T> {
     }
 
     /**
-     * @desc Returns the number of subscribers
+     * @desc Closes the subject
      */
-    get size () {
-        return this.#observers.size;
+    close () {
+        this.#observers.clear();
+        this.#isClosed = true;
     }
 }
