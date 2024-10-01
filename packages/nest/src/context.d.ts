@@ -36,6 +36,12 @@ interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     isGlobal?: boolean;
 }
 
+export interface AsyncMetadata extends Metadata {
+    inject?: any[];
+    imports?: any[];
+    useFactory: (...args: any[]) => Promise<RedisOptions> | RedisOptions;
+}
+
 type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
     event?: Event;
     broadcast?: Event;
@@ -301,5 +307,7 @@ declare function createParamDecorator<Input, ParamType> (callback: ParamDecorato
 
 declare class PondSocketModule {
     static forRoot({ guards, providers, imports, exports, isGlobal, redisOptions }: Metadata): DynamicModule;
+
+    static forRootAsync({ guards, providers, imports, exports, isGlobal, useFactory, inject }: AsyncMetadata): DynamicModule;
 }
 

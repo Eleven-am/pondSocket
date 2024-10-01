@@ -64,6 +64,12 @@ export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     isGlobal?: boolean;
 }
 
+export interface AsyncMetadata extends Metadata {
+    inject?: any[];
+    imports?: any[];
+    useFactory: (...args: any[]) => Promise<RedisOptions> | RedisOptions;
+}
+
 export type PondResponse<Event extends string = string, Payload extends PondMessage = PondMessage, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> = {
     event?: Event;
     broadcast?: Event;
