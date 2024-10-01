@@ -25,6 +25,10 @@ export class EventResponse {
         this.#requestId = event.requestId;
     }
 
+    get hasResponded (): boolean {
+        return false;
+    }
+
     assign (assigns: PondAssigns): EventResponse {
         this.#engine.updateAssigns(this.#event.sender, assigns);
 

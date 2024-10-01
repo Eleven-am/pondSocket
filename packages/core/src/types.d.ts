@@ -15,6 +15,8 @@ import {
 } from '@eleven-am/pondsocket-common';
 import { WebSocket, WebSocketServer } from 'ws';
 
+export * from '@eleven-am/pondsocket-common';
+
 export interface RedisOptions {
     host: string;
     port: number;
@@ -300,6 +302,11 @@ export declare class EventRequest<Path extends string, PresenceType extends Pond
 
 export declare class ConnectionResponse {
     /**
+     * @desc Checks if the server has responded to the connection request.
+     */
+    get hasResponded(): boolean;
+
+    /**
      * @desc Assigns data to the user.
      * @param {PondAssigns} assigns - The data to assign.
      * @returns {ConnectionResponse} - The ConnectionResponse instance for chaining.
@@ -327,6 +334,11 @@ export declare class ConnectionResponse {
 }
 
 export declare class JoinResponse<EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
+    /**
+     * @desc Checks if the server has responded to the connection request.
+     */
+    get hasResponded(): boolean;
+
     /**
      * @desc Assigns data to the client
      * @param {PondAssigns} assigns - The data to assign
@@ -384,6 +396,11 @@ export declare class JoinResponse<EventType extends PondEventMap = PondEventMap,
 }
 
 export declare class EventResponse<EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
+    /**
+     * @desc Checks if the server has responded to the connection request.
+     */
+    get hasResponded(): boolean;
+
     /**
      * @desc Assigns data to the client.
      * @param {PondAssigns} assigns - The data to assign to the client.

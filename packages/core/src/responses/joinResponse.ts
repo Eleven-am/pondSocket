@@ -33,6 +33,10 @@ export class JoinResponse {
         this.#newAssigns = { ...user.assigns };
     }
 
+    get hasResponded (): boolean {
+        return this.#executed;
+    }
+
     accept (): JoinResponse {
         this.#performChecks();
         const onMessage = this.#directMessage.bind(this);

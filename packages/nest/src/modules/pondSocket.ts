@@ -14,6 +14,7 @@ export class PondSocketModule {
         imports = [],
         exports = [],
         isGlobal = false,
+        redisOptions,
     }: Metadata): DynamicModule {
         const localGuards = getLocalGuards();
         const pondSocketProvider: Provider = {

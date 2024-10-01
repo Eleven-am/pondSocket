@@ -1,7 +1,7 @@
 import { createServer } from 'http';
 
 import PondSocket from '@eleven-am/pondsocket';
-import type { Endpoint } from '@eleven-am/pondsocket/types';
+import type { Endpoint, RedisOptions } from '@eleven-am/pondsocket/types';
 import { DiscoveryService } from '@golevelup/nestjs-discovery';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 // eslint-disable-next-line import/no-unresolved
@@ -29,6 +29,7 @@ export class PondSocketService {
         private readonly discovery: DiscoveryService,
         private readonly adapterHost: HttpAdapterHost,
         private readonly externalGuards: Constructor<CanActivate>[],
+        private readonly redisOptions?: RedisOptions,
     ) {
         const httpAdapter = this.adapterHost.httpAdapter;
 
@@ -41,6 +42,7 @@ export class PondSocketService {
         const server = createServer(app);
         const socket = new PondSocket({
             server,
+            redisOptions: this.redisOptions,
         });
 
         groupedInstances.forEach((groupedInstance) => {

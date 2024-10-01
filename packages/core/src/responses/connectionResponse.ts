@@ -27,6 +27,10 @@ export class ConnectionResponse {
         this.#assigns = {};
     }
 
+    get hasResponded (): boolean {
+        return this.#executed;
+    }
+
     assign (assigns: PondAssigns): ConnectionResponse {
         if (!this.#executed) {
             this.#assigns = {

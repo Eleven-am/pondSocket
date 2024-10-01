@@ -26,8 +26,6 @@ export function performResponse (
         assigns,
         broadcast,
         broadcastFrom,
-        subscribeTo,
-        unsubscribeFrom,
         broadcastTo,
         ...rest
     } = data;
@@ -60,18 +58,6 @@ export function performResponse (
                     response.broadcastTo(broadcastTo.event, rest, broadcastTo.users);
                 }
             }
-        }
-
-        if (subscribeTo) {
-            subscribeTo.forEach((channelName) => {
-                response.subscribeTo(channelName);
-            });
-        }
-
-        if (unsubscribeFrom) {
-            unsubscribeFrom.forEach((channelName) => {
-                response.unsubscribeFrom(channelName);
-            });
         }
     }
 

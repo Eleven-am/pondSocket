@@ -1,4 +1,4 @@
-import type { PondEvent, UserData } from '@eleven-am/pondsocket/types';
+import type { PondEvent, UserData } from '@eleven-am/pondsocket-common';
 
 import { NestRequest, NestResponse } from '../types';
 

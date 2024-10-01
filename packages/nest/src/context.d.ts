@@ -13,6 +13,7 @@ import type {
     PondMessage,
     PondPresence,
     UserData,
+    RedisOptions,
 } from '@eleven-am/pondsocket/types';
 import type { DynamicModule, ModuleMetadata } from '@nestjs/common';
 
@@ -31,7 +32,7 @@ interface CanActivate {
 
 interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
-    appModuleName?: string;
+    redisOptions?: RedisOptions;
     isGlobal?: boolean;
 }
 
@@ -41,8 +42,6 @@ type NestFuncType<Event extends string, Payload extends PondMessage, Presence ex
     broadcastFrom?: Event;
     assigns?: Partial<Assigns>;
     presence?: Presence;
-    subscribeTo?: string[];
-    unsubscribeFrom?: string[];
 } & Payload;
 
 type PondResponse<EventType extends PondEvenType = PondEvenType, Event extends keyof EventType = string, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> =
@@ -301,6 +300,6 @@ declare function PondGuards (...guards: Constructor<CanActivate>[]): ClassDecora
 declare function createParamDecorator<Input, ParamType> (callback: ParamDecoratorCallback<Input, ParamType>): (data: Input) => ParameterDecorator;
 
 declare class PondSocketModule {
-    static forRoot({ guards, providers, imports, exports, isGlobal, appModuleName }: Metadata): DynamicModule;
+    static forRoot({ guards, providers, imports, exports, isGlobal, redisOptions }: Metadata): DynamicModule;
 }
 

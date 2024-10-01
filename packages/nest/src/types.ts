@@ -9,6 +9,7 @@ import type {
     PondAssigns,
     PondMessage,
     PondPresence,
+    RedisOptions,
 } from '@eleven-am/pondsocket/types';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 import type { ModuleMetadata } from '@nestjs/common';
@@ -52,11 +53,6 @@ export interface CanActivate {
     canActivate(context: Context): boolean | Promise<boolean>;
 }
 
-interface PubSubOptions {
-    redisUrl: string;
-    db: number;
-}
-
 export type GroupedInstances = {
     endpoint: DiscoveredClass;
     channels: DiscoveredClass[];
@@ -64,16 +60,14 @@ export type GroupedInstances = {
 
 export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
+    redisOptions?: RedisOptions;
     isGlobal?: boolean;
 }
-
 
 export type PondResponse<Event extends string = string, Payload extends PondMessage = PondMessage, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> = {
     event?: Event;
     broadcast?: Event;
     broadcastFrom?: Event;
-    subscribeTo?: string[];
-    unsubscribeFrom?: string[];
     assigns?: Partial<Assigns>;
     presence?: Partial<Presence>;
     broadcastTo?: {
