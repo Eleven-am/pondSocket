@@ -1,12 +1,12 @@
 import {
     BehaviorSubject,
     ChannelEvent,
-    ChannelState,
     Events,
     JoinParams,
     ServerActions,
     Subject,
     channelEventSchema,
+    ChannelState,
 } from '@eleven-am/pondsocket-common';
 
 import { Channel } from '../core/channel';
@@ -23,7 +23,7 @@ export default class PondClient {
 
     protected readonly _connectionState: BehaviorSubject<boolean>;
 
-    #channels: Record<string, Channel>;
+    #channels: Map<string, Channel>;
 
     constructor (endpoint: string, params: Record<string, any> = {}) {
         let address: URL;
@@ -46,7 +46,7 @@ export default class PondClient {
         }
 
         this._address = address;
-        this.#channels = {};
+        this.#channels = new Map();
 
         this._broadcaster = new Subject<ChannelEvent>();
         this._connectionState = new BehaviorSubject<boolean>(false);
@@ -96,11 +96,10 @@ export default class PondClient {
      * @desc Disconnects the socket.
      */
     public disconnect () {
-        Object.values(this.#channels).forEach((channel) => channel.leave());
         this._connectionState.publish(false);
         this._disconnecting = true;
         this._socket?.close();
-        this.#channels = {};
+        this.#channels.clear();
     }
 
     /**
@@ -109,17 +108,18 @@ export default class PondClient {
      * @param params - The params to send to the server.
      */
     public createChannel (name: string, params?: JoinParams) {
-        if (this.#channels[name] && this.#channels[name].channelState !== ChannelState.CLOSED) {
-            return this.#channels[name];
+        const channel = this.#channels.get(name);
+
+        if (channel && channel.channelState !== ChannelState.CLOSED) {
+            return channel;
         }
 
         const publisher = this.#createPublisher();
+        const newChannel = new Channel(publisher, this._connectionState, name, params || {});
 
-        const channel = new Channel(publisher, this._connectionState, name, params || {});
+        this.#channels.set(name, newChannel);
 
-        this.#channels[name] = channel;
-
-        return channel;
+        return newChannel;
     }
 
     /**
@@ -148,14 +148,14 @@ export default class PondClient {
      * @private
      */
     #handleAcknowledge (message: ChannelEvent) {
-        const channel = this.#channels[message.channelName] ?? new Channel(
+        const channel = this.#channels.get(message.channelName) ?? new Channel(
             this.#createPublisher(),
             this._connectionState,
             message.channelName,
             {},
         );
 
-        this.#channels[message.channelName] = channel;
+        this.#channels.set(message.channelName, channel);
         channel.acknowledge(this._broadcaster);
     }
 

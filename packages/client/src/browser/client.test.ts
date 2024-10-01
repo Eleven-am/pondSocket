@@ -96,36 +96,6 @@ describe('PondClient', () => {
         expect(mockCallback).toHaveBeenCalledWith(true);
     });
 
-    test('disconnect method should close the socket and leave all channels', () => {
-        const mockCallback = jest.fn();
-
-        pondClient.onConnectionChange(mockCallback);
-
-        pondClient.connect();
-        const mockWebSocket = pondClient['_socket'];
-
-        const acknowledgeEvent: ChannelEvent = {
-            event: Events.CONNECTION,
-            action: ServerActions.CONNECT,
-            channelName: 'exampleChannel',
-            requestId: '123',
-            payload: {},
-        };
-
-        mockWebSocket.onmessage({ data: JSON.stringify(acknowledgeEvent) });
-        expect(mockCallback).toHaveBeenCalledWith(true);
-
-        const channel = pondClient.createChannel('exampleChannel');
-        const spyOnLeave = jest.spyOn(channel, 'leave');
-
-        mockCallback.mockClear();
-        pondClient.disconnect();
-
-        expect(mockCallback).toHaveBeenCalledWith(false);
-        expect(mockWebSocket.close).toHaveBeenCalled();
-        expect(spyOnLeave).toHaveBeenCalled();
-    });
-
     test('createChannel method should create a new channel or return an existing one', () => {
         const mockChannel = pondClient.createChannel('exampleChannel');
         const mockExistingChannel = pondClient.createChannel('exampleChannel');

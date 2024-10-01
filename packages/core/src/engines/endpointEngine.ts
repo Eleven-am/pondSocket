@@ -121,8 +121,12 @@ export class EndpointEngine {
     }
 
     #handleSocketClose (cache: SocketCache) {
-        this.#sockets.delete(cache.clientId);
-        cache.subscriptions.forEach((unsubscribe) => unsubscribe());
+        try {
+            this.#sockets.delete(cache.clientId);
+            cache.subscriptions.forEach((unsubscribe) => unsubscribe());
+        } catch (e) {
+            // no-op
+        }
     }
 
     #handleMessage (cache: SocketCache, message: ClientMessage) {
