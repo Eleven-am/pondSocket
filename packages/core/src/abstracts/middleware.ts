@@ -1,6 +1,5 @@
-type NextFunction = () => void;
-
-export type MiddlewareFunction<Request, Response> = (req: Request, res: Response, next: NextFunction) => void | Promise<void>;
+import { MiddlewareFunction, NextFunction } from './types';
+import { HttpError } from '../errors/httpError';
 
 export class Middleware<Request, Response> {
     readonly #stack: MiddlewareFunction<Request, Response>[] = [];
@@ -12,11 +11,24 @@ export class Middleware<Request, Response> {
     }
 
     /**
+     * @desc Returns the middleware stack length
+     */
+    public get length () {
+        return this.#stack.length;
+    }
+
+    /**
      * @desc Adds a middleware function to the middleware stack
      * @param middleware - the middleware function to add
      */
-    public use (middleware: MiddlewareFunction<Request, Response>) {
-        this.#stack.push(middleware);
+    public use (middleware: MiddlewareFunction<Request, Response> | Middleware<Request, Response>): this {
+        if (middleware instanceof Middleware) {
+            this.#stack.push(...middleware.#stack);
+        } else {
+            this.#stack.push(middleware);
+        }
+
+        return this;
     }
 
     /**
@@ -26,25 +38,40 @@ export class Middleware<Request, Response> {
      * @param final - the final function to call
      */
     public run (req: Request, res: Response, final: NextFunction) {
-        const temp = this.#stack.concat();
+        let index = 0;
 
-        const nextFunction = () => {
-            const middleware = temp.shift();
+        const next: NextFunction = (err?: HttpError) => {
+            if (err) {
+                return final(this.#handleError(err));
+            }
 
-            if (middleware) {
-                middleware(req, res, nextFunction);
-            } else {
-                final();
+            if (index >= this.#stack.length) {
+                return final();
+            }
+
+            const middleware = this.#stack[index];
+
+            index++;
+
+            try {
+                const result = middleware(req, res, next);
+
+                if (result instanceof Promise) {
+                    result.catch(next);
+                }
+            } catch (error) {
+                return final(this.#handleError(error));
             }
         };
 
-        nextFunction();
+        next();
     }
 
-    /**
-     * @desc Returns the middleware stack length
-     */
-    public get length () {
-        return this.#stack.length;
+    #handleError (error: unknown): HttpError {
+        if (error instanceof HttpError) {
+            return error;
+        }
+
+        return new HttpError(500, error instanceof Error ? error.message : 'An error occurred while processing the request');
     }
 }

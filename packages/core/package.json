@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket",
-  "version": "0.1.169",
+  "version": "0.1.170",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -20,8 +20,8 @@
     "build": "rimraf dist && tsc && npm run remove",
     "lint": "eslint --ext .ts src",
     "lint:fix": "eslint --fix --ext .ts src",
-    "remove": "rm dist/types.js dist/distIndex.js",
-    "copy": "cp src/types.ts dist/types.d.ts && cp src/distIndex.ts dist/index.d.ts && cp package.json dist && cp README.md dist && cp LICENSE dist",
+    "remove": "rm -r dist/tests && rm dist/distIndex.js",
+    "copy": "cp src/types.d.ts dist/types.d.ts && cp src/distIndex.ts dist/index.d.ts && cp package.json dist && cp README.md dist && cp LICENSE dist",
     "push": "npm version patch && npm run copy && cd dist && npm publish && cd ..",
     "pipeline": "npm run lint && npm run test && npm run build && npm run push"
   },
@@ -34,23 +34,33 @@
     "url": "git+https://github.com/Eleven-am/pondSocket.git"
   },
   "dependencies": {
-    "@eleven-am/pondsocket-common": "^0.0.23",
+    "@eleven-am/pondsocket-common": "^0.0.24",
+    "ioredis": "^5.4.1",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.14.11",
-    "@types/websocket": "^1.0.10",
-    "@types/ws": "^8.5.11",
-    "@typescript-eslint/eslint-plugin": "^7.16.1",
+    "@stylistic/eslint-plugin-ts": "^2.8.0",
+    "@types/jest": "^29.5.13",
+    "@types/node": "^22.7.4",
+    "@types/ws": "^8.5.12",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-file-progress": "^1.4.0",
-    "eslint-plugin-import": "^2.29.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-node": "^0.3.9",
+    "eslint-plugin-file-progress": "^1.5.0",
+    "eslint-plugin-import": "^2.30.0",
+    "eslint-plugin-prettier": "^5.2.1",
     "jest": "^29.7.0",
-    "superwstest": "^2.0.4",
-    "ts-jest": "^29.2.3",
+    "nodemon": "^3.1.7",
+    "prettier": "^3.3.3",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.3"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.6.2"
   },
   "jest": {
     "moduleFileExtensions": [

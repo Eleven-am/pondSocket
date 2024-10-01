@@ -18,6 +18,7 @@
   "ignorePatterns": [],
   "plugins": [
     "@typescript-eslint",
+    "@stylistic/eslint-plugin-ts",
     "file-progress"
   ],
   "settings": {
@@ -36,7 +37,7 @@
   "rules": {
     "file-progress/activate": 1,
     "@typescript-eslint/ban-types": "off",
-    "@typescript-eslint/type-annotation-spacing": [
+    "@stylistic/ts/type-annotation-spacing": [
       "error",
       {
         "before": true,
@@ -58,7 +59,7 @@
         ]
       }
     ],
-    "@typescript-eslint/member-delimiter-style": [
+    "@stylistic/ts/member-delimiter-style": [
       "error",
       {
         "multiline": {
@@ -71,7 +72,7 @@
         }
       }
     ],
-    "@typescript-eslint/indent": [
+    "@stylistic/ts/indent": [
       "error",
       4
     ],
@@ -150,11 +151,12 @@
     "implicit-arrow-linebreak": "error",
     "import/named": "off",
     "import/no-cycle": [
-      "error",
+      "warn",
       {
         "maxDepth": "∞"
       }
     ],
+    "import/no-unresolved": "off",
     "import/order": [
       "error",
       {
@@ -198,7 +200,7 @@
       "error",
       "always-multiline"
     ],
-    "new-cap": "error",
+    "new-cap": "off",
     "new-parens": "error",
     "newline-after-var": "error",
     "newline-before-return": "error",
@@ -223,7 +225,7 @@
     "no-div-regex": "error",
     "no-duplicate-imports": "error",
     "no-else-return": "error",
-    "no-empty-function": "warn",
+    "no-empty-function": "off",
     "no-eq-null": "error",
     "no-eval": "error",
     "no-extend-native": "error",
@@ -257,7 +259,7 @@
     "no-param-reassign": "off",
     "no-path-concat": "error",
     "no-plusplus": "off",
-    "no-process-exit": "error",
+    "no-process-exit": "warn",
     "no-proto": "error",
     "no-restricted-exports": "error",
     "no-restricted-globals": "error",
@@ -286,7 +288,7 @@
     "no-useless-call": "error",
     "no-useless-computed-key": "error",
     "no-useless-concat": "error",
-    "no-useless-constructor": "error",
+    "no-useless-constructor": "off",
     "no-useless-escape": "off",
     "no-useless-rename": "error",
     "no-useless-return": "error",
