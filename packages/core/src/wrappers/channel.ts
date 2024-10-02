@@ -20,7 +20,7 @@ export class Channel {
         return this.#engine.getUser(userId);
     }
 
-    getPresence () {
+    getPresences () {
         return this.#engine.getPresence();
     }
 
