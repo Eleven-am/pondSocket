@@ -42,56 +42,26 @@ export abstract class Manager {
         return new Set(this.assignsCache.keys());
     }
 
-    /**
-     * @desc Initializes the data manager
-     * @param unsubscribe - The callback to call when the manager is closed
-     */
     initialize (unsubscribe: Unsubscribe) {
         this.#onClose = unsubscribe;
 
         return Promise.resolve();
     }
 
-    /**
-     * @desc Returns the presence of a user
-     * @param userId - The id of the user
-     */
     getPresence (userId: string) {
         return this.presenceCache.get(userId) || null;
     }
 
-    /**
-     * @desc Returns all the presence
-     */
     getAllPresence () {
         return new Map(this.presenceCache);
     }
 
-    /**
-     * @desc Sets the presence of a user
-     * @param userId - The id of the user
-     * @param data - The presence data
-     */
     abstract trackPresence(userId: string, data: PondPresence): void;
 
-    /**
-     * @desc Updates the presence of a user
-     * @param userId - The id of the user
-     * @param data - The presence data
-     */
     abstract updatePresence(userId: string, data: PondPresence): void;
 
-    /**
-     * @desc Removes the presence of a user
-     * @param userId - The id of the user
-     */
     abstract removePresence(userId: string): void;
 
-    /**
-     * @desc Creates or updates the presence of a user
-     * @param userId - The id of the user
-     * @param data - The presence data
-     */
     upsertPresence (userId: string, data: PondPresence) {
         if (this.presenceCache.has(userId)) {
             this.updatePresence(userId, data);
@@ -100,31 +70,16 @@ export abstract class Manager {
         }
     }
 
-    /**
-     * @desc Returns the assigns of a user
-     * @param userId - The id of the user
-     */
     getAssigns (userId: string) {
         return this.assignsCache.get(userId) || null;
     }
 
-    /**
-     * @desc Returns all the assigns
-     */
     getAllAssigns () {
         return new Map(this.assignsCache);
     }
 
-    /**
-     * @desc Updates the assigns of a user
-     * @param userId - The id of the user
-     * @param data - The assigns data
-     */
     abstract updateAssigns(userId: string, data: PondAssigns): void;
 
-    /**
-     * @desc Closes the data manager
-     */
     close () {
         this.publisher.close();
         this.presenceCache.clear();
@@ -134,18 +89,8 @@ export abstract class Manager {
         this.#onClose?.();
     }
 
-    /**
-     * @desc Broadcasts a message to all users
-     * @param message - The message to broadcast
-     */
     abstract broadcast (message: InternalChannelEvent): void;
 
-    /**
-     * @desc Subscribes to incoming messages
-     * @param userId - The id of the user
-     * @param assigns - The assigns of the user
-     * @param onMessage - The callback to call when a message is received
-     */
     addUser (userId: string, assigns: PondAssigns, onMessage: (event: ChannelEvent) => void) {
         this.setAssigns(userId, assigns);
 
@@ -158,10 +103,6 @@ export abstract class Manager {
         this.userSubscriptions.set(userId, subscription);
     }
 
-    /**
-     * @desc Unsubscribes from incoming messages
-     * @param userId - The id of the user
-     */
     removeUser (userId: string) {
         const userData = this.getUserData(userId);
 
@@ -177,10 +118,6 @@ export abstract class Manager {
         return userData;
     }
 
-    /**
-     * @desc Returns the data of a user
-     * @param userId - The id of the user
-     */
     getUserData (userId: string): UserData {
         const presence = this.getPresence(userId);
         const assigns = this.getAssigns(userId);
@@ -199,29 +136,12 @@ export abstract class Manager {
         };
     }
 
-    /**
-     * @desc Sets the assigns of a user
-     * @param userId - The id of the user
-     * @param data - The assigns data
-     */
     protected abstract setAssigns(userId: string, data: PondAssigns): void;
 
-    /**
-     * @desc Removes the assigns of a user
-     * @param userId - The id of the user
-     */
     protected abstract removeAssigns(userId: string): void;
 
-    /**
-     * @desc Processes presence data
-     * @param action - The action to perform
-     * @param userId - The id of the user
-     * @param data - The presence data
-     */
     protected processPresenceData (action: ActionTypes, userId: string, data: PondPresence | null): InternalChannelEvent {
-        const current = data ? data : this.presenceCache.get(userId)!;
-
-        this.#processData(this.presenceCache, DataTypes.PRESENCE, action, userId, data);
+        const current = this.#processData(this.presenceCache, DataTypes.PRESENCE, action, userId, data);
 
         const total = Array.from(this.presenceCache.values());
         const userIds = Array.from(this.presenceCache.keys());
@@ -240,17 +160,11 @@ export abstract class Manager {
         };
     }
 
-    /**
-     * @desc Processes assigns data
-     * @param action - The action to perform
-     * @param userId - The id of the user
-     * @param data - The assigns data
-     */
-    protected processAssignsData (action: ActionTypes, userId: string, data: PondAssigns | null) {
-        this.#processData(this.assignsCache, DataTypes.ASSIGNS, action, userId, data);
+    protected processAssignsData (action: ActionTypes, userId: string, data: PondAssigns | null): PondAssigns {
+        return this.#processData(this.assignsCache, DataTypes.ASSIGNS, action, userId, data);
     }
 
-    #processData (cache: Map<string, PondObject>, dataType: DataTypes, action: ActionTypes, userId: string, data: PondObject | null) {
+    #processData (cache: Map<string, PondObject>, dataType: DataTypes, action: ActionTypes, userId: string, data: PondObject | null): PondObject {
         if (action === ActionTypes.CREATE && cache.has(userId)) {
             const message = `User with id ${userId} already exists in the ${dataType} cache`;
             const code = 409;
@@ -270,10 +184,21 @@ export abstract class Manager {
             throw new HttpError(code, message);
         }
 
+        const current = cache.get(userId);
+
         if (data) {
-            cache.set(userId, data);
-        } else {
-            cache.delete(userId);
+            const updated = {
+                ...current,
+                ...data,
+            };
+
+            cache.set(userId, updated);
+
+            return updated;
         }
+
+        cache.delete(userId);
+
+        return current || {};
     }
 }

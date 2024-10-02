@@ -3,6 +3,7 @@ import { PondPresence, PondAssigns, Unsubscribe } from '@eleven-am/pondsocket-co
 import { Manager, ActionTypes } from './manager';
 import { Client, InternalChannelEvent } from '../abstracts/types';
 
+
 export class DistributedManager extends Manager {
     readonly #client: Client;
 
@@ -38,13 +39,15 @@ export class DistributedManager extends Manager {
     }
 
     setAssigns (userId: string, data: PondAssigns) {
-        this.processAssignsData(ActionTypes.CREATE, userId, data);
-        this.#client.publishAssignsChange(userId, data);
+        const assigns = this.processAssignsData(ActionTypes.CREATE, userId, data);
+
+        this.#client.publishAssignsChange(userId, assigns);
     }
 
     updateAssigns (userId: string, data: PondAssigns) {
-        this.processAssignsData(ActionTypes.UPDATE, userId, data);
-        this.#client.publishAssignsChange(userId, data);
+        const assigns = this.processAssignsData(ActionTypes.UPDATE, userId, data);
+
+        this.#client.publishAssignsChange(userId, assigns);
     }
 
     removeAssigns (userId: string) {
