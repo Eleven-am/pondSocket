@@ -59,6 +59,7 @@ export type IncomingConnection<Path> = EventParams<Path> & {
     id: string;
     headers: IncomingHttpHeaders;
     address: string;
+    cookies: Record<string, string>;
 }
 
 interface PubSubGetPresenceCommand {

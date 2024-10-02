@@ -1,4 +1,4 @@
-import { Server as HTTPServer } from 'http';
+import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
 
 import { IncomingConnection, PondPath, uuid } from '@eleven-am/pondsocket-common';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -56,6 +56,7 @@ export class PondSocket {
             if (event) {
                 const request: IncomingConnection<Path> = {
                     ...event,
+                    cookies: this.#getCookies(req.headers),
                     headers: req.headers,
                     address: req.address,
                     id: req.id,
@@ -134,5 +135,21 @@ export class PondSocket {
                 socket.destroy();
             });
         });
+    }
+
+    #getCookies (headers: IncomingHttpHeaders): Record<string, string> {
+        const cookieHeader = headers.cookie;
+
+        if (!cookieHeader) {
+            return {};
+        }
+
+        return cookieHeader.split(';').reduce((cookies, cookie) => {
+            const [name, value] = cookie.trim().split('=');
+
+            cookies[name] = decodeURIComponent(value);
+
+            return cookies;
+        }, {} as Record<string, string>);
     }
 }
