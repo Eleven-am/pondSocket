@@ -10,7 +10,7 @@ import {
     StateEvent,
     RedisOptions,
 } from './types';
-import { RedisError } from '../errors/httpError';
+import { RedisError } from '../errors/redisError';
 
 
 export class RedisClient {

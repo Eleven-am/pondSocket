@@ -475,3 +475,7 @@ export declare class EventResponse<EventType extends PondEventMap = PondEventMap
      */
     evictUser(reason: string, userId?: string): EventResponse;
 }
+
+export declare class RedisError extends Error {
+    constructor(message: string);
+}
