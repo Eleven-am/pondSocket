@@ -10,11 +10,15 @@ import {
     StateEvent,
     RedisOptions,
 } from './types';
+import { RedisError } from '../errors/httpError';
+
 
 export class RedisClient {
-    readonly TTL_REFRESH_INTERVAL = 30 * 1000;
+    readonly #heartbeatInterval: number;
 
-    readonly INSTANCE_TTL = 90;
+    readonly #cleanupInterval: number;
+
+    readonly #instanceTtl: number;
 
     readonly #redisClient: Redis;
 
@@ -32,12 +36,18 @@ export class RedisClient {
 
     #channelMessagePublisher: Subject<ChannelMessage>;
 
-    #ttlRefreshInterval: NodeJS.Timeout | undefined;
+    #heartbeatTimer: NodeJS.Timeout | undefined;
 
-    constructor (redisOptions: RedisOptions) {
-        this.#redisClient = new Redis(redisOptions);
-        this.#pubClient = new Redis(redisOptions);
-        this.#subClient = new Redis(redisOptions);
+    #cleanupTimer: NodeJS.Timeout | undefined;
+
+    constructor (config: RedisOptions) {
+        this.#instanceTtl = config.instanceTtl ?? 90;
+        this.#heartbeatInterval = config.heartbeatInterval ?? 10 * 1000;
+        this.#cleanupInterval = config.cleanupInterval ?? 60 * 1000;
+
+        this.#redisClient = new Redis(config);
+        this.#pubClient = new Redis(config);
+        this.#subClient = new Redis(config);
         this.#assignsPublisher = new Subject<StateChange>();
         this.#presencePublisher = new Subject<StateChange>();
         this.#userLeavesPublisher = new Subject<LeaveRedisEvent>();
@@ -79,9 +89,9 @@ export class RedisClient {
 
     async initialize () {
         this.#handleErrors();
-        this.#startTTLRefresh();
-
         await this.#registerInstance();
+        this.#startHeartbeat();
+        this.#startPeriodicCleanup();
         await this.#subscribeToChannels();
 
         process.on('SIGINT', this.#handleExit.bind(this));
@@ -89,7 +99,8 @@ export class RedisClient {
     }
 
     async shutdown () {
-        clearInterval(this.#ttlRefreshInterval);
+        clearInterval(this.#heartbeatTimer);
+        clearInterval(this.#cleanupTimer);
         await this.#unsubscribeFromChannels();
         await this.#unregisterInstance();
         await this.#cleanup();
@@ -113,11 +124,11 @@ export class RedisClient {
     }
 
     #getPresenceCacheChannel (endpointId: string, channelId: string) {
-        return `presence_cache:${endpointId}:${channelId}`;
+        return `presence_cache:${this.#instanceId}:${endpointId}:${channelId}`;
     }
 
     #getAssignsCacheChannel (endpointId: string, channelId: string) {
-        return `assigns_cache:${endpointId}:${channelId}`;
+        return `assigns_cache:${this.#instanceId}:${endpointId}:${channelId}`;
     }
 
     #publishPresenceChange (endpointId: string, channelId: string, userId: string, state: PondObject | null) {
@@ -169,43 +180,36 @@ export class RedisClient {
     }
 
     #getPresenceCache (endpointId: string, channelId: string) {
-        const cacheKey = this.#getPresenceCacheChannel(endpointId, channelId);
-
-        return this.#readCachedData(cacheKey);
+        return this.#readCachedData(endpointId, channelId, 'presence_cache:*');
     }
 
     #getAssignsCache (endpointId: string, channelId: string) {
-        const cacheKey = this.#getAssignsCacheChannel(endpointId, channelId);
-
-        return this.#readCachedData(cacheKey);
-    }
-
-    async #sendHeartbeat () {
-        await this.#redisClient.expire(`instance:${this.#instanceId}`, this.INSTANCE_TTL);
-    }
-
-    #startTTLRefresh () {
-        this.#ttlRefreshInterval = setInterval(() => this.#sendHeartbeat(), this.TTL_REFRESH_INTERVAL);
+        return this.#readCachedData(endpointId, channelId, 'assigns_cache:*');
     }
 
     async #registerInstance () {
         const multi = this.#redisClient.multi();
 
-        multi.sadd('distributed_instances:', this.#instanceId);
-        multi.setex(`instance:${this.#instanceId}`, this.INSTANCE_TTL, '1');
-        await multi.exec();
+        multi.sadd('distributed_instances', this.#instanceId);
+        multi.set(`heartbeat:${this.#instanceId}`, Date.now().toString(), 'EX', this.#instanceTtl);
+
+        try {
+            await multi.exec();
+        } catch (error) {
+            throw new RedisError('Error registering instance');
+        }
     }
 
     async #unregisterInstance () {
         const multi = this.#redisClient.multi();
 
         multi.srem('distributed_instances', this.#instanceId);
-        multi.del(`instance:${this.#instanceId}`);
-        multi.scard('distributed_instances');
-        const results = await multi.exec();
+        multi.del(`heartbeat:${this.#instanceId}`);
 
-        if (results && results[2] && results[2][1] === 0) {
-            // No more instances, clean up
+        try {
+            await multi.exec();
+        } catch {
+            // no-op as we're shutting down
         }
     }
 
@@ -236,6 +240,57 @@ export class RedisClient {
 
             this.#subClient.on('message', this.#handleRedisMessage.bind(this));
         });
+    }
+
+    #startHeartbeat () {
+        this.#heartbeatTimer = setInterval(async () => {
+            try {
+                await this.#redisClient.set(`heartbeat:${this.#instanceId}`, Date.now().toString(), 'EX', this.#instanceTtl);
+            } catch (error) {
+                throw new RedisError('Error setting heartbeat');
+            }
+        }, this.#heartbeatInterval);
+    }
+
+    #startPeriodicCleanup () {
+        this.#cleanupTimer = setInterval(async () => {
+            try {
+                await this.#performConsistencyCheck();
+            } catch (error) {
+                throw new RedisError('Error performing consistency check');
+            }
+        }, this.#cleanupInterval);
+    }
+
+    async #performConsistencyCheck () {
+        const activeInstances = await this.#getActiveInstances();
+        const allKeys = await this.#redisClient.keys('*_cache:*');
+
+        for (const key of allKeys) {
+            const [_, instanceId] = key.split(':');
+
+            if (!activeInstances.has(instanceId)) {
+                await this.#redisClient.del(key);
+            }
+        }
+    }
+
+    async #getActiveInstances (): Promise<Set<string>> {
+        const instances = await this.#redisClient.smembers('distributed_instances');
+        const activeInstances = new Set<string>();
+
+        for (const instanceId of instances) {
+            const lastHeartbeat = await this.#redisClient.get(`heartbeat:${instanceId}`);
+
+            if (lastHeartbeat && Date.now() - parseInt(lastHeartbeat, 10) < this.#instanceTtl * 1000) {
+                activeInstances.add(instanceId);
+            } else {
+                await this.#redisClient.srem('distributed_instances', instanceId);
+                await this.#redisClient.del(`heartbeat:${instanceId}`);
+            }
+        }
+
+        return activeInstances;
     }
 
     #handleRedisMessage (channel: string, message: string) {
@@ -271,16 +326,54 @@ export class RedisClient {
         await this.#pubClient.publish(key, messageData);
     }
 
-    async #readCachedData (cacheKey: string) {
-        try {
-            const data = await this.#redisClient.hgetall(cacheKey);
+    async #readCachedData (endpointId: string, channelId: string, cacheKey: 'presence_cache:*' | 'assigns_cache:*'): Promise<Map<string, PondObject>> {
+        const response = new Map<string, PondObject>();
+        const activeInstances = new Set(await this.#redisClient.smembers('distributed_instances'));
 
-            return new Map<string, PondObject>(Object.entries(data).map(([key, value]) => [key, JSON.parse(value)]));
-        } catch (error) {
-            console.error(error);
+        let cursor = '0';
 
-            return new Map<string, PondObject>();
-        }
+        do {
+            const [nextCursor, keys] = await this.#redisClient.scan(cursor, 'MATCH', cacheKey, 'COUNT', '100');
+
+            cursor = nextCursor;
+
+            const pipeline = this.#redisClient.pipeline();
+
+            keys.forEach((key) => {
+                const [_, instanceId, keyEndpointId, keyChannelId] = key.split(':');
+
+                if (keyEndpointId === endpointId && keyChannelId === channelId) {
+                    if (activeInstances.has(instanceId)) {
+                        pipeline.hgetall(key);
+                    } else {
+                        pipeline.del(key);
+                    }
+                }
+            });
+
+            const results = await pipeline.exec();
+
+            if (results) {
+                results.forEach(([error, data]) => {
+                    if (!error && data && typeof data === 'object') {
+                        Object.entries(data)
+                            .forEach(([userId, value]) => {
+                                try {
+                                    const parsedData = JSON.parse(value as string);
+
+                                    if (typeof parsedData === 'object' && parsedData !== null) {
+                                        response.set(userId, parsedData as PondObject);
+                                    }
+                                } catch (e) {
+                                    throw new RedisError('Error parsing cached data');
+                                }
+                            });
+                    }
+                });
+            }
+        } while (cursor !== '0');
+
+        return response;
     }
 
     #subscribeToCacheChanges (endpoint: string, channel: string, presence: boolean, callback: (data: StateEvent) => void): Unsubscribe {

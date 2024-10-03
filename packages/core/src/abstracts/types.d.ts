@@ -144,4 +144,7 @@ export interface RedisOptions {
     db?: number;
     username?: string;
     password?: string;
+    instanceTtl?: number;
+    heartbeatInterval?: number;
+    cleanupInterval?: number;
 }
