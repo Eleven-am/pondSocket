@@ -9,6 +9,7 @@ import { parseAddress } from '../matcher/matcher';
 import { EventRequest } from '../requests/eventRequest';
 import { EventResponse } from '../responses/eventResponse';
 
+
 export class LobbyEngine {
     readonly middleware: Middleware<BroadcastEvent, ChannelEngine>;
 
@@ -64,9 +65,9 @@ export class LobbyEngine {
         return this.#channels.get(channelName) || null;
     }
 
-    async #createChannel (channelName: string) {
+    #createChannel (channelName: string) {
         const onManagerClose = this.#channels.delete.bind(this.#channels, channelName);
-        const manager = await this.parent.createManager(channelName, onManagerClose);
+        const manager = this.parent.createManager(channelName, onManagerClose);
         const channel = new ChannelEngine(this, channelName, manager);
 
         this.#channels.set(channelName, channel);

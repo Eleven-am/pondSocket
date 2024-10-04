@@ -44,7 +44,7 @@ export class EndpointEngine {
     createChannel<Path extends string> (path: PondPath<Path>, handler: AuthorizationHandler<Path>) {
         const pondChannel = new LobbyEngine(this);
 
-        this.#middleware.use(async (user, joinParams, next) => {
+        this.#middleware.use((user, joinParams, next) => {
             const event = parseAddress(path, user.channelName);
 
             if (event) {
@@ -55,7 +55,7 @@ export class EndpointEngine {
                     joinParams,
                 };
 
-                const channel = await pondChannel.getOrCreateChannel(user.channelName);
+                const channel = pondChannel.getOrCreateChannel(user.channelName);
                 const request = new JoinRequest(options, channel);
                 const response = new JoinResponse(user, channel);
 

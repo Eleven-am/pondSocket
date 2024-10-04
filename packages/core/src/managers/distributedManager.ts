@@ -67,11 +67,8 @@ export class DistributedManager extends Manager {
         this.#client.publishChannelMessage(message);
     }
 
-    async initialize (unsubscribe: Unsubscribe) {
-        await super.initialize(unsubscribe);
-
-        this.presenceCache = await this.#client.getPresenceCache();
-        this.assignsCache = await this.#client.getAssignsCache();
+    initialize (unsubscribe: Unsubscribe) {
+        super.initialize(unsubscribe);
 
         const leaveSubscription = this.#client.subscribeToUserLeaves((userId) => {
             this.userSubscriptions.get(userId)?.();
@@ -98,11 +95,17 @@ export class DistributedManager extends Manager {
             this.publisher.publish(message);
         });
 
+        const stateSyncSubscription = this.#client.subscribeToStateSync((state) => {
+            this.assignsCache = new Map(state.assigns);
+            this.presenceCache = new Map(state.presence);
+        });
+
         this.#subscriptions = () => {
             leaveSubscription();
             presenceSubscription();
             assignSubscription();
             messageSubscription();
+            stateSyncSubscription();
         };
     }
 

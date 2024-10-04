@@ -240,20 +240,16 @@ describe('DistributedManager', () => {
     });
 
     describe('initialize', () => {
-        it('should initialize the manager, set up subscriptions, and fetch initial data', async () => {
+        it('should initialize the manager, set up subscriptions, and fetch initial data', () => {
             const unsubscribeMock = jest.fn();
 
-            mockClient.getPresenceCache.mockResolvedValue(new Map());
-            mockClient.getAssignsCache.mockResolvedValue(new Map());
+            distributedManager.initialize(unsubscribeMock);
 
-            await distributedManager.initialize(unsubscribeMock);
-
-            expect(mockClient.getPresenceCache).toHaveBeenCalled();
-            expect(mockClient.getAssignsCache).toHaveBeenCalled();
             expect(mockClient.subscribeToUserLeaves).toHaveBeenCalled();
             expect(mockClient.subscribeToPresenceChanges).toHaveBeenCalled();
             expect(mockClient.subscribeToAssignsChanges).toHaveBeenCalled();
             expect(mockClient.subscribeToChannelMessages).toHaveBeenCalled();
+            expect(mockClient.subscribeToStateSync).toHaveBeenCalled();
         });
     });
 

@@ -1,12 +1,13 @@
 import { Unsubscribe } from '@eleven-am/pondsocket-common';
 
+
 import { DistributedManager } from './distributedManager';
 import { LocalManager } from './localManager';
 import { Manager } from './manager';
 import { ClientFactory } from '../abstracts/types';
 
 export class ManagerFactory {
-    static async create (channelId: string, clientFactory: ClientFactory | null, onClose: Unsubscribe): Promise<Manager> {
+    static create (channelId: string, clientFactory: ClientFactory | null, onClose: Unsubscribe): Manager {
         let manager;
 
         if (clientFactory) {
@@ -17,7 +18,7 @@ export class ManagerFactory {
             manager = new LocalManager(channelId);
         }
 
-        await manager.initialize(onClose);
+        manager.initialize(onClose);
 
         return manager;
     }

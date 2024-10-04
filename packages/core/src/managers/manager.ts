@@ -44,8 +44,6 @@ export abstract class Manager {
 
     initialize (unsubscribe: Unsubscribe) {
         this.#onClose = unsubscribe;
-
-        return Promise.resolve();
     }
 
     getPresence (userId: string) {

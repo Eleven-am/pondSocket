@@ -105,16 +105,23 @@ export interface StateEvent {
     state: PondObject | null;
 }
 
-export interface StateChange extends StateEvent {
+export interface StateSyncEvent {
+    assigns: Map<string, PondObject>;
+    presence: Map<string, PondObject>;
+}
+
+export interface UserLeaveEvent {
+    userId: string;
+}
+
+export type RedisEvent<Event> = Event & {
     channelId: string;
     endpointId: string;
 }
 
-export interface LeaveRedisEvent {
-    userId: string;
-    channelId: string;
-    endpointId: string;
-}
+export type RedisStateEvent = RedisEvent<StateEvent>;
+export type RedisStateSyncEvent = RedisEvent<StateSyncEvent>;
+export type RedisUserLeaveEvent = RedisEvent<UserLeaveEvent>;
 
 export interface ChannelMessage {
     channelId: string;
@@ -125,8 +132,6 @@ export interface ChannelMessage {
 export interface Client {
     channelId: string;
     publishUserLeave: (userId: string) => void;
-    getAssignsCache: () => Promise<Map<string, PondObject>>;
-    getPresenceCache: () => Promise<Map<string, PondObject>>;
     publishChannelMessage: (message: InternalChannelEvent) => void;
     subscribeToUserLeaves: (callback: (data: string) => void) => Unsubscribe;
     publishAssignsChange: (userId: string, state: PondObject | null) => void;
@@ -134,6 +139,7 @@ export interface Client {
     subscribeToAssignsChanges: (callback: (data: StateEvent) => void) => Unsubscribe;
     subscribeToPresenceChanges: (callback: (data: StateEvent) => void) => Unsubscribe;
     subscribeToChannelMessages: (callback: (data: InternalChannelEvent) => void) => Unsubscribe;
+    subscribeToStateSync: (callback: (data: StateSyncEvent) => void) => Unsubscribe;
 }
 
 export type ClientFactory = (channelId: string) => Client;

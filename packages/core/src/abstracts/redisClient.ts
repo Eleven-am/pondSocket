@@ -3,12 +3,14 @@ import Redis from 'ioredis';
 
 import {
     InternalChannelEvent,
-    LeaveRedisEvent,
-    StateChange,
+    RedisStateEvent,
     ChannelMessage,
     Client,
     StateEvent,
     RedisOptions,
+    RedisUserLeaveEvent,
+    RedisStateSyncEvent,
+    StateSyncEvent,
 } from './types';
 import { RedisError } from '../errors/redisError';
 
@@ -28,13 +30,15 @@ export class RedisClient {
 
     readonly #instanceId: string;
 
-    readonly #assignsPublisher: Subject<StateChange>;
+    readonly #assignsPublisher: Subject<RedisStateEvent>;
 
-    readonly #presencePublisher: Subject<StateChange>;
+    readonly #presencePublisher: Subject<RedisStateEvent>;
 
-    #userLeavesPublisher: Subject<LeaveRedisEvent>;
+    readonly #userLeavesPublisher: Subject<RedisUserLeaveEvent>;
 
-    #channelMessagePublisher: Subject<ChannelMessage>;
+    readonly #channelMessagePublisher: Subject<ChannelMessage>;
+
+    readonly #stateSyncPublisher: Subject<RedisStateSyncEvent>;
 
     #heartbeatTimer: NodeJS.Timeout | undefined;
 
@@ -48,10 +52,11 @@ export class RedisClient {
         this.#redisClient = new Redis(config);
         this.#pubClient = new Redis(config);
         this.#subClient = new Redis(config);
-        this.#assignsPublisher = new Subject<StateChange>();
-        this.#presencePublisher = new Subject<StateChange>();
-        this.#userLeavesPublisher = new Subject<LeaveRedisEvent>();
+        this.#assignsPublisher = new Subject<RedisStateEvent>();
+        this.#presencePublisher = new Subject<RedisStateEvent>();
+        this.#userLeavesPublisher = new Subject<RedisUserLeaveEvent>();
         this.#channelMessagePublisher = new Subject<ChannelMessage>();
+        this.#stateSyncPublisher = new Subject<RedisStateSyncEvent>();
         this.#instanceId = uuid();
     }
 
@@ -74,8 +79,6 @@ export class RedisClient {
     buildClient (endpointId: string) {
         return (channelId: string): Client => ({
             channelId,
-            getPresenceCache: this.#getPresenceCache.bind(this, endpointId, channelId),
-            getAssignsCache: this.#getAssignsCache.bind(this, endpointId, channelId),
             publishPresenceChange: this.#publishPresenceChange.bind(this, endpointId, channelId),
             publishAssignsChange: this.#publishAssignsChange.bind(this, endpointId, channelId),
             publishChannelMessage: this.#publishChannelMessage.bind(this, endpointId, channelId),
@@ -84,6 +87,7 @@ export class RedisClient {
             subscribeToPresenceChanges: this.#subscribeToCacheChanges.bind(this, endpointId, channelId, true),
             subscribeToAssignsChanges: this.#subscribeToCacheChanges.bind(this, endpointId, channelId, false),
             subscribeToChannelMessages: this.#subscribeToChannelMessages.bind(this, endpointId, channelId),
+            subscribeToStateSync: this.#subscribeToStateSync.bind(this, endpointId, channelId),
         });
     }
 
@@ -132,7 +136,7 @@ export class RedisClient {
     }
 
     #publishPresenceChange (endpointId: string, channelId: string, userId: string, state: PondObject | null) {
-        const message: StateChange = {
+        const message: RedisStateEvent = {
             userId,
             channelId,
             endpointId,
@@ -146,7 +150,7 @@ export class RedisClient {
     }
 
     #publishAssignsChange (endpointId: string, channelId: string, userId: string, state: PondObject | null) {
-        const message: StateChange = {
+        const message: RedisStateEvent = {
             userId,
             channelId,
             endpointId,
@@ -177,14 +181,6 @@ export class RedisClient {
         });
 
         await this.#pubClient.publish(this.#user_leaves_channel, message);
-    }
-
-    #getPresenceCache (endpointId: string, channelId: string) {
-        return this.#readCachedData(endpointId, channelId, 'presence_cache:*');
-    }
-
-    #getAssignsCache (endpointId: string, channelId: string) {
-        return this.#readCachedData(endpointId, channelId, 'assigns_cache:*');
     }
 
     async #registerInstance () {
@@ -263,34 +259,47 @@ export class RedisClient {
     }
 
     async #performConsistencyCheck () {
-        const activeInstances = await this.#getActiveInstances();
-        const allKeys = await this.#redisClient.keys('*_cache:*');
+        const consistencyCheckScript = `
+            local active_instances = redis.call('SMEMBERS', 'distributed_instances')
+            local all_keys = redis.call('KEYS', '*_cache:*')
+            local inactive_keys = {}
+            local unique_pairs = {}
+            
+            for _, key in ipairs(all_keys) do
+                local parts = {}
+                for part in string.gmatch(key, '[^:]+') do
+                    table.insert(parts, part)
+                end
+                local instance_id, endpoint_id, channel_id = parts[2], parts[3], parts[4]
+                
+                if not (active_instances[instance_id]) then
+                    table.insert(inactive_keys, key)
+                    local pair = endpoint_id .. ':' .. channel_id
+                    unique_pairs[pair] = true
+                end
+            end
+            
+            if #inactive_keys > 0 then
+                redis.call('DEL', unpack(inactive_keys))
+            end
+            
+            local unique_pairs_list = {}
+            for pair in pairs(unique_pairs) do
+                table.insert(unique_pairs_list, pair)
+            end
+            
+            return unique_pairs_list
+        `;
 
-        for (const key of allKeys) {
-            const [_, instanceId] = key.split(':');
+        const [uniquePairs] = await this.#redisClient.eval(consistencyCheckScript, 0) as [string[]];
 
-            if (!activeInstances.has(instanceId)) {
-                await this.#redisClient.del(key);
-            }
-        }
-    }
+        const promises = uniquePairs.map((pair) => {
+            const [endpointId, channelId] = pair.split(':');
 
-    async #getActiveInstances (): Promise<Set<string>> {
-        const instances = await this.#redisClient.smembers('distributed_instances');
-        const activeInstances = new Set<string>();
+            return this.#emitStateSyncEvent(endpointId, channelId);
+        });
 
-        for (const instanceId of instances) {
-            const lastHeartbeat = await this.#redisClient.get(`heartbeat:${instanceId}`);
-
-            if (lastHeartbeat && Date.now() - parseInt(lastHeartbeat, 10) < this.#instanceTtl * 1000) {
-                activeInstances.add(instanceId);
-            } else {
-                await this.#redisClient.srem('distributed_instances', instanceId);
-                await this.#redisClient.del(`heartbeat:${instanceId}`);
-            }
-        }
-
-        return activeInstances;
+        await Promise.all(promises);
     }
 
     #handleRedisMessage (channel: string, message: string) {
@@ -314,66 +323,72 @@ export class RedisClient {
         }
     }
 
-    async #publishCacheMessage (key: string, cacheKey: string, message: StateChange) {
+    async #publishCacheMessage (key: string, cacheKey: string, message: StateEvent) {
+        const script = `
+            local messageData = ARGV[1]
+            local userId = ARGV[2]
+            local state = ARGV[3]
+            
+            if state ~= '' then
+                redis.call('HSET', KEYS[1], userId, state)
+            else
+                redis.call('HDEL', KEYS[1], userId)
+            end
+            
+            redis.call('PUBLISH', KEYS[2], messageData)
+            
+            return 1
+        `;
+
         const messageData = JSON.stringify(message);
+        const state = message.state ? JSON.stringify(message.state) : '';
 
-        if (message.state) {
-            await this.#redisClient.hset(cacheKey, message.userId, JSON.stringify(message.state));
-        } else {
-            await this.#redisClient.hdel(cacheKey, message.userId);
-        }
-
-        await this.#pubClient.publish(key, messageData);
+        await this.#redisClient.eval(
+            script,
+            2,
+            cacheKey,
+            key,
+            messageData,
+            message.userId,
+            state,
+        );
     }
 
-    async #readCachedData (endpointId: string, channelId: string, cacheKey: 'presence_cache:*' | 'assigns_cache:*'): Promise<Map<string, PondObject>> {
-        const response = new Map<string, PondObject>();
-        const activeInstances = new Set(await this.#redisClient.smembers('distributed_instances'));
+    async #emitStateSyncEvent (endpointId: string, channelId: string) {
+        const script = `
+            local active_instances = redis.call('SMEMBERS', 'distributed_instances')
+            local presence_data = {}
+            local assigns_data = {}
+            
+            for _, instance in ipairs(active_instances) do
+                local presence_key = 'presence_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
+                local assigns_key = 'assigns_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
+                
+                local presence = redis.call('HGETALL', presence_key)
+                local assigns = redis.call('HGETALL', assigns_key)
+                
+                for i = 1, #presence, 2 do
+                    presence_data[presence[i]] = presence[i+1]
+                end
+                
+                for i = 1, #assigns, 2 do
+                    assigns_data[assigns[i]] = assigns[i+1]
+                end
+            end
+            
+            return {cjson.encode(presence_data), cjson.encode(assigns_data)}
+        `;
 
-        let cursor = '0';
+        const [presenceData, assignsData] = await this.#redisClient.eval(script, 0, endpointId, channelId) as [string, string];
 
-        do {
-            const [nextCursor, keys] = await this.#redisClient.scan(cursor, 'MATCH', cacheKey, 'COUNT', '100');
+        const event: RedisStateSyncEvent = {
+            endpointId,
+            channelId,
+            presence: new Map(Object.entries(JSON.parse(presenceData))),
+            assigns: new Map(Object.entries(JSON.parse(assignsData))),
+        };
 
-            cursor = nextCursor;
-
-            const pipeline = this.#redisClient.pipeline();
-
-            keys.forEach((key) => {
-                const [_, instanceId, keyEndpointId, keyChannelId] = key.split(':');
-
-                if (keyEndpointId === endpointId && keyChannelId === channelId) {
-                    if (activeInstances.has(instanceId)) {
-                        pipeline.hgetall(key);
-                    } else {
-                        pipeline.del(key);
-                    }
-                }
-            });
-
-            const results = await pipeline.exec();
-
-            if (results) {
-                results.forEach(([error, data]) => {
-                    if (!error && data && typeof data === 'object') {
-                        Object.entries(data)
-                            .forEach(([userId, value]) => {
-                                try {
-                                    const parsedData = JSON.parse(value as string);
-
-                                    if (typeof parsedData === 'object' && parsedData !== null) {
-                                        response.set(userId, parsedData as PondObject);
-                                    }
-                                } catch (e) {
-                                    throw new RedisError('Error parsing cached data');
-                                }
-                            });
-                    }
-                });
-            }
-        } while (cursor !== '0');
-
-        return response;
+        this.#stateSyncPublisher.publish(event);
     }
 
     #subscribeToCacheChanges (endpoint: string, channel: string, presence: boolean, callback: (data: StateEvent) => void): Unsubscribe {
@@ -400,6 +415,23 @@ export class RedisClient {
                 return callback(userId);
             }
         });
+    }
+
+    #subscribeToStateSync (endpoint: string, channel: string, callback: (data: StateSyncEvent) => void): Unsubscribe {
+        const interval = setInterval(() => this.#emitStateSyncEvent(endpoint, channel), this.#heartbeatInterval * 10);
+
+        const subscription = this.#stateSyncPublisher.subscribe(({ endpointId, channelId, ...data }) => {
+            if (endpointId === endpoint && channelId === channel) {
+                return callback(data);
+            }
+        });
+
+        void this.#emitStateSyncEvent(endpoint, channel);
+
+        return () => {
+            clearInterval(interval);
+            subscription();
+        };
     }
 
     async #handleExit () {
