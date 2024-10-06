@@ -103,22 +103,13 @@ export class RedisClient {
     }
 
     async shutdown () {
+        const batchSize = 1000;
+
         clearInterval(this.#heartbeatTimer);
         clearInterval(this.#cleanupTimer);
         await this.#unsubscribeFromChannels();
         await this.#unregisterInstance();
-        await this.#cleanup();
-    }
-
-    async #cleanup () {
-        const pipeline = this.#redisClient.pipeline();
-        const presenceKeys = await this.#redisClient.keys('presence_cache:*');
-
-        presenceKeys.forEach((key) => pipeline.del(key));
-        const assignsKeys = await this.#redisClient.keys('assigns_cache:*');
-
-        assignsKeys.forEach((key) => pipeline.del(key));
-        await pipeline.exec();
+        await this.#deleteKeysByPattern(`*_cache:${this.#instanceId}:*`, batchSize);
     }
 
     #handleErrors () {
@@ -265,6 +256,11 @@ export class RedisClient {
             local inactive_keys = {}
             local unique_pairs = {}
             
+            local active_set = {}
+            for _, instance in ipairs(active_instances) do
+                active_set[instance] = true
+            end
+            
             for _, key in ipairs(all_keys) do
                 local parts = {}
                 for part in string.gmatch(key, '[^:]+') do
@@ -272,7 +268,7 @@ export class RedisClient {
                 end
                 local instance_id, endpoint_id, channel_id = parts[2], parts[3], parts[4]
                 
-                if not (active_instances[instance_id]) then
+                if not active_set[instance_id] then
                     table.insert(inactive_keys, key)
                     local pair = endpoint_id .. ':' .. channel_id
                     unique_pairs[pair] = true
@@ -291,7 +287,8 @@ export class RedisClient {
             return unique_pairs_list
         `;
 
-        const [uniquePairs] = await this.#redisClient.eval(consistencyCheckScript, 0) as [string[]];
+        const [response] = await this.#redisClient.eval(consistencyCheckScript, 0) as (string | string[])[];
+        const uniquePairs = Array.isArray(response) ? response : response ? [response] : [];
 
         const promises = uniquePairs.map((pair) => {
             const [endpointId, channelId] = pair.split(':');
@@ -354,7 +351,7 @@ export class RedisClient {
         );
     }
 
-    async #emitStateSyncEvent (endpointId: string, channelId: string) {
+    async #emitStateSyncEvent (endpointId: string, channelId: string, initialFetch = false) {
         const script = `
             local active_instances = redis.call('SMEMBERS', 'distributed_instances')
             local presence_data = {}
@@ -384,6 +381,7 @@ export class RedisClient {
         const event: RedisStateSyncEvent = {
             endpointId,
             channelId,
+            initialFetch,
             presence: new Map(Object.entries(JSON.parse(presenceData))),
             assigns: new Map(Object.entries(JSON.parse(assignsData))),
         };
@@ -426,7 +424,7 @@ export class RedisClient {
             }
         });
 
-        void this.#emitStateSyncEvent(endpoint, channel);
+        void this.#emitStateSyncEvent(endpoint, channel, true);
 
         return () => {
             clearInterval(interval);
@@ -441,5 +439,25 @@ export class RedisClient {
         } catch (error) {
             process.exit(1);
         }
+    }
+
+    async #deleteKeysByPattern (pattern: string, batchSize: number) {
+        let cursor = '0';
+
+        do {
+            const [newCursor, keys] = await this.#redisClient.scan(
+                cursor,
+                'MATCH',
+                pattern,
+                'COUNT',
+                batchSize,
+            );
+
+            cursor = newCursor;
+
+            if (keys.length > 0) {
+                await this.#redisClient.del(...keys);
+            }
+        } while (cursor !== '0');
     }
 }

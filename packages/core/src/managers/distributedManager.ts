@@ -1,4 +1,11 @@
-import { PondPresence, PondAssigns, Unsubscribe } from '@eleven-am/pondsocket-common';
+import {
+    PondPresence,
+    PondAssigns,
+    Unsubscribe,
+    PresenceEventTypes,
+    uuid,
+    ServerActions,
+} from '@eleven-am/pondsocket-common';
 
 import { Manager, ActionTypes } from './manager';
 import { Client, InternalChannelEvent } from '../abstracts/types';
@@ -97,7 +104,7 @@ export class DistributedManager extends Manager {
 
         const stateSyncSubscription = this.#client.subscribeToStateSync((state) => {
             this.assignsCache = new Map(state.assigns);
-            this.presenceCache = new Map(state.presence);
+            this.#parseAndUpdatePresence(new Map(state.presence), state.initialFetch);
         });
 
         this.#subscriptions = () => {
@@ -113,5 +120,76 @@ export class DistributedManager extends Manager {
         this.#subscriptions?.();
 
         return super.close();
+    }
+
+    #parseAndUpdatePresence (newCache: Map<string, PondPresence>, initialFetch: boolean) {
+        if (initialFetch) {
+            this.presenceCache = newCache;
+        }
+
+        const newUsers = new Set(newCache.keys());
+        const oldUsers = new Set(this.presenceCache.keys());
+        const usersToAdd = new Set([...newUsers].filter((user) => !oldUsers.has(user)));
+        const usersToRemove = new Set([...oldUsers].filter((user) => !newUsers.has(user)));
+        const noChange = new Set([...newUsers].filter((user) => oldUsers.has(user)));
+
+        const usersToUpdate = new Set([...noChange]
+            .filter((user) => {
+                const oldData = this.presenceCache.get(user);
+                const newData = newCache.get(user);
+
+                return JSON.stringify(oldData) !== JSON.stringify(newData);
+            }));
+
+        const upSertInfo = [
+            ...[...usersToAdd]
+                .map((user) => ({
+                    userId: user,
+                    state: newCache.get(user)!,
+                    event: PresenceEventTypes.JOIN,
+                })),
+            ...[...usersToUpdate]
+                .map((user) => ({
+                    userId: user,
+                    state: newCache.get(user)!,
+                    event: PresenceEventTypes.UPDATE,
+                })),
+        ];
+
+        const upsertMessages = upSertInfo.map(({ userId, state, event }) => {
+            this.presenceCache.set(userId, state);
+
+            return {
+                event,
+                requestId: uuid(),
+                recipients: Array.from(this.presenceCache.keys()),
+                channelName: this.channelId,
+                action: ServerActions.PRESENCE,
+                payload: {
+                    changed: state,
+                    presence: Array.from(this.presenceCache.values()),
+                },
+            };
+        });
+
+        const removeMessages = [...usersToRemove].map((user) => {
+            const current = this.presenceCache.get(user)!;
+
+            this.presenceCache.delete(user);
+
+            return {
+                event: PresenceEventTypes.LEAVE,
+                requestId: uuid(),
+                recipients: Array.from(this.presenceCache.keys()),
+                channelName: this.channelId,
+                action: ServerActions.PRESENCE,
+                payload: {
+                    changed: current,
+                    presence: Array.from(this.presenceCache.values()),
+                },
+            };
+        });
+
+        [...upsertMessages, ...removeMessages].forEach((message) => this.broadcast(message));
     }
 }

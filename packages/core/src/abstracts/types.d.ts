@@ -106,6 +106,7 @@ export interface StateEvent {
 }
 
 export interface StateSyncEvent {
+    initialFetch: boolean;
     assigns: Map<string, PondObject>;
     presence: Map<string, PondObject>;
 }

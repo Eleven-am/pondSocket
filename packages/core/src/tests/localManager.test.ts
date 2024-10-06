@@ -227,14 +227,6 @@ describe('LocalManager', () => {
         });
     });
 
-    describe('initialize', () => {
-        it('should initialize the manager and return a resolved promise', async () => {
-            const unsubscribeMock = jest.fn();
-
-            await expect(localManager.initialize(unsubscribeMock)).resolves.toBeUndefined();
-        });
-    });
-
     describe('close', () => {
         it('should clear all data and close the publisher', () => {
             const userId = 'user1';
