@@ -39,7 +39,7 @@ export class JoinResponse {
 
     accept (): JoinResponse {
         this.#performChecks();
-        const onMessage = this.#directMessage.bind(this);
+        const onMessage = this.#engine.parent.parent.sendMessage.bind(this.#engine.parent.parent, this.#user.socket);
 
         const subscription = this.#engine.addUser(this.#user.clientId, this.#newAssigns, onMessage);
 
