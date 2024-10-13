@@ -8,33 +8,29 @@ import { managePipes } from '../managers/pipes';
 import { ParamDecoratorCallback, Constructor } from '../types';
 import { retrieveInstance } from './misc';
 
-async function performTransforms (moduleRef: ModuleRef, globalPipes: Constructor<PipeTransform>[], context: Context, metadata: unknown, value: any) {
-    const classTransforms = managePipes(context.getClass()).get();
-    const methodTransforms = managePipes(context.getInstance(), context.getMethod()).get();
-
-    const transformers = globalPipes
-        .concat(classTransforms, methodTransforms)
-        .map((Transformer) => retrieveInstance(moduleRef, Transformer));
-
-    const argumentMetadata: ArgumentMetadata = {
-        metatype: metadata as Constructor<unknown>,
-        type: 'body',
-    };
-
-    let transformedValue = value;
-
-    for (const transformer of transformers) {
-        transformedValue = await transformer.transform(transformedValue, argumentMetadata);
-    }
-
-    return transformedValue;
-}
-
 function wrapTransform <Input> (metadata: unknown, data: Input, handler: ParamDecoratorCallback<Input>) {
     return async (context: Context, globalPipes: Constructor<PipeTransform>[], moduleRef: ModuleRef) => {
         const value = await handler(data, context, metadata);
 
-        return performTransforms(moduleRef, globalPipes, context, metadata, value);
+        const classTransforms = managePipes(context.getClass()).get();
+        const methodTransforms = managePipes(context.getInstance(), context.getMethod()).get();
+
+        const transformers = globalPipes
+            .concat(classTransforms, methodTransforms)
+            .map((Transformer) => retrieveInstance(moduleRef, Transformer));
+
+        const argumentMetadata: ArgumentMetadata = {
+            metatype: metadata as Constructor<unknown>,
+            type: 'body',
+        };
+
+        let transformedValue = value;
+
+        for (const transformer of transformers) {
+            transformedValue = await transformer.transform(transformedValue, argumentMetadata);
+        }
+
+        return transformedValue;
     };
 }
 
