@@ -7,10 +7,12 @@ export function OnLeave (): MethodDecorator {
         const originalMethod = descriptor.value as (...args: any[]) => Promise<PondResponse | null | undefined>;
         const { set } = manageLeave(target);
 
-        set('', async (instance, moduleRef, leaveEvent) => {
+        set('', async (instance, moduleRef, globalGuards, globalPipes, leaveEvent) => {
             await performAction(
                 instance,
                 moduleRef,
+                globalGuards,
+                globalPipes,
                 originalMethod,
                 propertyKey as string,
                 leaveEvent,

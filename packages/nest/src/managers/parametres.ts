@@ -1,8 +1,11 @@
 import 'reflect-metadata';
-import { manageMethod } from './method';
+import type { PipeTransform } from '@nestjs/common';
+import type { ModuleRef } from '@nestjs/core';
+
 import { parametersKey } from '../constants';
 import { Context } from '../context/context';
-import { ParamDecoratorMetadata } from '../types';
+import { ParamDecoratorMetadata, Constructor } from '../types';
+import { manageMethod } from './method';
 
 export function manageParameters (target: any, propertyKey: string) {
     const { get, set } = manageMethod<ParamDecoratorMetadata[]>(
@@ -15,7 +18,7 @@ export function manageParameters (target: any, propertyKey: string) {
         get () {
             return get() || [];
         },
-        set (index: number, callback: (context: Context) => unknown | Promise<unknown>) {
+        set (index: number, callback: (context: Context, globalPipes: Constructor<PipeTransform>[], moduleRef: ModuleRef) => Promise<unknown>) {
             const handlers = get() || [];
 
             set([

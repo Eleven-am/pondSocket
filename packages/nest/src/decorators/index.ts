@@ -23,4 +23,5 @@ export * from './onConnectionRequest';
 export * from './onJoinRequest';
 export * from './onLeave';
 export * from './onEvent';
-export * from './pondGuards';
+export * from './useGuards';
+export * from './usePipes';

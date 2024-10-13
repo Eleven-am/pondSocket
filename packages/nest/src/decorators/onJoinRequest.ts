@@ -8,11 +8,13 @@ export function OnJoinRequest (): MethodDecorator {
         const originalMethod = descriptor.value as (...args: any[]) => Promise<PondResponse | null | undefined>;
         const { set } = manageJoin(target);
 
-        set('', async (instance, moduleRef, request, response) => {
+        set('', async (instance, moduleRef, globalGuards, globalPipes, request, response) => {
             try {
                 await performAction(
                     instance,
                     moduleRef,
+                    globalGuards,
+                    globalPipes,
                     originalMethod,
                     propertyKey as string,
                     null,

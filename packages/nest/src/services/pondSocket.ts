@@ -5,7 +5,7 @@ import type { Endpoint, RedisOptions } from '@eleven-am/pondsocket/types';
 import { DiscoveryService } from '@golevelup/nestjs-discovery';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 // eslint-disable-next-line import/no-unresolved
-import { Logger, Type } from '@nestjs/common';
+import { Logger, Type, PipeTransform } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { AbstractHttpAdapter, HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
@@ -16,7 +16,6 @@ import { manageConnection } from '../managers/connection';
 import { manageEndpoint } from '../managers/endpoint';
 import { manageEndpointInstance } from '../managers/endpointInstance';
 import { manageEvent } from '../managers/event';
-import { manageGuards } from '../managers/guards';
 import { manageJoin } from '../managers/join';
 import { manageLeave } from '../managers/leave';
 import { CanActivate, Constructor, GroupedInstances } from '../types';
@@ -28,7 +27,8 @@ export class PondSocketService {
         private readonly moduleRef: ModuleRef,
         private readonly discovery: DiscoveryService,
         private readonly adapterHost: HttpAdapterHost,
-        private readonly externalGuards: Constructor<CanActivate>[],
+        private readonly globalGuards: Constructor<CanActivate>[],
+        private readonly globalPipes: Constructor<PipeTransform>[],
         private readonly redisOptions?: RedisOptions,
     ) {
         const httpAdapter = this.adapterHost.httpAdapter;
@@ -59,21 +59,19 @@ export class PondSocketService {
         const instance = groupedInstance.endpoint.instance;
         const constructor = instance.constructor;
         const metadata = manageEndpoint(constructor).get();
-        const { set: setGuards } = manageGuards(constructor);
         const { set: setEndpoint } = manageEndpointInstance(instance);
 
         if (!metadata) {
             return;
         }
 
-        setGuards(this.externalGuards);
         const { get } = manageConnection(instance);
         const channels = [...new Set([...groupedInstance.channels.map((channel) => channel)])];
         const [handler] = get();
 
         const endpoint = socket.createEndpoint(metadata, async (request, response) => {
             if (handler) {
-                await handler.value(instance, this.moduleRef, request, response);
+                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, request, response);
             } else {
                 response.accept();
             }
@@ -102,16 +100,13 @@ export class PondSocketService {
             return;
         }
 
-        const { set: setGuards } = manageGuards(constructor);
         const { set: setChannel } = manageChannelInstance(instance);
         const { get } = manageJoin(instance);
         const [handler] = get();
 
-        setGuards(this.externalGuards);
-
         const channelInstance = endpoint.createChannel(path, async (request, response) => {
             if (handler) {
-                await handler.value(instance, this.moduleRef, request, response);
+                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, request, response);
             } else {
                 response.accept();
             }
@@ -129,7 +124,7 @@ export class PondSocketService {
 
         getEventHandlers().forEach((handler) => {
             channelInstance.onEvent(handler.path, async (request, response) => {
-                await handler.value(instance, this.moduleRef, request, response);
+                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, request, response);
             });
 
             this.logger.log(`Mapped {${endpointPath}:${path}} event {${handler.path}}`);
@@ -139,7 +134,7 @@ export class PondSocketService {
 
         if (leaveHandler) {
             channelInstance.onLeave(async (event) => {
-                await leaveHandler.value(instance, this.moduleRef, event);
+                await leaveHandler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, event);
             });
 
             this.logger.log(`Mapped {${endpointPath}:${path}} leave handler`);

@@ -15,7 +15,7 @@ import type {
     UserData,
     RedisOptions,
 } from '@eleven-am/pondsocket/types';
-import type { DynamicModule, ModuleMetadata } from '@nestjs/common';
+import type { DynamicModule, ModuleMetadata, PipeTransform } from '@nestjs/common';
 
 type Constructor<T> = new (...args: any[]) => T;
 
@@ -32,6 +32,7 @@ interface CanActivate {
 
 interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
+    pipes?: Constructor<PipeTransform>[];
     redisOptions?: RedisOptions;
     isGlobal?: boolean;
 }
@@ -297,7 +298,13 @@ declare function OnLeave(): MethodDecorator;
  * @desc Decorator that adds guards to a channel's or endpoint's class or method
  * @param guards - The guards to add. It is important to add the guards to a providers array in any module (only necessary if the guards inject dependencies)
  */
-declare function PondGuards (...guards: Constructor<CanActivate>[]): ClassDecorator | MethodDecorator;
+declare function UseGuards (...guards: Constructor<CanActivate>[]): ClassDecorator | MethodDecorator;
+
+/**
+ * @desc Decorator that adds validators to a channel's or endpoint's class or method
+ * @param validators - The validators to add. It is important to add the validators to a providers array in any module (only necessary if the validators inject dependencies)
+ */
+declare function UsePipes (...validators: Constructor<PipeTransform>[]): ClassDecorator | MethodDecorator;
 
 /**
  * @desc Helper function that creates a parameter decorator

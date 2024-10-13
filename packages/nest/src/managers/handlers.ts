@@ -1,7 +1,5 @@
-import type { ModuleRef } from '@nestjs/core';
-
+import { HandlerData, HandlerFunction } from '../types';
 import { manageClass } from './class';
-import { HandlerData } from '../types';
 
 export function manageHandlers<Request, Response> (key: symbol, target: any) {
     const { get, set } = manageClass<HandlerData<Request, Response>[]>(
@@ -15,12 +13,7 @@ export function manageHandlers<Request, Response> (key: symbol, target: any) {
         },
         set (
             path: string,
-            value: (
-                instance: unknown,
-                moduleRef: ModuleRef,
-                request: Request,
-                response: Response,
-            ) => Promise<void>,
+            value: HandlerFunction<Request, Response>,
         ) {
             const handlers = get() || [];
 

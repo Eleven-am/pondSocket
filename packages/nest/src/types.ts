@@ -12,7 +12,7 @@ import type {
     RedisOptions,
 } from '@eleven-am/pondsocket/types';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
-import type { ModuleMetadata } from '@nestjs/common';
+import type { ModuleMetadata, PipeTransform } from '@nestjs/common';
 import type { ModuleRef } from '@nestjs/core';
 
 import type { Context } from './context/context';
@@ -34,15 +34,17 @@ export type ParamDecoratorCallback<Input> = (data: Input, context: Context, type
 
 export interface ParamDecoratorMetadata {
     index: number;
-    callback: (context: Context) => unknown | Promise<unknown>;
+    callback: (context: Context, globalPipes: Constructor<PipeTransform>[], moduleRef: ModuleRef) => Promise<unknown>;
 }
+
+export type HandlerFunction<Req, Res> = (instance: unknown, moduleRef: ModuleRef, globalGuards: Constructor<CanActivate>[], globalPipes: Constructor<PipeTransform>[], request: Req, response: Res) => Promise<void>;
 
 export type HandlerData<Req, Res> = {
     path: string;
-    value: (instance: unknown, moduleRef: ModuleRef, request: Req, response: Res) => Promise<void>;
+    value: HandlerFunction<Req, Res>;
 }
 
-export type Constructor<T> = new (...args: any[]) => T;
+export type Constructor<T, Parameters extends any[] = any[]> = new (...args: Parameters) => T;
 
 export interface CanActivate {
 
@@ -60,6 +62,7 @@ export type GroupedInstances = {
 
 export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
+    pipes?: Constructor<PipeTransform>[];
     redisOptions?: RedisOptions;
     isGlobal?: boolean;
 }

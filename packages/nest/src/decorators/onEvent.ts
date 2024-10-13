@@ -8,11 +8,13 @@ export function OnEvent (event = '*'): MethodDecorator {
         const originalMethod = descriptor.value as (...args: any[]) => Promise<PondResponse | null | undefined>;
         const { set } = manageEvent(target);
 
-        set(event, async (instance, moduleRef, request, response) => {
+        set(event, async (instance, moduleRef, globalGuards, globalPipes, request, response) => {
             try {
                 await performAction(
                     instance,
                     moduleRef,
+                    globalGuards,
+                    globalPipes,
                     originalMethod,
                     propertyKey as string,
                     null,
