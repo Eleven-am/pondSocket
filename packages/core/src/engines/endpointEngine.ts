@@ -180,12 +180,31 @@ export class EndpointEngine {
     }
 
     #buildError (error: unknown) {
+        let message: string;
+        let status: number;
+
+        if (error instanceof HttpError) {
+            message = error.message;
+            status = error.statusCode;
+        } else if (error instanceof Error) {
+            message = error.message;
+            status = 500;
+        } else {
+            message = 'An unknown error occurred';
+            status = 500;
+        }
+
         const event: ChannelEvent = {
             event: ErrorTypes.INVALID_MESSAGE,
             action: ServerActions.ERROR,
             channelName: SystemSender.ENDPOINT,
             requestId: uuid(),
-            payload: {},
+            payload: {
+                error: {
+                    message,
+                    status,
+                },
+            },
         };
 
         return event;
