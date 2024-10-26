@@ -104,13 +104,17 @@ export abstract class Manager {
     removeUser (userId: string) {
         const userData = this.getUserData(userId);
 
-        this.removePresence(userId);
-        this.removeAssigns(userId);
-        this.userSubscriptions.get(userId)?.();
-        this.userSubscriptions.delete(userId);
+        try {
+            this.removePresence(userId);
+            this.removeAssigns(userId);
+            this.userSubscriptions.get(userId)?.();
+            this.userSubscriptions.delete(userId);
 
-        if (this.assignsCache.size === 0) {
-            this.close();
+            if (this.assignsCache.size === 0) {
+                this.close();
+            }
+        } catch (error) {
+            // no-op
         }
 
         return userData;
