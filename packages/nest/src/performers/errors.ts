@@ -6,11 +6,13 @@ import { isEventResponse } from './narrow';
 
 export function performErrors (error: unknown, response: ConnectionResponse | JoinResponse | EventResponse) {
     let message: string;
+    let data: unknown;
     let status: number;
 
     if (error instanceof HttpException) {
         message = error.message;
         status = error.getStatus();
+        data = (error.getResponse() as any)?.message;
     } else if (error instanceof Error) {
         message = error.message;
         status = 500;
@@ -22,6 +24,7 @@ export function performErrors (error: unknown, response: ConnectionResponse | Jo
     if (isEventResponse(response)) {
         return response.reply('UNKNOWN_ERROR', {
             message,
+            data,
             status,
         });
     }
