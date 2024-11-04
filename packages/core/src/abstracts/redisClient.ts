@@ -250,47 +250,27 @@ export class RedisClient {
     }
 
     async #performConsistencyCheck () {
-        const consistencyCheckScript = `
-            local active_instances = redis.call('SMEMBERS', 'distributed_instances')
-            local all_keys = redis.call('KEYS', '*_cache:*')
-            local inactive_keys = {}
-            local unique_pairs = {}
-            
-            local active_set = {}
-            for _, instance in ipairs(active_instances) do
-                active_set[instance] = true
-            end
-            
-            for _, key in ipairs(all_keys) do
-                local parts = {}
-                for part in string.gmatch(key, '[^:]+') do
-                    table.insert(parts, part)
-                end
-                local instance_id, endpoint_id, channel_id = parts[2], parts[3], parts[4]
-                
-                if not active_set[instance_id] then
-                    table.insert(inactive_keys, key)
-                    local pair = endpoint_id .. ':' .. channel_id
-                    unique_pairs[pair] = true
-                end
-            end
-            
-            if #inactive_keys > 0 then
-                redis.call('DEL', unpack(inactive_keys))
-            end
-            
-            local unique_pairs_list = {}
-            for pair in pairs(unique_pairs) do
-                table.insert(unique_pairs_list, pair)
-            end
-            
-            return unique_pairs_list
-        `;
+        const activeInstances = await this.#redisClient.smembers('distributed_instances');
+        const allKeys = await this.#redisClient.keys('*_cache:*');
+        const activeSet = new Set(activeInstances);
 
-        const [response] = await this.#redisClient.eval(consistencyCheckScript, 0) as (string | string[])[];
-        const uniquePairs = Array.isArray(response) ? response : response ? [response] : [];
+        const inactiveKeys = [];
+        const uniquePairs = new Set<string>();
 
-        const promises = uniquePairs.map((pair) => {
+        for (const key of allKeys) {
+            const [, instanceId, endpointId, channelId] = key.split(':');
+
+            if (!activeSet.has(instanceId)) {
+                inactiveKeys.push(key);
+                uniquePairs.add(`${endpointId}:${channelId}`);
+            }
+        }
+
+        if (inactiveKeys.length > 0) {
+            await this.#redisClient.del(...inactiveKeys);
+        }
+
+        const promises = Array.from(uniquePairs).map((pair) => {
             const [endpointId, channelId] = pair.split(':');
 
             return this.#emitStateSyncEvent(endpointId, channelId);
