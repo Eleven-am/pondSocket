@@ -362,8 +362,8 @@ export class RedisClient {
             endpointId,
             channelId,
             initialFetch,
-            presence: new Map(Object.entries(JSON.parse(presenceData))),
-            assigns: new Map(Object.entries(JSON.parse(assignsData))),
+            presence: this.#generateCache(presenceData),
+            assigns: this.#generateCache(assignsData),
         };
 
         this.#stateSyncPublisher.publish(event);
@@ -439,5 +439,13 @@ export class RedisClient {
                 await this.#redisClient.del(...keys);
             }
         } while (cursor !== '0');
+    }
+
+    #generateCache (data: string) {
+        const first = Object.entries(JSON.parse(data));
+        const second: [string, PondObject][] = first.map(([key, value]) => [key, JSON.parse(String(value))]);
+
+
+        return new Map(second);
     }
 }
