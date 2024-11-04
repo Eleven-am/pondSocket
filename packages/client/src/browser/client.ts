@@ -64,9 +64,13 @@ export default class PondClient {
         socket.onmessage = (message) => {
             const data = JSON.parse(message.data);
 
-            const event = channelEventSchema.parse(data);
+            try {
+                const event = channelEventSchema.parse(data);
 
-            this._broadcaster.publish(event);
+                this._broadcaster.publish(event);
+            } catch (e) {
+                console.error('Invalid message received:', e);
+            }
         };
 
         socket.onerror = () => socket.close();
