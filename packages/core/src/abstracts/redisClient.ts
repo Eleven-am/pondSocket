@@ -1,8 +1,7 @@
-import { uuid, PondObject, Subject, Unsubscribe } from '@eleven-am/pondsocket-common';
+import { uuid, Subject, PondObject, Unsubscribe } from '@eleven-am/pondsocket-common';
 import Redis from 'ioredis';
 
 import {
-    InternalChannelEvent,
     RedisStateEvent,
     ChannelMessage,
     Client,
@@ -11,6 +10,7 @@ import {
     RedisUserLeaveEvent,
     RedisStateSyncEvent,
     StateSyncEvent,
+    InternalChannelEvent,
 } from './types';
 import { RedisError } from '../errors/redisError';
 
@@ -118,12 +118,268 @@ export class RedisClient {
         this.#subClient.on('error', (err) => console.error('Redis sub client error:', err));
     }
 
+    async #registerInstance () {
+        const multi = this.#redisClient.multi();
+        const now = Date.now().toString();
+
+        multi
+            .sadd('distributed_instances', this.#instanceId)
+            .set(`heartbeat:${this.#instanceId}`, now, 'EX', this.#instanceTtl)
+            .hset(`instance_metadata:${this.#instanceId}`, 'last_seen', now);
+
+        try {
+            await multi.exec();
+        } catch (error) {
+            throw new RedisError('Error registering instance');
+        }
+    }
+
+    async #unregisterInstance () {
+        const multi = this.#redisClient.multi();
+
+        multi
+            .srem('distributed_instances', this.#instanceId)
+            .del(`heartbeat:${this.#instanceId}`)
+            .del(`instance_metadata:${this.#instanceId}`);
+
+        try {
+            await multi.exec();
+        } catch {
+            // no-op as we're shutting down
+        }
+    }
+
+    async #cleanupDisconnectedClients () {
+        const script = `
+            local instances = redis.call('SMEMBERS', 'distributed_instances')
+            local expired = {}
+            
+            for _, instance in ipairs(instances) do
+                local heartbeat = redis.call('GET', 'heartbeat:' .. instance)
+                if not heartbeat then
+                    table.insert(expired, instance)
+                    redis.call('SREM', 'distributed_instances', instance)
+                    redis.call('DEL', 'instance_metadata:' .. instance)
+                    
+                    -- Cleanup instance data
+                    local pattern = '*_cache:' .. instance .. ':*'
+                    local cursor = '0'
+                    repeat
+                        local result = redis.call('SCAN', cursor, 'MATCH', pattern, 'COUNT', 100)
+                        cursor = result[1]
+                        local keys = result[2]
+                        if #keys > 0 then
+                            redis.call('DEL', unpack(keys))
+                        end
+                    until cursor == '0'
+                end
+            end
+            
+            return expired
+        `;
+
+        try {
+            const expiredInstances = await this.#redisClient.eval(script, 0) as string[];
+
+            if (expiredInstances.length > 0) {
+                await this.#handleExpiredInstances(expiredInstances);
+            }
+        } catch (error) {
+            console.error('Error cleaning up disconnected clients:', error);
+        }
+    }
+
+    async #handleExpiredInstances (expiredInstances: string[]) {
+        const pattern = `*_cache:(${expiredInstances.join('|')}):*`;
+        const keys = await this.#redisClient.keys(pattern);
+
+        const channelPairs = new Set<string>();
+
+        for (const key of keys) {
+            const [, , endpointId, channelId] = key.split(':');
+
+            channelPairs.add(`${endpointId}:${channelId}`);
+        }
+
+        const promises = Array.from(channelPairs).map((pair) => {
+            const [endpointId, channelId] = pair.split(':');
+
+
+            return this.#emitStateSyncEvent(endpointId, channelId);
+        });
+
+        await Promise.all(promises);
+    }
+
+    async #performConsistencyCheck () {
+        const multi = this.#redisClient.multi();
+
+        // Get both active instances and keys in the same transaction
+        const [[, activeInstances], [, allKeys]] = await multi
+            .smembers('distributed_instances')
+            .keys('*_cache:*')
+            .exec() || [];
+
+        const activeSet = new Set(activeInstances as string[]);
+        const inactiveKeys = [];
+        const uniquePairs = new Set<string>();
+
+        for (const key of allKeys as string[]) {
+            const [, instanceId, endpointId, channelId] = key.split(':');
+
+            if (!activeSet.has(instanceId)) {
+                inactiveKeys.push(key);
+                uniquePairs.add(`${endpointId}:${channelId}`);
+            }
+        }
+
+        if (inactiveKeys.length > 0) {
+            // Use pipeline for batch deletion
+            const pipeline = this.#redisClient.pipeline();
+
+            for (const key of inactiveKeys) {
+                pipeline.del(key);
+            }
+            await pipeline.exec();
+        }
+
+        const promises = Array.from(uniquePairs).map((pair) => {
+            const [endpointId, channelId] = pair.split(':');
+
+
+            return this.#emitStateSyncEvent(endpointId, channelId);
+        });
+
+        await Promise.all(promises);
+    }
+
+    #startPeriodicCleanup () {
+        this.#cleanupTimer = setInterval(async () => {
+            try {
+                await this.#cleanupDisconnectedClients();
+                await this.#performConsistencyCheck();
+            } catch (error) {
+                console.error('Error in periodic cleanup:', error);
+            }
+        }, this.#cleanupInterval);
+    }
+
+    #startHeartbeat () {
+        this.#heartbeatTimer = setInterval(async () => {
+            const multi = this.#redisClient.multi();
+            const now = Date.now().toString();
+
+            multi
+                .set(`heartbeat:${this.#instanceId}`, now, 'EX', this.#instanceTtl)
+                .hset(`instance_metadata:${this.#instanceId}`, 'last_seen', now);
+
+            try {
+                await multi.exec();
+            } catch (error) {
+                console.error('Error updating heartbeat:', error);
+            }
+        }, this.#heartbeatInterval);
+    }
+
+    async #unsubscribeFromChannels () {
+        await this.#subClient.unsubscribe(
+            this.#presence_changes_channel,
+            this.#assigns_changes_channel,
+            this.#channel_messages_channel,
+            this.#user_leaves_channel,
+        );
+    }
+
+    #subscribeToChannels () {
+        return new Promise<void>((resolve, reject) => {
+            this.#subClient.subscribe(
+                this.#presence_changes_channel,
+                this.#assigns_changes_channel,
+                this.#channel_messages_channel,
+                this.#user_leaves_channel,
+                (err) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                },
+            );
+
+            this.#subClient.on('message', this.#handleRedisMessage.bind(this));
+        });
+    }
+
+    #handleRedisMessage (channel: string, message: string) {
+        const data = JSON.parse(message);
+
+        switch (channel) {
+            case this.#presence_changes_channel:
+                this.#presencePublisher.publish(data);
+                break;
+            case this.#assigns_changes_channel:
+                this.#assignsPublisher.publish(data);
+                break;
+            case this.#channel_messages_channel:
+                this.#channelMessagePublisher.publish(data);
+                break;
+            case this.#user_leaves_channel:
+                this.#userLeavesPublisher.publish(data);
+                break;
+            default:
+                throw new Error(`Unknown channel: ${channel}`);
+        }
+    }
+
     #getPresenceCacheChannel (endpointId: string, channelId: string) {
         return `presence_cache:${this.#instanceId}:${endpointId}:${channelId}`;
     }
 
     #getAssignsCacheChannel (endpointId: string, channelId: string) {
         return `assigns_cache:${this.#instanceId}:${endpointId}:${channelId}`;
+    }
+
+    #subscribeToCacheChanges (endpoint: string, channel: string, presence: boolean, callback: (data: StateEvent) => void): Unsubscribe {
+        const subject = presence ? this.#presencePublisher : this.#assignsPublisher;
+
+        return subject.subscribe(({ endpointId, channelId, ...data }) => {
+            if (endpointId === endpoint && channelId === channel) {
+                return callback(data);
+            }
+        });
+    }
+
+    #subscribeToChannelMessages (endpoint: string, channel: string, callback: (data: InternalChannelEvent) => void): Unsubscribe {
+        return this.#channelMessagePublisher.subscribe(({ endpointId, channelId, message }) => {
+            if (endpointId === endpoint && channelId === channel) {
+                return callback(message);
+            }
+        });
+    }
+
+    #subscribeToUserLeaves (endpoint: string, channel: string, callback: (data: string) => void): Unsubscribe {
+        return this.#userLeavesPublisher.subscribe(({ endpointId, channelId, userId }) => {
+            if (endpointId === endpoint && channelId === channel) {
+                return callback(userId);
+            }
+        });
+    }
+
+    #subscribeToStateSync (endpoint: string, channel: string, callback: (data: StateSyncEvent) => void): Unsubscribe {
+        const interval = setInterval(() => this.#emitStateSyncEvent(endpoint, channel), this.#heartbeatInterval * 10);
+
+        const subscription = this.#stateSyncPublisher.subscribe(({ endpointId, channelId, ...data }) => {
+            if (endpointId === endpoint && channelId === channel) {
+                return callback(data);
+            }
+        });
+
+        void this.#emitStateSyncEvent(endpoint, channel, true);
+
+        return () => {
+            clearInterval(interval);
+            subscription();
+        };
     }
 
     #publishPresenceChange (endpointId: string, channelId: string, userId: string, state: PondObject | null) {
@@ -174,132 +430,6 @@ export class RedisClient {
         await this.#pubClient.publish(this.#user_leaves_channel, message);
     }
 
-    async #registerInstance () {
-        const multi = this.#redisClient.multi();
-
-        multi.sadd('distributed_instances', this.#instanceId);
-        multi.set(`heartbeat:${this.#instanceId}`, Date.now().toString(), 'EX', this.#instanceTtl);
-
-        try {
-            await multi.exec();
-        } catch (error) {
-            throw new RedisError('Error registering instance');
-        }
-    }
-
-    async #unregisterInstance () {
-        const multi = this.#redisClient.multi();
-
-        multi.srem('distributed_instances', this.#instanceId);
-        multi.del(`heartbeat:${this.#instanceId}`);
-
-        try {
-            await multi.exec();
-        } catch {
-            // no-op as we're shutting down
-        }
-    }
-
-    async #unsubscribeFromChannels () {
-        await this.#subClient.unsubscribe(
-            this.#presence_changes_channel,
-            this.#assigns_changes_channel,
-            this.#channel_messages_channel,
-            this.#user_leaves_channel,
-        );
-    }
-
-    #subscribeToChannels () {
-        return new Promise<void>((resolve, reject) => {
-            this.#subClient.subscribe(
-                this.#presence_changes_channel,
-                this.#assigns_changes_channel,
-                this.#channel_messages_channel,
-                this.#user_leaves_channel,
-                (err) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        resolve();
-                    }
-                },
-            );
-
-            this.#subClient.on('message', this.#handleRedisMessage.bind(this));
-        });
-    }
-
-    #startHeartbeat () {
-        this.#heartbeatTimer = setInterval(async () => {
-            try {
-                await this.#redisClient.set(`heartbeat:${this.#instanceId}`, Date.now().toString(), 'EX', this.#instanceTtl);
-            } catch (error) {
-                throw new RedisError('Error setting heartbeat');
-            }
-        }, this.#heartbeatInterval);
-    }
-
-    #startPeriodicCleanup () {
-        this.#cleanupTimer = setInterval(async () => {
-            try {
-                await this.#performConsistencyCheck();
-            } catch (error) {
-                throw new RedisError('Error performing consistency check');
-            }
-        }, this.#cleanupInterval);
-    }
-
-    async #performConsistencyCheck () {
-        const activeInstances = await this.#redisClient.smembers('distributed_instances');
-        const allKeys = await this.#redisClient.keys('*_cache:*');
-        const activeSet = new Set(activeInstances);
-
-        const inactiveKeys = [];
-        const uniquePairs = new Set<string>();
-
-        for (const key of allKeys) {
-            const [, instanceId, endpointId, channelId] = key.split(':');
-
-            if (!activeSet.has(instanceId)) {
-                inactiveKeys.push(key);
-                uniquePairs.add(`${endpointId}:${channelId}`);
-            }
-        }
-
-        if (inactiveKeys.length > 0) {
-            await this.#redisClient.del(...inactiveKeys);
-        }
-
-        const promises = Array.from(uniquePairs).map((pair) => {
-            const [endpointId, channelId] = pair.split(':');
-
-            return this.#emitStateSyncEvent(endpointId, channelId);
-        });
-
-        await Promise.all(promises);
-    }
-
-    #handleRedisMessage (channel: string, message: string) {
-        const data = JSON.parse(message);
-
-        switch (channel) {
-            case this.#presence_changes_channel:
-                this.#presencePublisher.publish(data);
-                break;
-            case this.#assigns_changes_channel:
-                this.#assignsPublisher.publish(data);
-                break;
-            case this.#channel_messages_channel:
-                this.#channelMessagePublisher.publish(data);
-                break;
-            case this.#user_leaves_channel:
-                this.#userLeavesPublisher.publish(data);
-                break;
-            default:
-                throw new Error(`Unknown channel: ${channel}`);
-        }
-    }
-
     async #publishCacheMessage (key: string, cacheKey: string, message: StateEvent) {
         const script = `
             local messageData = ARGV[1]
@@ -308,6 +438,8 @@ export class RedisClient {
             
             if state ~= '' then
                 redis.call('HSET', KEYS[1], userId, state)
+                -- Set TTL on cache key
+                redis.call('EXPIRE', KEYS[1], ${this.#instanceTtl})
             else
                 redis.call('HDEL', KEYS[1], userId)
             end
@@ -338,25 +470,34 @@ export class RedisClient {
             local assigns_data = {}
             
             for _, instance in ipairs(active_instances) do
-                local presence_key = 'presence_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
-                local assigns_key = 'assigns_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
-                
-                local presence = redis.call('HGETALL', presence_key)
-                local assigns = redis.call('HGETALL', assigns_key)
-                
-                for i = 1, #presence, 2 do
-                    presence_data[presence[i]] = presence[i+1]
-                end
-                
-                for i = 1, #assigns, 2 do
-                    assigns_data[assigns[i]] = assigns[i+1]
+                -- Check if instance is still active
+                local heartbeat = redis.call('GET', 'heartbeat:' .. instance)
+                if heartbeat then
+                    local presence_key = 'presence_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
+                    local assigns_key = 'assigns_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
+                    
+                    local presence = redis.call('HGETALL', presence_key)
+                    local assigns = redis.call('HGETALL', assigns_key)
+                    
+                    for i = 1, #presence, 2 do
+                        presence_data[presence[i]] = presence[i+1]
+                    end
+                    
+                    for i = 1, #assigns, 2 do
+                        assigns_data[assigns[i]] = assigns[i+1]
+                    end
                 end
             end
             
             return {cjson.encode(presence_data), cjson.encode(assigns_data)}
         `;
 
-        const [presenceData, assignsData] = await this.#redisClient.eval(script, 0, endpointId, channelId) as [string, string];
+        const [presenceData, assignsData] = await this.#redisClient.eval(
+            script,
+            0,
+            endpointId,
+            channelId,
+        ) as [string, string];
 
         const event: RedisStateSyncEvent = {
             endpointId,
@@ -369,47 +510,12 @@ export class RedisClient {
         this.#stateSyncPublisher.publish(event);
     }
 
-    #subscribeToCacheChanges (endpoint: string, channel: string, presence: boolean, callback: (data: StateEvent) => void): Unsubscribe {
-        const subject = presence ? this.#presencePublisher : this.#assignsPublisher;
+    #generateCache (data: string) {
+        const first = Object.entries(JSON.parse(data));
+        const second: [string, PondObject][] = first.map(([key, value]) => [key, JSON.parse(String(value))]);
 
-        return subject.subscribe(({ endpointId, channelId, ...data }) => {
-            if (endpointId === endpoint && channelId === channel) {
-                return callback(data);
-            }
-        });
-    }
 
-    #subscribeToChannelMessages (endpoint: string, channel: string, callback: (data: InternalChannelEvent) => void): Unsubscribe {
-        return this.#channelMessagePublisher.subscribe(({ endpointId, channelId, message }) => {
-            if (endpointId === endpoint && channelId === channel) {
-                return callback(message);
-            }
-        });
-    }
-
-    #subscribeToUserLeaves (endpoint: string, channel: string, callback: (data: string) => void): Unsubscribe {
-        return this.#userLeavesPublisher.subscribe(({ endpointId, channelId, userId }) => {
-            if (endpointId === endpoint && channelId === channel) {
-                return callback(userId);
-            }
-        });
-    }
-
-    #subscribeToStateSync (endpoint: string, channel: string, callback: (data: StateSyncEvent) => void): Unsubscribe {
-        const interval = setInterval(() => this.#emitStateSyncEvent(endpoint, channel), this.#heartbeatInterval * 10);
-
-        const subscription = this.#stateSyncPublisher.subscribe(({ endpointId, channelId, ...data }) => {
-            if (endpointId === endpoint && channelId === channel) {
-                return callback(data);
-            }
-        });
-
-        void this.#emitStateSyncEvent(endpoint, channel, true);
-
-        return () => {
-            clearInterval(interval);
-            subscription();
-        };
+        return new Map(second);
     }
 
     async #handleExit () {
@@ -439,13 +545,5 @@ export class RedisClient {
                 await this.#redisClient.del(...keys);
             }
         } while (cursor !== '0');
-    }
-
-    #generateCache (data: string) {
-        const first = Object.entries(JSON.parse(data));
-        const second: [string, PondObject][] = first.map(([key, value]) => [key, JSON.parse(String(value))]);
-
-
-        return new Map(second);
     }
 }
