@@ -60,6 +60,10 @@ export abstract class Manager {
 
     abstract removePresence(userId: string): void;
 
+    abstract updateAssigns(userId: string, data: PondAssigns): void;
+
+    abstract broadcast (message: InternalChannelEvent): void;
+
     upsertPresence (userId: string, data: PondPresence) {
         if (this.presenceCache.has(userId)) {
             this.updatePresence(userId, data);
@@ -76,8 +80,6 @@ export abstract class Manager {
         return new Map(this.assignsCache);
     }
 
-    abstract updateAssigns(userId: string, data: PondAssigns): void;
-
     close () {
         this.publisher.close();
         this.presenceCache.clear();
@@ -87,7 +89,6 @@ export abstract class Manager {
         this.#onClose?.();
     }
 
-    abstract broadcast (message: InternalChannelEvent): void;
 
     addUser (userId: string, assigns: PondAssigns, onMessage: (event: ChannelEvent) => void) {
         this.setAssigns(userId, assigns);
