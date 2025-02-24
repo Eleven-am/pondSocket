@@ -44,10 +44,18 @@ export class RedisClient {
 
     #cleanupTimer: NodeJS.Timeout | undefined;
 
+    readonly #stateSyncInterval: number;
+
+    readonly #ttlBuffer: number = 5;
+
     constructor (config: RedisOptions) {
-        this.#instanceTtl = config.instanceTtl ?? 90;
-        this.#heartbeatInterval = config.heartbeatInterval ?? 10 * 1000;
-        this.#cleanupInterval = config.cleanupInterval ?? 60 * 1000;
+        const baseTtl = config.instanceTtl ?? 90;
+        const milliseconds = baseTtl * 1000;
+
+        this.#stateSyncInterval = milliseconds;
+        this.#cleanupInterval = milliseconds * 2;
+        this.#heartbeatInterval = milliseconds / 3;
+        this.#instanceTtl = baseTtl + this.#ttlBuffer;
 
         this.#redisClient = new Redis(config);
         this.#pubClient = new Redis(config);
@@ -116,32 +124,29 @@ export class RedisClient {
     }
 
     async #registerInstance () {
-        const multi = this.#redisClient.multi();
-        const now = Date.now().toString();
-
-        multi
-            .sadd('distributed_instances', this.#instanceId)
-            .set(`heartbeat:${this.#instanceId}`, now, 'EX', this.#instanceTtl)
-            .hset(`instance_metadata:${this.#instanceId}`, 'last_seen', now);
-
         try {
-            await multi.exec();
+            const now = Date.now().toString();
+
+            await this.#redisClient.set(
+                `heartbeat:${this.#instanceId}`,
+                now,
+                'EX',
+                this.#instanceTtl,
+            );
         } catch (error) {
-            throw new RedisError('Error registering instance');
+            throw new RedisError(`Error registering instance: ${error}`);
         }
     }
 
     async #unregisterInstance (instanceId = this.#instanceId) {
         const script = `
-            -- Remove instance registration
-            redis.call('SREM', 'distributed_instances', ARGV[1])
+            -- Delete heartbeat
             redis.call('DEL', 'heartbeat:' .. ARGV[1])
-            redis.call('DEL', 'instance_metadata:' .. ARGV[1])
             
             -- Delete all cache keys in one SCAN operation
             local cursor = '0'
             repeat
-                local result = redis.call('SCAN', cursor, 'MATCH', '{presence_cache,assigns_cache}:' .. ARGV[1] .. ':*', 'COUNT', 100)
+                local result = redis.call('SCAN', cursor, 'MATCH', '*_cache:' .. ARGV[1] .. ':*', 'COUNT', 100)
                 cursor = result[1]
                 local keys = result[2]
                 if #keys > 0 then
@@ -161,56 +166,37 @@ export class RedisClient {
 
     async #cleanupDisconnectedClients () {
         const script = `
-            -- Helper function to check if instance is alive
-            local function is_instance_alive(instance_id)
-                local heartbeat = redis.call('GET', 'heartbeat:' .. instance_id)
-                local in_set = redis.call('SISMEMBER', 'distributed_instances', instance_id)
-                return heartbeat and in_set == 1
-            end
-    
-            -- Get array of instance IDs passed as argument
-            local instance_ids = cjson.decode(ARGV[1])
-            
-            -- Track affected channels and keys to delete
+            -- Array of instance IDs that have cache data but no heartbeat
+            local dead_instances = cjson.decode(ARGV[1])
             local affected_channels = {}
             local keys_to_delete = {}
             local batch_size = 100
             
-            -- Process each instance
-            for _, instance_id in ipairs(instance_ids) do
-                -- If instance is not alive, clean it up
-                if not is_instance_alive(instance_id) then
-                    -- Queue instance metadata keys for deletion
-                    table.insert(keys_to_delete, 'heartbeat:' .. instance_id)
-                    table.insert(keys_to_delete, 'instance_metadata:' .. instance_id)
+            -- Process each dead instance
+            for _, instance_id in ipairs(dead_instances) do
+                -- Find and process all cache keys for this instance
+                local cache_cursor = '0'
+                repeat
+                    local result = redis.call('SCAN', cache_cursor, 'MATCH', '*_cache:' .. instance_id .. ':*', 'COUNT', batch_size)
+                    cache_cursor = result[1]
                     
-                    -- Remove from distributed_instances
-                    redis.call('SREM', 'distributed_instances', instance_id)
-                    
-                    -- Find and process all cache keys for this instance
-                    local cache_cursor = '0'
-                    repeat
-                        local result = redis.call('SCAN', cache_cursor, 'MATCH', '*_cache:' .. instance_id .. ':*', 'COUNT', batch_size)
-                        cache_cursor = result[1]
-                        
-                        for _, key in ipairs(result[2]) do
-                            -- Extract channel info before deletion
-                            local _, _, endpoint_id, channel_id = string.match(key, '_cache:[^:]+:([^:]+):([^:]+)')
-                            if endpoint_id and channel_id then
-                                affected_channels[endpoint_id .. ":" .. channel_id] = true
-                            end
-                            
-                            -- Add to deletion batch
-                            table.insert(keys_to_delete, key)
-                            
-                            -- If batch is full, process it
-                            if #keys_to_delete >= batch_size then
-                                redis.call('DEL', unpack(keys_to_delete))
-                                keys_to_delete = {}
-                            end
+                    for _, key in ipairs(result[2]) do
+                        -- Extract channel info before deletion
+                        local _, _, endpoint_id, channel_id = string.match(key, '_cache:[^:]+:([^:]+):([^:]+)')
+                        if endpoint_id and channel_id then
+                            affected_channels[endpoint_id .. ":" .. channel_id] = true
                         end
-                    until cache_cursor == '0'
-                end
+                        
+                        -- Add to deletion batch
+                        table.insert(keys_to_delete, key)
+                        
+                        -- If batch is full, process it
+                        if #keys_to_delete >= batch_size then
+                            redis.call('DEL', unpack(keys_to_delete))
+                            keys_to_delete = {}
+                        end
+                    end
+                until cache_cursor == '0'
             end
             
             -- Delete any remaining keys
@@ -228,17 +214,23 @@ export class RedisClient {
         `;
 
         try {
-            // Get all instance IDs first
-            const instanceIds = await this.#getAllInstanceIds();
+            const [activeInstances, cachedInstances] = await Promise.all([
+                this.#getActiveInstances(),
+                this.#getCachedInstances(),
+            ]);
 
-            // Run cleanup script with the instance IDs
+            const deadInstances = cachedInstances.filter((id) => !activeInstances.includes(id));
+
+            if (deadInstances.length === 0) {
+                return;
+            }
+
             const affectedChannels = await this.#redisClient.eval(
                 script,
                 0,
-                JSON.stringify(instanceIds),
+                JSON.stringify(deadInstances),
             ) as string[];
 
-            // Process affected channels
             if (affectedChannels.length > 0) {
                 const promises = affectedChannels.map((pair) => {
                     const [endpointId, channelId] = pair.split(':');
@@ -251,82 +243,6 @@ export class RedisClient {
         } catch (error) {
             console.error('Error cleaning up disconnected clients:', error);
         }
-    }
-
-    async #getAllInstanceIds () {
-        const script = `
-            local instance_ids = {}
-            local seen = {}  -- For deduplication
-            
-            -- 1. Get instances from distributed_instances set
-            local registered = redis.call('SMEMBERS', 'distributed_instances')
-            for _, id in ipairs(registered) do
-                if not seen[id] then
-                    seen[id] = true
-                    table.insert(instance_ids, id)
-                end
-            end
-            
-            -- 2. Get instances from heartbeat keys
-            local cursor = '0'
-            repeat
-                local result = redis.call('SCAN', cursor, 'MATCH', 'heartbeat:*', 'COUNT', 100)
-                cursor = result[1]
-                local keys = result[2]
-                
-                for _, key in ipairs(keys) do
-                    local id = string.match(key, 'heartbeat:([^:]+)')
-                    if id and not seen[id] then
-                        seen[id] = true
-                        table.insert(instance_ids, id)
-                    end
-                end
-            until cursor == '0'
-            
-            -- 3. Get instances from metadata keys
-            cursor = '0'
-            repeat
-                local result = redis.call('SCAN', cursor, 'MATCH', 'instance_metadata:*', 'COUNT', 100)
-                cursor = result[1]
-                local keys = result[2]
-                
-                for _, key in ipairs(keys) do
-                    local id = string.match(key, 'instance_metadata:([^:]+)')
-                    if id and not seen[id] then
-                        seen[id] = true
-                        table.insert(instance_ids, id)
-                    end
-                end
-            until cursor == '0'
-            
-            -- 4. Get instances from cache keys
-            cursor = '0'
-            repeat
-                local result = redis.call('SCAN', cursor, 'MATCH', '*_cache:*', 'COUNT', 100)
-                cursor = result[1]
-                local keys = result[2]
-                
-                for _, key in ipairs(keys) do
-                    local id = string.match(key, '_cache:([^:]+)')
-                    if id and not seen[id] then
-                        seen[id] = true
-                        table.insert(instance_ids, id)
-                    end
-                end
-            until cursor == '0'
-            
-            return instance_ids
-        `;
-
-        let response: string[] = [];
-
-        try {
-            response = await this.#redisClient.eval(script, 0) as string[];
-        } catch (error) {
-            console.error('Error getting all instance IDs:', error);
-        }
-
-        return response;
     }
 
     #startPeriodicCleanup () {
@@ -342,23 +258,11 @@ export class RedisClient {
     #startHeartbeat () {
         this.#heartbeatTimer = setInterval(async () => {
             try {
-                await this.#performHeartbeat();
+                await this.#registerInstance();
             } catch (error) {
                 console.error('Error performing heartbeat:', error);
             }
         }, this.#heartbeatInterval);
-    }
-
-    #performHeartbeat () {
-        const now = Date.now().toString();
-
-        const multi = this.#redisClient.multi();
-
-        multi
-            .set(`heartbeat:${this.#instanceId}`, now, 'EX', this.#instanceTtl)
-            .hset(`instance_metadata:${this.#instanceId}`, 'last_seen', now);
-
-        return multi.exec();
     }
 
     async #unsubscribeFromChannels () {
@@ -446,7 +350,10 @@ export class RedisClient {
     }
 
     #subscribeToStateSync (endpoint: string, channel: string, callback: (data: StateSyncEvent) => void): Unsubscribe {
-        const interval = setInterval(() => this.#emitStateSyncEvent(endpoint, channel), this.#heartbeatInterval * 10);
+        const interval = setInterval(
+            () => this.#emitStateSyncEvent(endpoint, channel),
+            this.#stateSyncInterval,
+        );
 
         const subscription = this.#stateSyncPublisher.subscribe(({ endpointId, channelId, ...data }) => {
             if (endpointId === endpoint && channelId === channel) {
@@ -518,8 +425,6 @@ export class RedisClient {
             
             if state ~= '' then
                 redis.call('HSET', KEYS[1], userId, state)
-                -- Set TTL on cache key
-                redis.call('EXPIRE', KEYS[1], ${this.#instanceTtl})
             else
                 redis.call('HDEL', KEYS[1], userId)
             end
@@ -545,67 +450,118 @@ export class RedisClient {
 
     async #emitStateSyncEvent (endpointId: string, channelId: string, initialFetch = false) {
         const script = `
-            -- Helper function to check if an instance is truly alive
-            -- Returns true only if:
-            -- 1. Instance has a valid heartbeat AND
-            -- 2. Instance is in the distributed_instances set
-            local function is_instance_alive(instance_id)
-                -- Both checks in one atomic operation
-                local exists = redis.call('EXISTS', 'heartbeat:' .. instance_id)
-                if exists == 0 then
-                    return false
-                end
-                
-                local is_registered = redis.call('SISMEMBER', 'distributed_instances', instance_id)
-                return is_registered == 1
-            end
-    
-            -- Get all registered instances
-            local active_instances = redis.call('SMEMBERS', 'distributed_instances')
+            local instances = ARGV[1]
             local presence_data = {}
             local assigns_data = {}
             
-            for _, instance in ipairs(active_instances) do
-                -- Only process data from instances that are truly alive
-                if is_instance_alive(instance) then
-                    local presence_key = 'presence_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
-                    local assigns_key = 'assigns_cache:' .. instance .. ':' .. ARGV[1] .. ':' .. ARGV[2]
-                    
-                    -- Fetch data atomically for this instance
-                    local presence = redis.call('HGETALL', presence_key)
-                    local assigns = redis.call('HGETALL', assigns_key)
-                    
-                    -- Process presence data
-                    for i = 1, #presence, 2 do
-                        presence_data[presence[i]] = presence[i+1]
-                    end
-                    
-                    -- Process assigns data
-                    for i = 1, #assigns, 2 do
-                        assigns_data[assigns[i]] = assigns[i+1]
-                    end
+            -- Parse instance IDs array
+            local instance_ids = cjson.decode(instances)
+            
+            for _, instance in ipairs(instance_ids) do
+                local presence_key = 'presence_cache:' .. instance .. ':' .. ARGV[2] .. ':' .. ARGV[3]
+                local assigns_key = 'assigns_cache:' .. instance .. ':' .. ARGV[2] .. ':' .. ARGV[3]
+                
+                -- Get all presence data for this instance and channel
+                local presence = redis.call('HGETALL', presence_key)
+                for i = 1, #presence, 2 do
+                    presence_data[presence[i]] = presence[i + 1]
+                end
+                
+                -- Get all assigns data for this instance and channel
+                local assigns = redis.call('HGETALL', assigns_key)
+                for i = 1, #assigns, 2 do
+                    assigns_data[assigns[i]] = assigns[i + 1]
                 end
             end
             
             return {cjson.encode(presence_data), cjson.encode(assigns_data)}
         `;
 
-        const [presenceData, assignsData] = await this.#redisClient.eval(
-            script,
-            0,
-            endpointId,
-            channelId,
-        ) as [string, string];
+        try {
+            // Get active instances
+            const activeInstances = await this.#getActiveInstances();
 
-        const event: RedisStateSyncEvent = {
-            endpointId,
-            channelId,
-            initialFetch,
-            presence: this.#generateCache(presenceData),
-            assigns: this.#generateCache(assignsData),
-        };
+            // Get the data using our active instances
+            const [presenceData, assignsData] = await this.#redisClient.eval(
+                script,
+                0,
+                JSON.stringify(activeInstances),
+                endpointId,
+                channelId,
+            ) as [string, string];
 
-        this.#stateSyncPublisher.publish(event);
+            const event: RedisStateSyncEvent = {
+                endpointId,
+                channelId,
+                initialFetch,
+                presence: this.#generateCache(presenceData),
+                assigns: this.#generateCache(assignsData),
+            };
+
+            this.#stateSyncPublisher.publish(event);
+        } catch (error) {
+            console.error('Error emitting state sync event:', error);
+        }
+    }
+
+    async #getActiveInstances () {
+        const script = `
+            local active_instances = {}
+            
+            local cursor = '0'
+            repeat
+                local result = redis.call('SCAN', cursor, 'MATCH', 'heartbeat:*', 'COUNT', 100)
+                cursor = result[1]
+                
+                for _, key in ipairs(result[2]) do
+                    local id = string.match(key, 'heartbeat:([^:]+)')
+                    if id then
+                        table.insert(active_instances, id)
+                    end
+                end
+            until cursor == '0'
+            
+            return active_instances
+        `;
+
+        try {
+            return await this.#redisClient.eval(script, 0) as string[];
+        } catch (error) {
+            console.error('Error getting active instances:', error);
+
+            return [] as string[];
+        }
+    }
+
+    async #getCachedInstances () {
+        const script = `
+            local seen = {}
+            local cached_instances = {}
+            
+            local cursor = '0'
+            repeat
+                local result = redis.call('SCAN', cursor, 'MATCH', '*_cache:*', 'COUNT', 100)
+                cursor = result[1]
+                
+                for _, key in ipairs(result[2]) do
+                    local id = string.match(key, '_cache:([^:]+)')
+                    if id and not seen[id] then
+                        seen[id] = true
+                        table.insert(cached_instances, id)
+                    end
+                end
+            until cursor == '0'
+            
+            return cached_instances
+        `;
+
+        try {
+            return await this.#redisClient.eval(script, 0) as string[];
+        } catch (error) {
+            console.error('Error getting cached instances:', error);
+
+            return [] as string[];
+        }
     }
 
     #generateCache (data: string) {

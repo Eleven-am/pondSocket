@@ -89,7 +89,6 @@ export abstract class Manager {
         this.#onClose?.();
     }
 
-
     addUser (userId: string, assigns: PondAssigns, onMessage: (event: ChannelEvent) => void) {
         this.setAssigns(userId, assigns);
 

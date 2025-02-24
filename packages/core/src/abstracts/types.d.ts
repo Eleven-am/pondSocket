@@ -152,6 +152,4 @@ export interface RedisOptions {
     username?: string;
     password?: string;
     instanceTtl?: number;
-    heartbeatInterval?: number;
-    cleanupInterval?: number;
 }
