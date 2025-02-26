@@ -87,15 +87,15 @@ export class RedisClient {
     buildClient (endpointId: string) {
         return (channelId: string): Client => ({
             channelId,
-            publishPresenceChange: this.#publishPresenceChange.bind(this, endpointId, channelId),
-            publishAssignsChange: this.#publishAssignsChange.bind(this, endpointId, channelId),
-            publishChannelMessage: this.#publishChannelMessage.bind(this, endpointId, channelId),
             publishUserLeave: this.#publishUserLeave.bind(this, endpointId, channelId),
+            subscribeToStateSync: this.#subscribeToStateSync.bind(this, endpointId, channelId),
+            publishAssignsChange: this.#publishAssignsChange.bind(this, endpointId, channelId),
+            publishPresenceChange: this.#publishPresenceChange.bind(this, endpointId, channelId),
+            publishChannelMessage: this.#publishChannelMessage.bind(this, endpointId, channelId),
             subscribeToUserLeaves: this.#subscribeToUserLeaves.bind(this, endpointId, channelId),
+            subscribeToChannelMessages: this.#subscribeToChannelMessages.bind(this, endpointId, channelId),
             subscribeToPresenceChanges: this.#subscribeToCacheChanges.bind(this, endpointId, channelId, true),
             subscribeToAssignsChanges: this.#subscribeToCacheChanges.bind(this, endpointId, channelId, false),
-            subscribeToChannelMessages: this.#subscribeToChannelMessages.bind(this, endpointId, channelId),
-            subscribeToStateSync: this.#subscribeToStateSync.bind(this, endpointId, channelId),
         });
     }
 

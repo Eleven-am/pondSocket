@@ -24,8 +24,6 @@ export interface RedisOptions {
     username?: string;
     password?: string;
     instanceTtl?: number;
-    heartbeatInterval?: number;
-    cleanupInterval?: number;
 }
 
 export interface LeaveEvent<EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
