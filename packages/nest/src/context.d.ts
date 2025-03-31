@@ -9,7 +9,7 @@ import type {
     LeaveEvent,
     PondAssigns,
     PondEvent,
-    PondEvenType,
+    PondEventMap,
     PondMessage,
     PondPresence,
     UserData,
@@ -51,14 +51,14 @@ type NestFuncType<Event extends string, Payload extends PondMessage, Presence ex
     presence?: Presence;
 } & Payload;
 
-type PondResponse<EventType extends PondEvenType = PondEvenType, Event extends keyof EventType = string, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> =
+type PondResponse<EventType extends PondEventMap = PondEventMap, Event extends keyof EventType = string, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> =
     Event extends string ?
         EventType[Event] extends [PondMessage, PondMessage] ? NestFuncType<Event, EventType[Event][1], Presence, Assigns> :
             EventType[Event] extends PondMessage ? NestFuncType<Event, EventType[Event], Presence, Assigns> :
                 never :
         never;
 
-declare class Context<Path extends string = string, Event extends PondEvenType = PondEvenType, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> {
+declare class Context<Path extends string = string, Event extends PondEventMap = PondEventMap, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> {
     /**
      * @desc The request object, available in onJoin handlers
      */
