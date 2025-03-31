@@ -32,8 +32,8 @@
     "@golevelup/nestjs-discovery": "^4.0.3"
   },
   "devDependencies": {
-    "@nestjs/common": "^11.0.10",
-    "@nestjs/core": "^11.0.10",
+    "@nestjs/common": "^11.0.12",
+    "@nestjs/core": "^11.0.12",
     "@types/jest": "^29.5.14",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "eslint-plugin-file-progress": "^1.5.0",
