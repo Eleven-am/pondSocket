@@ -52,10 +52,7 @@ export class PondSocketService {
         httpAdapter.listen = (...args: any[]) => socket.listen(...args);
     }
 
-    private manageEndpoint (
-        socket: PondSocket,
-        groupedInstance: GroupedInstances,
-    ) {
+    private manageEndpoint (socket: PondSocket, groupedInstance: GroupedInstances) {
         const instance = groupedInstance.endpoint.instance;
         const constructor = instance.constructor;
         const metadata = manageEndpoint(constructor).get();
@@ -87,11 +84,7 @@ export class PondSocketService {
         channels.forEach((channel) => this.manageChannel(channel, endpoint, metadata));
     }
 
-    private manageChannel (
-        channel: DiscoveredClass,
-        endpoint: Endpoint,
-        endpointPath: string,
-    ) {
+    private manageChannel (channel: DiscoveredClass, endpoint: Endpoint, endpointPath: string) {
         const instance = channel.instance;
         const constructor = instance.constructor;
         const path = manageChannel(constructor).get();
@@ -112,10 +105,10 @@ export class PondSocketService {
             }
         });
 
-        this.logger.log(`Mapped {${endpointPath}:${path}} channel`);
+        this.logger.log(`Mapped {${endpointPath}${path}} channel`);
 
         if (handler) {
-            this.logger.log(`Mapped {${endpointPath}:${path}} join handler`);
+            this.logger.log(`Mapped {${endpointPath}${path}} join handler`);
         }
 
         setChannel(channelInstance);
@@ -127,7 +120,7 @@ export class PondSocketService {
                 await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, request, response);
             });
 
-            this.logger.log(`Mapped {${endpointPath}:${path}} event {${handler.path}}`);
+            this.logger.log(`Mapped {${endpointPath}${path}} event {${handler.path}}`);
         });
 
         const [leaveHandler] = getLeaveHandlers();
@@ -137,7 +130,7 @@ export class PondSocketService {
                 await leaveHandler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, event);
             });
 
-            this.logger.log(`Mapped {${endpointPath}:${path}} leave handler`);
+            this.logger.log(`Mapped {${endpointPath}${path}} leave handler`);
         }
     }
 
