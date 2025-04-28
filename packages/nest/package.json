@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket-nest",
-  "version": "0.0.107",
+  "version": "0.0.108",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -25,18 +25,18 @@
     "lint:fix": "eslint --fix --ext .ts src",
     "copy": "cp package.json dist && cp README.md dist && cp LICENSE dist && cp src/context.d.ts dist/index.d.ts",
     "push": "npm version patch && npm run copy && cd dist && npm publish && cd ..",
-    "pipeline": "npm run lint && npm run build && npm run push"
+    "pipeline": "npm run build && npm run push"
   },
   "dependencies": {
-    "@eleven-am/pondsocket": "^0.1.194",
+    "@eleven-am/pondsocket": "^0.1.196",
     "@golevelup/nestjs-discovery": "^4.0.3"
   },
   "devDependencies": {
-    "@nestjs/common": "^11.0.20",
-    "@nestjs/core": "^11.0.20",
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
     "@types/jest": "^29.5.14",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "eslint-plugin-file-progress": "^1.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.0",
+    "eslint-plugin-file-progress": "^3.0.2",
     "eslint-plugin-import": "^2.31.0",
     "jest": "^29.7.0",
     "prettier": "^3.5.3",

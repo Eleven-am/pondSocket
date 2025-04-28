@@ -37,6 +37,7 @@ export type RequestHandler<Request, Response> = (request: Request, response: Res
 
 export interface PondSocketOptions {
     server?: Server;
+    exclusiveServer?: boolean;
     redisOptions?: RedisOptions;
     socketServer?: WebSocketServer;
 }

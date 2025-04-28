@@ -1,5 +1,3 @@
-import { createServer } from 'http';
-
 import PondSocket from '@eleven-am/pondsocket';
 import type { Endpoint, RedisOptions } from '@eleven-am/pondsocket/types';
 import { DiscoveryService } from '@golevelup/nestjs-discovery';
@@ -8,6 +6,7 @@ import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.
 import { Logger, Type, PipeTransform } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { AbstractHttpAdapter, HttpAdapterHost, ModuleRef } from '@nestjs/core';
+import { createServer } from 'http';
 
 import { channelKey, endpointKey } from '../constants';
 import { manageChannel } from '../managers/channel';
@@ -29,6 +28,7 @@ export class PondSocketService {
         private readonly adapterHost: HttpAdapterHost,
         private readonly globalGuards: Constructor<CanActivate>[],
         private readonly globalPipes: Constructor<PipeTransform>[],
+        private readonly isExclusiveSocketServer: boolean,
         private readonly redisOptions?: RedisOptions,
     ) {
         const httpAdapter = this.adapterHost.httpAdapter;
@@ -43,6 +43,7 @@ export class PondSocketService {
         const socket = new PondSocket({
             server,
             redisOptions: this.redisOptions,
+            exclusiveServer: this.isExclusiveSocketServer,
         });
 
         groupedInstances.forEach((groupedInstance) => {

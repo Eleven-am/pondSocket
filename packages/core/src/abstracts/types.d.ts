@@ -40,6 +40,7 @@ export interface PondSocketOptions {
     server?: HTTPServer;
     redisOptions?: RedisOptions;
     socketServer?: WebSocketServer;
+    exclusiveServer?: boolean;
 }
 
 export type ConnectionHandler<Path extends string> = (request: IncomingConnection<Path>, response: ConnectionResponse, next: NextFunction) => void | Promise<void>;

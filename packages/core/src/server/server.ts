@@ -1,4 +1,5 @@
-import { Server as HTTPServer, IncomingHttpHeaders } from 'http';
+import { Server as HTTPServer, IncomingHttpHeaders, IncomingMessage } from 'http';
+import internal from 'node:stream';
 
 import { IncomingConnection, PondPath, uuid } from '@eleven-am/pondsocket-common';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -18,6 +19,8 @@ import { ConnectionResponse } from '../responses/connectionResponse';
 import { Endpoint } from '../wrappers/endpoint';
 
 export class PondSocket {
+    readonly #exclusiveServer: boolean;
+
     readonly #server: HTTPServer;
 
     readonly #socketServer: WebSocketServer;
@@ -26,8 +29,9 @@ export class PondSocket {
 
     readonly #middleware: Middleware<SocketRequest, ConnectionParams>;
 
-    constructor ({ server, socketServer, redisOptions }: PondSocketOptions = {}) {
+    constructor ({ server, socketServer, redisOptions, exclusiveServer = true }: PondSocketOptions = {}) {
         this.#middleware = new Middleware();
+        this.#exclusiveServer = exclusiveServer;
         this.#server = server ?? new HTTPServer();
         this.#redisClient = redisOptions ? new RedisClient(redisOptions) : null;
         this.#socketServer = socketServer ?? new WebSocketServer({ noServer: true });
@@ -113,27 +117,36 @@ export class PondSocket {
         });
 
         this.#server.on('upgrade', (req, socket, head) => {
-            const clientId = req.headers['sec-websocket-key'] as string;
-            const request: SocketRequest = {
-                id: clientId,
-                headers: req.headers,
-                address: req.url || '',
-            };
+            this.#handleUpgrade(req, socket, head);
+        });
+    }
 
-            const params: ConnectionParams = {
-                head,
-                socket,
-                request: req,
-                requestId: uuid(),
-            };
+    #handleUpgrade (req: IncomingMessage, socket: internal.Duplex, head: Buffer<ArrayBufferLike>) {
+        const clientId = req.headers['sec-websocket-key'] as string;
+        const request: SocketRequest = {
+            id: clientId,
+            headers: req.headers,
+            address: req.url || '',
+        };
 
-            this.#middleware.run(request, params, (error) => {
+        const params: ConnectionParams = {
+            head,
+            socket,
+            request: req,
+            requestId: uuid(),
+        };
+
+        this.#middleware.run(request, params, (error) => {
+            if (error) {
                 const code = error?.statusCode || 400;
                 const message = error?.message || 'Unauthorized connection';
 
                 socket.write(`HTTP/1.1 ${code} ${message}\r\n\r\n`);
                 socket.destroy();
-            });
+            } else if (this.#exclusiveServer) {
+                socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                socket.destroy();
+            }
         });
     }
 

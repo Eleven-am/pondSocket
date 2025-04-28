@@ -64,10 +64,11 @@ export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
     pipes?: Constructor<PipeTransform>[];
     redisOptions?: RedisOptions;
+    isExclusiveSocketServer?: boolean;
     isGlobal?: boolean;
 }
 
-export interface AsyncMetadata extends Metadata {
+export interface AsyncMetadata extends Omit<Metadata, 'redisOptions'> {
     inject?: any[];
     imports?: any[];
     useFactory: (...args: any[]) => Promise<RedisOptions> | RedisOptions;
