@@ -6,7 +6,6 @@ import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.
 import { Logger, Type, PipeTransform } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { AbstractHttpAdapter, HttpAdapterHost, ModuleRef } from '@nestjs/core';
-import { createServer } from 'http';
 
 import { channelKey, endpointKey } from '../constants';
 import { manageChannel } from '../managers/channel';
@@ -37,19 +36,15 @@ export class PondSocketService {
     }
 
     private async init (httpAdapter: AbstractHttpAdapter) {
-        const groupedInstances = await this.getGroupedInstances();
-        const app = httpAdapter.getInstance();
-        const server = createServer(app);
+        const instances = await this.getGroupedInstances();
+
         const socket = new PondSocket({
-            server,
             redisOptions: this.redisOptions,
+            server: httpAdapter.getHttpServer(),
             exclusiveServer: this.isExclusiveSocketServer,
         });
 
-        groupedInstances.forEach((groupedInstance) => {
-            this.manageEndpoint(socket, groupedInstance);
-        });
-
+        instances.forEach((instance) => this.manageEndpoint(socket, instance));
         httpAdapter.listen = (...args: any[]) => socket.listen(...args);
     }
 
