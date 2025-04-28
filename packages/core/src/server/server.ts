@@ -83,6 +83,35 @@ export class PondSocket {
         return new Endpoint(endpoint);
     }
 
+    handleUpgrade (req: IncomingMessage, socket: internal.Duplex, head: Buffer<ArrayBufferLike>) {
+        const clientId = req.headers['sec-websocket-key'] as string;
+        const request: SocketRequest = {
+            id: clientId,
+            headers: req.headers,
+            address: req.url || '',
+        };
+
+        const params: ConnectionParams = {
+            head,
+            socket,
+            request: req,
+            requestId: uuid(),
+        };
+
+        this.#middleware.run(request, params, (error) => {
+            if (error) {
+                const code = error?.statusCode || 400;
+                const message = error?.message || 'Unauthorized connection';
+
+                socket.write(`HTTP/1.1 ${code} ${message}\r\n\r\n`);
+                socket.destroy();
+            } else if (this.#exclusiveServer) {
+                socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                socket.destroy();
+            }
+        });
+    }
+
     #manageHeartbeat () {
         this.#socketServer.on('connection', (socket: WebSocket & { isAlive?: boolean }) => {
             socket.on('pong', () => {
@@ -116,38 +145,7 @@ export class PondSocket {
             await this.#redisClient?.shutdown();
         });
 
-        this.#server.on('upgrade', (req, socket, head) => {
-            this.#handleUpgrade(req, socket, head);
-        });
-    }
-
-    #handleUpgrade (req: IncomingMessage, socket: internal.Duplex, head: Buffer<ArrayBufferLike>) {
-        const clientId = req.headers['sec-websocket-key'] as string;
-        const request: SocketRequest = {
-            id: clientId,
-            headers: req.headers,
-            address: req.url || '',
-        };
-
-        const params: ConnectionParams = {
-            head,
-            socket,
-            request: req,
-            requestId: uuid(),
-        };
-
-        this.#middleware.run(request, params, (error) => {
-            if (error) {
-                const code = error?.statusCode || 400;
-                const message = error?.message || 'Unauthorized connection';
-
-                socket.write(`HTTP/1.1 ${code} ${message}\r\n\r\n`);
-                socket.destroy();
-            } else if (this.#exclusiveServer) {
-                socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-                socket.destroy();
-            }
-        });
+        this.#server.on('upgrade', this.handleUpgrade.bind(this));
     }
 
     #getCookies (headers: IncomingHttpHeaders): Record<string, string> {
