@@ -3,9 +3,9 @@ import type { Endpoint, RedisOptions } from '@eleven-am/pondsocket/types';
 import { DiscoveryService } from '@golevelup/nestjs-discovery';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 // eslint-disable-next-line import/no-unresolved
-import { Logger, Type, PipeTransform } from '@nestjs/common';
+import { Logger, Type, PipeTransform, OnModuleInit } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
-import { AbstractHttpAdapter, HttpAdapterHost, ModuleRef } from '@nestjs/core';
+import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 
 import { channelKey, endpointKey } from '../constants';
 import { manageChannel } from '../managers/channel';
@@ -18,7 +18,7 @@ import { manageJoin } from '../managers/join';
 import { manageLeave } from '../managers/leave';
 import { CanActivate, Constructor, GroupedInstances } from '../types';
 
-export class PondSocketService {
+export class PondSocketService implements OnModuleInit {
     private readonly logger = new Logger(PondSocketService.name);
 
     constructor (
@@ -29,23 +29,18 @@ export class PondSocketService {
         private readonly globalPipes: Constructor<PipeTransform>[],
         private readonly isExclusiveSocketServer: boolean,
         private readonly redisOptions?: RedisOptions,
-    ) {
-        const httpAdapter = this.adapterHost.httpAdapter;
+    ) {}
 
-        void this.init(httpAdapter);
-    }
-
-    private async init (httpAdapter: AbstractHttpAdapter) {
+    async onModuleInit () {
         const instances = await this.getGroupedInstances();
 
         const socket = new PondSocket({
             redisOptions: this.redisOptions,
-            server: httpAdapter.getHttpServer(),
+            server: this.adapterHost.httpAdapter.getHttpServer(),
             exclusiveServer: this.isExclusiveSocketServer,
         });
 
         instances.forEach((instance) => this.manageEndpoint(socket, instance));
-        httpAdapter.listen = (...args: any[]) => socket.listen(...args);
     }
 
     private manageEndpoint (socket: PondSocket, groupedInstance: GroupedInstances) {
