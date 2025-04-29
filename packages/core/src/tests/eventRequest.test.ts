@@ -94,10 +94,11 @@ describe('EventRequest', () => {
                 presence: { status: 'online' } as PondPresence,
             };
 
-            mockChannelEngine.getUser.mockReturnValue(mockUserData);
+            // Use getUserData instead of getUser to match the implementation
+            mockChannelEngine.getUserData.mockReturnValue(mockUserData);
 
             expect(eventRequest.user).toEqual(mockUserData);
-            expect(mockChannelEngine.getUser).toHaveBeenCalledWith('user1');
+            expect(mockChannelEngine.getUserData).toHaveBeenCalledWith('user1');
         });
     });
 });

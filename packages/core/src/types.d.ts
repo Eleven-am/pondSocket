@@ -12,33 +12,32 @@ import {
     UserPresences,
     UserAssigns,
     JoinParams,
+    EventParams,
 } from '@eleven-am/pondsocket-common';
 import { WebSocket, WebSocketServer } from 'ws';
 
 export * from '@eleven-am/pondsocket-common';
-
-export interface RedisOptions {
-    host: string;
-    port: number;
-    db?: number;
-    username?: string;
-    password?: string;
-    instanceTtl?: number;
-}
 
 export interface LeaveEvent<EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
     user: UserData<PresenceType, AssignType>;
     channel: Channel<EventTypes, PresenceType, AssignType>;
 }
 
+export interface OutgoingEvent<Event extends string, EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
+    payload: PondMessage;
+    event: EventParams<Event>;
+    channel: Channel<EventTypes, PresenceType, AssignType>;
+}
+
 export type LeaveCallback<EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> = (event: LeaveEvent<EventTypes, PresenceType, AssignType>) => void;
+
+export type OutgoingHandler<Event extends string, EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> = (event: OutgoingEvent<Event, EventTypes, PresenceType, AssignType>) => PondMessage | Promise<PondMessage> | void | Promise<void>;
 
 export type RequestHandler<Request, Response> = (request: Request, response: Response) => void | Promise<void>;
 
 export interface PondSocketOptions {
     server?: Server;
     exclusiveServer?: boolean;
-    redisOptions?: RedisOptions;
     socketServer?: WebSocketServer;
 }
 
@@ -131,6 +130,19 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
     onLeave(callback: LeaveCallback<EventType, PresenceType, AssignType>): void;
 
     /**
+     * @desc Handles an outgoing event, this is useful for modifying the event before it is sent to the client
+     * @param {PondPath<string>} event - The event to handle
+     * @param {OutgoingHandler} handler - The handler to execute when the event is sent
+     * @example
+     * pond.onOutgoing('echo', (event) => {
+     *     return {
+     *         message: 'Hello, world!'
+     *     };
+     * });
+     */
+    onOutgoing<Event extends string> (event: PondPath<Event>, handler: OutgoingHandler<Event, EventType, PresenceType, AssignType>): void;
+
+    /**
      * @desc Gets a channel by name
      * @param {string} channelName - The name of the channel to get
      * @returns {Channel} - The channel instance
@@ -185,7 +197,7 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
     broadcastTo <Key extends keyof EventType> (channelName: string, event: Key, payload: EventType[Key], userIds: string | string[]): void;
 }
 
-export declare class Channel<EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
+export declare class Channel<EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
     /**
      * The name of the channel.
      */
@@ -212,7 +224,7 @@ export declare class Channel<EventType extends PondEventMap = PondEventMap, Pres
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The message to send.
      */
-    broadcast<Key extends keyof EventType>(event: Key, payload: EventType[Key]): Channel<EventType, PresenceType, AssignType>;
+    broadcast<Key extends keyof EventTypes>(event: Key, payload: EventTypes[Key]): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc Broadcasts a message to every client in the channel except the sender,
@@ -220,7 +232,7 @@ export declare class Channel<EventType extends PondEventMap = PondEventMap, Pres
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The message to send.
      */
-    broadcastFrom<Key extends keyof EventType>(userId: string, event: Key, payload: EventType[Key]): Channel<EventType, PresenceType, AssignType>;
+    broadcastFrom<Key extends keyof EventTypes>(userId: string, event: Key, payload: EventTypes[Key]): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc Sends a message to a specific client in the channel.
@@ -228,48 +240,48 @@ export declare class Channel<EventType extends PondEventMap = PondEventMap, Pres
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The message to send.
      */
-    broadcastTo<Key extends keyof EventType>(clientIds: string | string[], event: Key, payload: EventType[Key]): Channel<EventType, PresenceType, AssignType>;
+    broadcastTo<Key extends keyof EventTypes>(clientIds: string | string[], event: Key, payload: EventTypes[Key]): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc Bans a user from the channel.
      * @param {string} userId - The id of the user to ban.
      * @param {string} reason - The reason for the ban.
      */
-    evictUser(userId: string, reason?: string): Channel<EventType, PresenceType, AssignType>;
+    evictUser(userId: string, reason?: string): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc tracks a user's presence in the channel
      * @param {string} userId - the id of the user to track
      * @param {PondPresence} presence - the presence data to track
      */
-    trackPresence(userId: string, presence: PresenceType): Channel<EventType, PresenceType, AssignType>;
+    trackPresence(userId: string, presence: PresenceType): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc removes a user's presence from the channel
      * @param {string} userId - the id of the user to remove
      */
-    removePresence(userId: string): Channel<EventType, PresenceType, AssignType>;
+    removePresence(userId: string): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc updates a user's presence in the channel
      * @param {string} userId - the id of the user to update
      * @param {PondPresence} presence - the presence data to update
      */
-    updatePresence(userId: string, presence: Partial<PresenceType>): Channel<EventType, PresenceType, AssignType>;
+    updatePresence(userId: string, presence: Partial<PresenceType>): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc Updates a user's assigns in the channel
      * @param userId - the id of the user to update
      * @param assigns - the assigns data to update
      */
-    updateAssigns(userId: string, assigns: Partial<AssignType>): Channel<EventType, PresenceType, AssignType>;
+    updateAssigns(userId: string, assigns: Partial<AssignType>): Channel<EventTypes, PresenceType, AssignType>;
 
     /**
      * @desc Tracks or updates a user's presence in the channel
      * @param userId - the id of the user to upsert
      * @param presence - the presence data to upsert
      */
-    upsertPresence (userId: string, presence: PresenceType): Channel<EventType, PresenceType, AssignType>;
+    upsertPresence(userId: string, presence: PresenceType): Channel<EventTypes, PresenceType, AssignType>;
 }
 
 export declare class JoinRequest<Path extends string, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
@@ -473,8 +485,4 @@ export declare class EventResponse<EventType extends PondEventMap = PondEventMap
      * @returns {EventResponse} - The EventResponse instance for chaining.
      */
     evictUser(reason: string, userId?: string): EventResponse;
-}
-
-export declare class RedisError extends Error {
-    constructor(message: string);
 }

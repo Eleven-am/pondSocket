@@ -7,21 +7,18 @@ import {
     ClientMessage,
 } from '@eleven-am/pondsocket-common';
 
-import { ClientFactory, SocketCache } from '../abstracts/types';
+import { SocketCache } from '../abstracts/types';
 import { EndpointEngine } from '../engines/endpointEngine';
 import { JoinRequest } from '../requests/joinRequest';
 import { JoinResponse } from '../responses/joinResponse';
 import { PondChannel } from '../wrappers/pondChannel';
-import { MockClient } from './mocks/mockClient';
 import { MockWebSocket } from './mocks/mockWebSocket';
 
 describe('EndpointEngine', () => {
     let endpointEngine: EndpointEngine;
-    let mockClientFactory: jest.MockedFunction<ClientFactory>;
 
     beforeEach(() => {
-        mockClientFactory = jest.fn().mockImplementation((channelId) => new MockClient(channelId));
-        endpointEngine = new EndpointEngine(mockClientFactory);
+        endpointEngine = new EndpointEngine();
     });
 
     afterEach(() => {
@@ -189,17 +186,6 @@ describe('EndpointEngine', () => {
         });
     });
 
-    describe('createManager', () => {
-        it('should create a new manager with the given channel name and onLeave callback', async () => {
-            const channelName = 'test-channel';
-            const onLeave = jest.fn();
-
-            const manager = await endpointEngine.createManager(channelName, onLeave);
-
-            expect(manager).toBeDefined();
-            expect(mockClientFactory).toHaveBeenCalledWith(channelName);
-        });
-    });
 
     describe('sendMessage', () => {
         it('should send a message to the given socket', () => {

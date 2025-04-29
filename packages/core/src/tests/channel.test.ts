@@ -28,7 +28,7 @@ describe('Channel', () => {
             const userId = 'user1';
 
             channel.getUserData(userId);
-            expect(mockChannelEngine.getUser).toHaveBeenCalledWith(userId);
+            expect(mockChannelEngine.getUserData).toHaveBeenCalledWith(userId);
         });
     });
 

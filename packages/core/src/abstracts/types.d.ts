@@ -12,7 +12,6 @@ import {
     ServerActions,
     SystemSender,
     UserData,
-    PondObject,
     Unsubscribe,
 } from '@eleven-am/pondsocket-common';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -38,9 +37,15 @@ export interface SocketRequest {
 
 export interface PondSocketOptions {
     server?: HTTPServer;
-    redisOptions?: RedisOptions;
     socketServer?: WebSocketServer;
     exclusiveServer?: boolean;
+}
+
+export interface OutgoingEvent<Event extends string> {
+    event: EventParams<Event>;
+    payload: PondMessage;
+    userData: UserData;
+    channel: Channel;
 }
 
 export type ConnectionHandler<Path extends string> = (request: IncomingConnection<Path>, response: ConnectionResponse, next: NextFunction) => void | Promise<void>;
@@ -48,6 +53,10 @@ export type ConnectionHandler<Path extends string> = (request: IncomingConnectio
 export type AuthorizationHandler<Event extends string> = (request: JoinRequest<Event>, response: JoinResponse, next: NextFunction) => void | Promise<void>;
 
 export type EventHandler<Event extends string> = (request: EventRequest<Event>, response: EventResponse, next: NextFunction) => void | Promise<void>;
+
+export type OutgoingEventHandler<Event extends string> = (event: OutgoingEvent<Event>) => PondMessage | Promise<PondMessage> | void | Promise<void>;
+
+export type InternalOutgoingEventHandler = (event: ChannelEvent, channel: Channel, userId: string) => Promise<PondMessage | boolean>;
 
 export interface ConnectionParams {
     head: Buffer;
@@ -101,56 +110,3 @@ export interface LeaveEvent {
 export type LeaveCallback = (event: LeaveEvent) => void;
 
 
-export interface StateEvent {
-    userId: string;
-    state: PondObject | null;
-}
-
-export interface StateSyncEvent {
-    initialFetch: boolean;
-    assigns: Map<string, PondObject>;
-    presence: Map<string, PondObject>;
-}
-
-export interface UserLeaveEvent {
-    userId: string;
-}
-
-export type RedisEvent<Event> = Event & {
-    channelId: string;
-    endpointId: string;
-}
-
-export type RedisStateEvent = RedisEvent<StateEvent>;
-export type RedisStateSyncEvent = RedisEvent<StateSyncEvent>;
-export type RedisUserLeaveEvent = RedisEvent<UserLeaveEvent>;
-
-export interface ChannelMessage {
-    channelId: string;
-    endpointId: string;
-    message: InternalChannelEvent;
-}
-
-export interface Client {
-    channelId: string;
-    publishUserLeave: (userId: string) => void;
-    publishChannelMessage: (message: InternalChannelEvent) => void;
-    subscribeToUserLeaves: (callback: (data: string) => void) => Unsubscribe;
-    publishAssignsChange: (userId: string, state: PondObject | null) => void;
-    publishPresenceChange: (userId: string, state: PondObject | null) => void;
-    subscribeToAssignsChanges: (callback: (data: StateEvent) => void) => Unsubscribe;
-    subscribeToPresenceChanges: (callback: (data: StateEvent) => void) => Unsubscribe;
-    subscribeToChannelMessages: (callback: (data: InternalChannelEvent) => void) => Unsubscribe;
-    subscribeToStateSync: (callback: (data: StateSyncEvent) => void) => Unsubscribe;
-}
-
-export type ClientFactory = (channelId: string) => Client;
-
-export interface RedisOptions {
-    host: string;
-    port: number;
-    db?: number;
-    username?: string;
-    password?: string;
-    instanceTtl?: number;
-}

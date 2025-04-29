@@ -14,45 +14,81 @@ import {
     UserPresences,
     PondAssigns,
     Unsubscribe,
+    Subject,
+    UserData,
 } from '@eleven-am/pondsocket-common';
 
 import { LobbyEngine } from './lobbyEngine';
-import { InternalChannelEvent, BroadcastEvent, ChannelSenders } from '../abstracts/types';
+import { PresenceEngine } from './presenceEngine';
+import { ChannelSenders, BroadcastEvent, InternalChannelEvent } from '../abstracts/types';
 import { HttpError } from '../errors/httpError';
-import { Manager } from '../managers/manager';
-import { Channel } from '../wrappers/channel';
+
 
 export class ChannelEngine {
-    readonly #manager: Manager;
+    #presenceEngine: PresenceEngine | null = null;
 
-    constructor (public parent: LobbyEngine, public name: string, manager: Manager) {
-        this.#manager = manager;
+    #assignsCache: Map<string, PondAssigns> = new Map();
+
+    #userSubscriptions: Map<string, Unsubscribe> = new Map();
+
+    #publisher: Subject<InternalChannelEvent> = new Subject();
+
+    readonly #name: string;
+
+    constructor (public parent: LobbyEngine, name: string) {
+        this.#name = name;
+    }
+
+    get name (): string {
+        return this.#name;
     }
 
     get users (): Set<string> {
-        return this.#manager.userIds;
+        return new Set(this.#assignsCache.keys());
     }
 
+    /**
+     * Adds a user to the channel
+     * @param userId - The user ID
+     * @param assigns - The user's assigns
+     * @param onMessage - Callback for messages
+     * @returns Unsubscribe function
+     */
     addUser (userId: string, assigns: PondAssigns, onMessage: (event: ChannelEvent) => void): Unsubscribe {
         if (this.users.has(userId)) {
             const message = `ChannelEngine: User with id ${userId} already exists in channel ${this.name}`;
-            const code = 400;
 
-            throw new HttpError(code, message);
+            throw new HttpError(400, message);
         }
 
-        this.#manager.addUser(userId, assigns, onMessage);
+        // Store user assigns
+        this.#assignsCache.set(userId, assigns);
+
+        // Subscribe user to messages
+        this.#buildSubscriber(userId, onMessage);
+
+        // Send acknowledgment
         this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, Events.ACKNOWLEDGE, {});
 
-        return this.removeUser.bind(this, userId);
+        // Return unsubscribe function
+        return () => this.removeUser(userId);
     }
 
-    sendMessage (sender: ChannelSenders, recipient: ChannelReceivers, action: ServerActions, event: string, payload: PondMessage, requestId: string = uuid()) {
-        if (!this.users.has(sender) && sender !== SystemSender.CHANNEL) {
+    /**
+     * Sends a message to recipients
+     */
+    sendMessage (
+        sender: ChannelSenders,
+        recipient: ChannelReceivers,
+        action: ServerActions,
+        event: string,
+        payload: PondMessage,
+        requestId: string = uuid(),
+    ): void {
+        if (!this.users.has(sender as string) && sender !== SystemSender.CHANNEL) {
             const message = `ChannelEngine: User with id ${sender} does not exist in channel ${this.name}`;
-            const code = 404;
 
-            throw new HttpError(code, message);
+            throw new HttpError(404, message);
         }
 
         const channelEvent = {
@@ -70,15 +106,17 @@ export class ChannelEngine {
             recipients,
         };
 
-        this.#manager.broadcast(internalEvent);
+        this.#publisher.publish(internalEvent);
     }
 
-    broadcastMessage (userId: string, message: ClientMessage) {
+    /**
+     * Broadcasts a message from a user
+     */
+    broadcastMessage (userId: string, message: ClientMessage): void {
         if (!this.users.has(userId)) {
             const message = `ChannelEngine: User with id ${userId} does not exist in channel ${this.name}`;
-            const code = 404;
 
-            throw new HttpError(code, message);
+            throw new HttpError(404, message);
         }
 
         const responseEvent: BroadcastEvent = {
@@ -102,27 +140,62 @@ export class ChannelEngine {
         });
     }
 
-    trackPresence (userId: string, presence: PondPresence) {
-        return this.#manager.trackPresence(userId, presence);
+    /**
+     * Tracks a user's presence
+     */
+    trackPresence (userId: string, presence: PondPresence): void {
+        const presenceEngine = this.#getOrCreatePresenceEngine();
+
+        presenceEngine.trackPresence(userId, presence);
     }
 
-    updatePresence (userId: string, presence: PondPresence) {
-        return this.#manager.updatePresence(userId, presence);
+    /**
+     * Updates a user's presence
+     */
+    updatePresence (userId: string, presence: PondPresence): void {
+        const presenceEngine = this.#getOrCreatePresenceEngine();
+
+        presenceEngine.updatePresence(userId, presence);
     }
 
-    removePresence (userId: string) {
-        return this.#manager.removePresence(userId);
+    /**
+     * Removes a user's presence
+     */
+    removePresence (userId: string): void {
+        if (this.#presenceEngine) {
+            this.#presenceEngine.removePresence(userId);
+        }
     }
 
-    upsertPresence (userId: string, presence: PondPresence) {
-        return this.#manager.upsertPresence(userId, presence);
+    /**
+     * Adds or updates a user's presence
+     */
+    upsertPresence (userId: string, presence: PondPresence): void {
+        const presenceEngine = this.#getOrCreatePresenceEngine();
+
+        presenceEngine.upsertPresence(userId, presence);
     }
 
-    updateAssigns (userId: string, assigns: PondMessage) {
-        return this.#manager.updateAssigns(userId, assigns);
+    /**
+     * Updates a user's assigns
+     */
+    updateAssigns (userId: string, assigns: PondMessage): void {
+        if (!this.#assignsCache.has(userId)) {
+            throw new HttpError(404, `User with id ${userId} does not exist in channel ${this.name}`);
+        }
+
+        const currentAssigns = this.#assignsCache.get(userId) || {};
+
+        this.#assignsCache.set(userId, {
+            ...currentAssigns,
+            ...assigns,
+        });
     }
 
-    kickUser (userId: string, reason: string) {
+    /**
+     * Kicks a user from the channel
+     */
+    kickUser (userId: string, reason: string): void {
         this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, 'kicked_out', {
             message: reason,
             code: 403,
@@ -134,9 +207,12 @@ export class ChannelEngine {
         });
     }
 
+    /**
+     * Gets all assigns as an object
+     */
     getAssigns (): UserAssigns {
         return Array
-            .from(this.#manager.getAllAssigns().entries())
+            .from(this.#assignsCache.entries())
             .reduce((acc, [id, assigns]) => {
                 acc[id] = assigns;
 
@@ -144,9 +220,16 @@ export class ChannelEngine {
             }, {} as UserAssigns);
     }
 
+    /**
+     * Gets all presence data as an object
+     */
     getPresence (): UserPresences {
+        if (!this.#presenceEngine) {
+            return {};
+        }
+
         return Array
-            .from(this.#manager.getAllPresence().entries())
+            .from(this.#presenceEngine.getAllPresence().entries())
             .reduce((acc, [id, presence]) => {
                 acc[id] = presence;
 
@@ -154,28 +237,129 @@ export class ChannelEngine {
             }, {} as UserPresences);
     }
 
-    destroy (reason?: string) {
+    /**
+     * Destroys the channel
+     */
+    destroy (reason?: string): void {
         this.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.ERROR, 'destroyed', {
             message: reason ?? 'Channel has been destroyed',
         });
-        this.#manager.close();
+
+        this.close();
     }
 
-    removeUser (userId: string) {
-        const userData = this.#manager.removeUser(userId);
+    /**
+     * Removes a user from the channel
+     */
+    removeUser (userId: string): void {
+        try {
+            const userData = this.getUserData(userId);
+            const unsubscribe = this.#userSubscriptions.get(userId);
 
-        if (this.parent.leaveCallback) {
-            this.parent.leaveCallback({
-                user: userData,
-                channel: new Channel(this),
-            });
+            this.#assignsCache.delete(userId);
+            if (this.#presenceEngine) {
+                this.#presenceEngine.removePresence(userId);
+            }
+
+            if (unsubscribe) {
+                unsubscribe();
+                this.#userSubscriptions.delete(userId);
+            }
+
+            // Trigger leave callback if defined
+            if (this.parent.leaveCallback) {
+                this.parent.leaveCallback({
+                    user: userData,
+                    channel: this.parent.wrapChannel(this),
+                });
+            }
+
+            // If no users left, close the channel
+            if (this.users.size === 0) {
+                this.close();
+            }
+        } catch (error) {
+            // Ignore cleanup errors
         }
     }
 
-    getUser (userId: string) {
-        return this.#manager.getUserData(userId);
+    /**
+     * Gets user data by ID
+     */
+    getUserData (userId: string): UserData {
+        const assigns = this.#assignsCache.get(userId);
+        const presence = this.#presenceEngine?.getPresence(userId) || null;
+
+        if (!assigns && !presence) {
+            const message = `User with id ${userId} does not exist in the channel ${this.name}`;
+
+            throw new HttpError(404, message);
+        }
+
+        return {
+            assigns: assigns || {},
+            presence: presence || {},
+            id: userId,
+        };
     }
 
+    /**
+     * Closes the channel and cleans up resources
+     */
+    close (): void {
+        // Clear all user subscriptions
+        this.#userSubscriptions.forEach((unsubscribe) => unsubscribe());
+        this.#userSubscriptions.clear();
+
+        // Clear assigns
+        this.#assignsCache.clear();
+
+        // Close presence engine if exists
+        if (this.#presenceEngine) {
+            this.#presenceEngine.close();
+            this.#presenceEngine = null;
+        }
+
+        // Close publisher
+        this.#publisher.close();
+    }
+
+    /**
+     * Builds a subscriber for a user
+     */
+    #buildSubscriber (userId: string, onMessage: (event: ChannelEvent) => void): void {
+        const subscription = this.#publisher.subscribe(async ({ recipients, ...event }) => {
+            if (recipients.includes(userId)) {
+                const newEvent = await this.parent.manageOutgoingEvents(event, userId, this);
+
+                if (newEvent) {
+                    onMessage(newEvent);
+                }
+            }
+        });
+
+        this.#userSubscriptions.set(userId, subscription);
+    }
+
+    /**
+     * Gets or creates the presence engine
+     */
+    #getOrCreatePresenceEngine (): PresenceEngine {
+        if (!this.#presenceEngine) {
+            this.#presenceEngine = new PresenceEngine(this.name);
+
+            // Subscribe to presence events and publish them through the channel publisher
+            this.#presenceEngine.subscribe((event) => {
+                this.#publisher.publish(event);
+            });
+        }
+
+        return this.#presenceEngine;
+    }
+
+    /**
+     * Gets users from recipient's specification
+     */
     #getUsersFromRecipients (recipients: ChannelReceivers, sender: ChannelSenders): string[] {
         const allUsers = Array.from(this.users);
         let users: string[];
@@ -184,29 +368,27 @@ export class ChannelEngine {
             case ChannelReceiver.ALL_USERS:
                 users = allUsers;
                 break;
+
             case ChannelReceiver.ALL_EXCEPT_SENDER:
                 if (sender === SystemSender.CHANNEL) {
                     const message = `ChannelEngine: Invalid sender ${sender} for recipients ${recipients}`;
-                    const code = 400;
 
-                    throw new HttpError(code, message);
+                    throw new HttpError(400, message);
                 }
-
                 users = allUsers.filter((user) => user !== sender);
                 break;
+
             default:
                 if (!Array.isArray(recipients)) {
                     const message = `ChannelEngine: Invalid recipients ${recipients} must be an array of user ids or ${ChannelReceiver.ALL_USERS}`;
-                    const code = 400;
 
-                    throw new HttpError(code, message);
+                    throw new HttpError(400, message);
                 }
 
                 if (recipients.some((user) => !allUsers.includes(user))) {
                     const message = `ChannelEngine: Invalid user ids in recipients ${recipients}`;
-                    const code = 400;
 
-                    throw new HttpError(code, message);
+                    throw new HttpError(400, message);
                 }
 
                 users = recipients;

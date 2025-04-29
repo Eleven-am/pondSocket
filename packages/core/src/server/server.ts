@@ -2,10 +2,9 @@ import { Server as HTTPServer, IncomingHttpHeaders, IncomingMessage } from 'http
 import internal from 'node:stream';
 
 import { IncomingConnection, PondPath, uuid } from '@eleven-am/pondsocket-common';
-import { WebSocket, WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 
 import { Middleware } from '../abstracts/middleware';
-import { RedisClient } from '../abstracts/redisClient';
 import {
     SocketRequest,
     PondSocketOptions,
@@ -25,34 +24,35 @@ export class PondSocket {
 
     readonly #socketServer: WebSocketServer;
 
-    readonly #redisClient: RedisClient | null;
-
     readonly #middleware: Middleware<SocketRequest, ConnectionParams>;
 
-    constructor ({ server, socketServer, redisOptions, exclusiveServer = true }: PondSocketOptions = {}) {
+    constructor ({ server, socketServer, exclusiveServer = true }: PondSocketOptions = {}) {
         this.#middleware = new Middleware();
         this.#exclusiveServer = exclusiveServer;
         this.#server = server ?? new HTTPServer();
-        this.#redisClient = redisOptions ? new RedisClient(redisOptions) : null;
         this.#socketServer = socketServer ?? new WebSocketServer({ noServer: true });
         this.#init();
     }
 
+    /**
+     * Start listening for connections
+     */
     listen (...args: any[]) {
-        if (this.#redisClient) {
-            this.#redisClient.initialize()
-                .then(() => this.#server.listen(...args));
-        } else {
-            return this.#server.listen(...args);
-        }
+        return this.#server.listen(...args);
     }
 
+    /**
+     * Close the server
+     */
     close (callback?: (err?: Error) => void) {
         return this.#server.close(callback);
     }
 
+    /**
+     * Create a new endpoint
+     */
     createEndpoint<Path extends string> (path: PondPath<Path>, handler: ConnectionHandler<Path>) {
-        const endpoint = new EndpointEngine(this.#redisClient?.buildClient(String(path)) ?? null);
+        const endpoint = new EndpointEngine();
 
         this.#middleware.use((req, params, next) => {
             const event = parseAddress(path, req.address);
@@ -83,6 +83,9 @@ export class PondSocket {
         return new Endpoint(endpoint);
     }
 
+    /**
+     * Handle WebSocket upgrade requests
+     */
     handleUpgrade (req: IncomingMessage, socket: internal.Duplex, head: Buffer<ArrayBufferLike>) {
         const clientId = req.headers['sec-websocket-key'] as string;
         const request: SocketRequest = {
@@ -112,6 +115,9 @@ export class PondSocket {
         });
     }
 
+    /**
+     * Set up WebSocket heartbeat
+     */
     #manageHeartbeat () {
         this.#socketServer.on('connection', (socket: WebSocket & { isAlive?: boolean }) => {
             socket.on('pong', () => {
@@ -131,23 +137,27 @@ export class PondSocket {
         }, 30000);
     }
 
+    /**
+     * Initialize the server
+     */
     #init () {
         const timeout = this.#manageHeartbeat();
 
-        this.#server.on('error', async (error) => {
+        this.#server.on('error', (error) => {
             clearInterval(timeout);
-            await this.#redisClient?.shutdown();
             throw new Error(error.message);
         });
 
-        this.#server.on('close', async () => {
+        this.#server.on('close', () => {
             clearInterval(timeout);
-            await this.#redisClient?.shutdown();
         });
 
         this.#server.on('upgrade', this.handleUpgrade.bind(this));
     }
 
+    /**
+     * Parse cookies from headers
+     */
     #getCookies (headers: IncomingHttpHeaders): Record<string, string> {
         const cookieHeader = headers.cookie;
 

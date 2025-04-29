@@ -29,13 +29,21 @@ export class MockChannelEngine extends ChannelEngine {
 
     removeUser = jest.fn();
 
-    getUser = jest.fn();
+    getUserData = jest.fn();
 
     parent = new MockLobbyEngine();
 
-    name = 'mockChannel';
-
     constructor () {
-        super({} as LobbyEngine, 'mockChannel', {} as any);
+        super({} as LobbyEngine, 'mockChannel');
+    }
+
+    private _name = 'mockChannel';
+
+    public get name () {
+        return this._name;
+    }
+
+    public set name (value) {
+        this._name = value;
     }
 }

@@ -1,35 +1,39 @@
-import { ChannelReceiver, ServerActions, PondPresence, PondAssigns, ClientActions } from '@eleven-am/pondsocket-common';
+import {
+    ChannelReceiver,
+    ServerActions,
+    PondPresence,
+    PondAssigns,
+    ClientActions,
+    SystemSender,
+} from '@eleven-am/pondsocket-common';
 
 import { ChannelEngine } from '../engines/channelEngine';
 import { HttpError } from '../errors/httpError';
-import { EventResponse } from '../responses/eventResponse';
 import { MockLobbyEngine } from './mocks/lobbyEngine';
-import { MockManager } from './mocks/manager';
-
 
 describe('ChannelEngine', () => {
     let channelEngine: ChannelEngine;
     let mockLobbyEngine: MockLobbyEngine;
-    let mockManager: MockManager;
+    const channelName = 'test-channel';
 
     beforeEach(() => {
         mockLobbyEngine = new MockLobbyEngine();
-        mockManager = new MockManager();
-        channelEngine = new ChannelEngine(mockLobbyEngine, 'test-channel', mockManager);
-
-        mockManager.userIds = new Set(['user1', 'user2']);
-        mockManager.getAllAssigns.mockReturnValue(new Map([
-            ['user1', { username: 'User1' }],
-            ['user2', { username: 'User2' }],
-        ]));
-        mockManager.getAllPresence.mockReturnValue(new Map([
-            ['user1', { status: 'online' }],
-            ['user2', { status: 'away' }],
-        ]));
+        channelEngine = new ChannelEngine(mockLobbyEngine, channelName);
     });
 
     afterEach(() => {
         jest.clearAllMocks();
+    });
+
+    describe('constructor', () => {
+        it('should initialize with the correct name and parent', () => {
+            expect(channelEngine.name).toBe(channelName);
+            expect(channelEngine.parent).toBe(mockLobbyEngine);
+        });
+
+        it('should initialize with empty users set', () => {
+            expect(channelEngine.users.size).toBe(0);
+        });
     });
 
     describe('addUser', () => {
@@ -38,12 +42,14 @@ describe('ChannelEngine', () => {
             const assigns: PondAssigns = { username: 'TestUser' };
             const onMessage = jest.fn();
 
-            mockManager.userIds = new Set();
+            // We need to spy on sendMessage before calling addUser
+            jest.spyOn(channelEngine, 'sendMessage');
 
-            mockManager.addUser.mockImplementation((userId) => mockManager.userIds.add(userId));
+            channelEngine.addUser(userId, assigns, onMessage);
 
-            expect(() => channelEngine.addUser(userId, assigns, onMessage)).not.toThrow();
-            expect(mockManager.addUser).toHaveBeenCalledWith(userId, assigns, expect.any(Function));
+            expect(channelEngine.users.has(userId)).toBe(true);
+            // Just check that sendMessage was called without specific parameters
+            expect(channelEngine.sendMessage).toHaveBeenCalled();
         });
 
         it('should throw an error if user already exists', () => {
@@ -51,105 +57,143 @@ describe('ChannelEngine', () => {
             const assigns: PondAssigns = { username: 'TestUser' };
             const onMessage = jest.fn();
 
-            mockManager.userIds = new Set([userId]);
+            channelEngine.addUser(userId, assigns, onMessage);
 
-            expect(() => channelEngine.addUser(userId, assigns, onMessage)).toThrow(HttpError);
+            expect(() => {
+                channelEngine.addUser(userId, assigns, onMessage);
+            }).toThrow(HttpError);
+
+            expect(() => {
+                channelEngine.addUser(userId, assigns, onMessage);
+            }).toThrow('User with id user1 already exists in channel test-channel');
+        });
+
+        it('should return an unsubscribe function that removes the user', () => {
+            const userId = 'user1';
+            const assigns: PondAssigns = { username: 'TestUser' };
+            const onMessage = jest.fn();
+            const removeUserSpy = jest.spyOn(channelEngine, 'removeUser');
+
+            const unsubscribe = channelEngine.addUser(userId, assigns, onMessage);
+
+            expect(typeof unsubscribe).toBe('function');
+
+            unsubscribe();
+
+            expect(removeUserSpy).toHaveBeenCalledWith(userId);
         });
     });
 
     describe('sendMessage', () => {
-        it('should send a message successfully', () => {
-            const sender = 'user1';
-            const recipient = ChannelReceiver.ALL_USERS;
-            const action = ServerActions.BROADCAST;
+        it('should publish a message to the internal publisher', () => {
+            // Add a user first
+            const userId = 'user1';
+            const assigns: PondAssigns = { username: 'TestUser' };
+            const onMessage = jest.fn();
+
+            channelEngine.addUser(userId, assigns, onMessage);
+
+            // Send a message
             const event = 'test-event';
-            const payload = { message: 'Hello, World!' };
+            const payload = { message: 'test message' };
 
-            mockManager.userIds = new Set([sender]);
-            mockManager.broadcast.mockImplementation(() => {});
+            channelEngine.sendMessage(userId, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
 
-            channelEngine.sendMessage(sender, recipient, action, event, payload);
-
-            expect(mockManager.broadcast).toHaveBeenCalledWith(expect.objectContaining({
-                channelName: 'test-channel',
-                action,
+            // Check that onMessage was called with the correct event
+            expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({
+                channelName,
+                action: ServerActions.BROADCAST,
                 event,
                 payload,
-                recipients: expect.any(Array),
             }));
         });
 
         it('should throw an error if sender does not exist', () => {
-            const sender = 'non-existent-user';
-            const recipient = ChannelReceiver.ALL_USERS;
-            const action = ServerActions.BROADCAST;
-            const event = 'test-event';
-            const payload = { message: 'Hello, World!' };
+            const sender = 'nonexistent-user';
 
-            mockManager.userIds = new Set();
+            expect(() => {
+                channelEngine.sendMessage(
+                    sender,
+                    ChannelReceiver.ALL_USERS,
+                    ServerActions.BROADCAST,
+                    'test',
+                    {},
+                );
+            }).toThrow(HttpError);
+        });
 
-            expect(() => channelEngine.sendMessage(sender, recipient, action, event, payload)).toThrow(HttpError);
+        it('should allow CHANNEL as a sender', () => {
+            // Add a user to receive the message
+            const userId = 'user1';
+            const assigns: PondAssigns = { username: 'TestUser' };
+            const onMessage = jest.fn();
+
+            channelEngine.addUser(userId, assigns, onMessage);
+
+            // Send a message from CHANNEL
+            channelEngine.sendMessage(
+                SystemSender.CHANNEL,
+                ChannelReceiver.ALL_USERS,
+                ServerActions.BROADCAST,
+                'test-event',
+                { message: 'test' },
+            );
+
+            // Check that message was sent
+            expect(onMessage).toHaveBeenCalled();
         });
     });
 
     describe('broadcastMessage', () => {
-        it('should broadcast a message successfully', () => {
+        it('should process a client message through the middleware', () => {
+            // Add a user
             const userId = 'user1';
-            const message = {
+            const assigns: PondAssigns = { username: 'TestUser' };
+            const onMessage = jest.fn();
+
+            channelEngine.addUser(userId, assigns, onMessage);
+
+            // Create a client message
+            const clientMessage = {
                 event: 'test-event',
-                payload: { message: 'Hello, World!' },
-                requestId: 'req1',
-                channelName: 'test-channel',
+                payload: { message: 'test message' },
+                requestId: 'req-id',
+                channelName,
                 action: ClientActions.BROADCAST,
             };
 
-            mockManager.userIds = new Set([userId]);
+            // Spy on middleware.run
             const middlewareRunSpy = jest.spyOn(mockLobbyEngine.middleware, 'run');
 
-            middlewareRunSpy.mockImplementation((req, res, next) => {
-                const response = new EventResponse(req, res);
+            // Broadcast the message
+            channelEngine.broadcastMessage(userId, clientMessage);
 
-                response.broadcast(message.event, message.payload);
-
-                next();
-            });
-
-            channelEngine.broadcastMessage(userId, message);
+            // Check that middleware.run was called
             expect(middlewareRunSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     sender: userId,
                     action: ServerActions.BROADCAST,
-                    event: message.event,
-                    payload: message.payload,
-                    requestId: message.requestId,
-                    channelName: message.channelName,
+                    event: clientMessage.event,
+                    payload: clientMessage.payload,
                 }),
                 channelEngine,
                 expect.any(Function),
             );
-
-            expect(mockManager.broadcast).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    action: ServerActions.BROADCAST,
-                    event: message.event,
-                    payload: message.payload,
-                }),
-            );
         });
 
-        it('should throw an error if user does not exist', () => {
-            const userId = 'non-existent-user';
-            const message = {
+        it('should send an error if the user does not exist', () => {
+            const userId = 'nonexistent-user';
+            const clientMessage = {
                 event: 'test-event',
-                payload: { message: 'Hello, World!' },
-                requestId: 'req1',
-                channelName: 'test-channel',
+                payload: { message: 'test message' },
+                requestId: 'req-id',
+                channelName,
                 action: ClientActions.BROADCAST,
             };
 
-            mockManager.userIds = new Set();
-
-            expect(() => channelEngine.broadcastMessage(userId, message)).toThrow(HttpError);
+            expect(() => {
+                channelEngine.broadcastMessage(userId, clientMessage);
+            }).toThrow(HttpError);
         });
     });
 
@@ -158,162 +202,346 @@ describe('ChannelEngine', () => {
         const presence: PondPresence = { status: 'online' };
 
         beforeEach(() => {
-            mockManager.userIds = new Set([userId]);
+            // Add a user
+            const assigns: PondAssigns = { username: 'TestUser' };
+            const onMessage = jest.fn();
+
+            channelEngine.addUser(userId, assigns, onMessage);
         });
 
-        it('should track presence successfully', () => {
-            mockManager.trackPresence.mockImplementation(() => {});
+        it('should create a PresenceEngine on first presence operation', () => {
+            // Skip trying to spy on private property
 
+            // Track presence - this should create a PresenceEngine
             channelEngine.trackPresence(userId, presence);
-            expect(mockManager.trackPresence).toHaveBeenCalledWith(userId, presence);
+
+            // GetPresence should return the presence data
+            const userPresence = channelEngine.getPresence();
+
+            expect(userPresence).toHaveProperty(userId);
+            expect(userPresence[userId]).toEqual(presence);
         });
 
-        it('should update presence successfully', () => {
-            mockManager.updatePresence.mockImplementation(() => {});
+        it('should update presence correctly', () => {
+            // First track presence
+            channelEngine.trackPresence(userId, presence);
 
-            channelEngine.updatePresence(userId, presence);
-            expect(mockManager.updatePresence).toHaveBeenCalledWith(userId, presence);
+            // Now update it
+            const newPresence: PondPresence = { status: 'away' };
+
+            channelEngine.updatePresence(userId, newPresence);
+
+            // Check that it was updated
+            const userPresence = channelEngine.getPresence();
+
+            expect(userPresence[userId]).toEqual(newPresence);
         });
 
-        it('should remove presence successfully', () => {
-            mockManager.removePresence.mockImplementation(() => {});
+        it('should remove presence correctly', () => {
+            // First track presence
+            channelEngine.trackPresence(userId, presence);
 
+            // Now remove it
             channelEngine.removePresence(userId);
-            expect(mockManager.removePresence).toHaveBeenCalledWith(userId);
+
+            // Check that it was removed
+            const userPresence = channelEngine.getPresence();
+
+            expect(userPresence).not.toHaveProperty(userId);
         });
 
-        it('should upsert presence successfully', () => {
-            mockManager.upsertPresence.mockImplementation(() => {});
-
+        it('should upsert presence correctly', () => {
+            // Upsert should add new presence
             channelEngine.upsertPresence(userId, presence);
-            expect(mockManager.upsertPresence).toHaveBeenCalledWith(userId, presence);
+
+            // Check it was added
+            let userPresence = channelEngine.getPresence();
+
+            expect(userPresence[userId]).toEqual(presence);
+
+            // Upsert again should update
+            const newPresence: PondPresence = { status: 'away' };
+
+            channelEngine.upsertPresence(userId, newPresence);
+
+            // Check it was updated
+            userPresence = channelEngine.getPresence();
+            expect(userPresence[userId]).toEqual(newPresence);
         });
     });
 
     describe('assigns management', () => {
-        it('should update assigns successfully', () => {
-            const userId = 'user1';
-            const assigns: PondAssigns = { username: 'UpdatedUser' };
+        const userId = 'user1';
+        const initialAssigns: PondAssigns = { role: 'user' };
 
-            mockManager.updateAssigns.mockImplementation(() => {});
+        beforeEach(() => {
+            // Add a user
+            const onMessage = jest.fn();
 
-            channelEngine.updateAssigns(userId, assigns);
-            expect(mockManager.updateAssigns).toHaveBeenCalledWith(userId, assigns);
+            channelEngine.addUser(userId, initialAssigns, onMessage);
+        });
+
+        it('should store initial assigns when adding a user', () => {
+            const assigns = channelEngine.getAssigns();
+
+            expect(assigns).toHaveProperty(userId);
+            expect(assigns[userId]).toEqual(initialAssigns);
+        });
+
+        it('should update assigns correctly', () => {
+            // Update assigns
+            const updateAssigns: PondAssigns = { role: 'admin' };
+
+            channelEngine.updateAssigns(userId, updateAssigns);
+
+            // Check they were updated and merged
+            const assigns = channelEngine.getAssigns();
+
+            expect(assigns[userId]).toEqual({ ...initialAssigns,
+                ...updateAssigns });
+        });
+
+        it('should throw error when updating assigns for non-existent user', () => {
+            expect(() => {
+                channelEngine.updateAssigns('nonexistent', { role: 'admin' });
+            }).toThrow(HttpError);
+        });
+    });
+
+    describe('getUserData', () => {
+        const userId = 'user1';
+        const assigns: PondAssigns = { role: 'user' };
+        const presence: PondPresence = { status: 'online' };
+
+        beforeEach(() => {
+            // Add a user
+            const onMessage = jest.fn();
+
+            channelEngine.addUser(userId, assigns, onMessage);
+        });
+
+        it('should return user data with assigns', () => {
+            const userData = channelEngine.getUserData(userId);
+
+            expect(userData).toEqual({
+                id: userId,
+                assigns,
+                presence: {},
+            });
+        });
+
+        it('should return user data with presence if tracked', () => {
+            // Track presence
+            channelEngine.trackPresence(userId, presence);
+
+            const userData = channelEngine.getUserData(userId);
+
+            expect(userData).toEqual({
+                id: userId,
+                assigns,
+                presence,
+            });
+        });
+
+        it('should throw error for non-existent user', () => {
+            expect(() => {
+                channelEngine.getUserData('nonexistent');
+            }).toThrow(HttpError);
         });
     });
 
     describe('kickUser', () => {
-        it('should kick a user successfully', () => {
-            const userId = 'user1';
-            const reason = 'Violation of rules';
+        const userId = 'user1';
 
-            mockManager.userIds = new Set([userId]);
-            mockManager.removeUser.mockImplementation(() => ({ id: userId,
-                assigns: {},
-                presence: {} }));
-            mockManager.broadcast.mockImplementation(() => {});
+        beforeEach(() => {
+            // Add a user
+            const assigns: PondAssigns = { role: 'user' };
+            const onMessage = jest.fn();
+
+            channelEngine.addUser(userId, assigns, onMessage);
+        });
+
+        it('should send kicked_out message to the user', () => {
+            // We need to check this behavior in a different way
+            // Mock the sendMessage method
+            const sendMessageMock = jest.fn();
+
+            channelEngine.sendMessage = sendMessageMock;
+
+            const reason = 'Bad behavior';
 
             channelEngine.kickUser(userId, reason);
 
-            expect(mockManager.broadcast).toHaveBeenCalledTimes(2);
-            expect(mockManager.removeUser).toHaveBeenCalledWith(userId);
-        });
-    });
-
-    describe('getAssigns and getPresence', () => {
-        it('should return assigns for all users', () => {
-            const assigns = new Map([
-                ['user1', { username: 'User1' }],
-                ['user2', { username: 'User2' }],
-            ]);
-
-            mockManager.getAllAssigns.mockReturnValue(assigns);
-
-            const result = channelEngine.getAssigns();
-
-            expect(result).toEqual({ user1: { username: 'User1' },
-                user2: { username: 'User2' } });
+            // Check first call is kicked_out
+            expect(sendMessageMock.mock.calls[0][0]).toBe(SystemSender.CHANNEL);
+            expect(sendMessageMock.mock.calls[0][1]).toEqual([userId]);
+            expect(sendMessageMock.mock.calls[0][2]).toBe(ServerActions.SYSTEM);
+            expect(sendMessageMock.mock.calls[0][3]).toBe('kicked_out');
+            expect(sendMessageMock.mock.calls[0][4]).toEqual({
+                message: reason,
+                code: 403,
+            });
         });
 
-        it('should return presence for all users', () => {
-            const presence = new Map([
-                ['user1', { status: 'online' }],
-                ['user2', { status: 'away' }],
-            ]);
+        it('should broadcast kicked message to all users', () => {
+            // Mock the sendMessage method
+            const sendMessageMock = jest.fn();
 
-            mockManager.getAllPresence.mockReturnValue(presence);
+            channelEngine.sendMessage = sendMessageMock;
 
-            const result = channelEngine.getPresence();
+            const reason = 'Bad behavior';
 
-            expect(result).toEqual({ user1: { status: 'online' },
-                user2: { status: 'away' } });
+            channelEngine.kickUser(userId, reason);
+
+            // Check second call is kicked broadcast
+            expect(sendMessageMock.mock.calls[1][0]).toBe(SystemSender.CHANNEL);
+            expect(sendMessageMock.mock.calls[1][1]).toBe(ChannelReceiver.ALL_USERS);
+            expect(sendMessageMock.mock.calls[1][2]).toBe(ServerActions.SYSTEM);
+            expect(sendMessageMock.mock.calls[1][3]).toBe('kicked');
+            expect(sendMessageMock.mock.calls[1][4]).toEqual({
+                userId,
+                reason,
+            });
         });
-    });
 
-    describe('destroy', () => {
-        it('should destroy the channel', () => {
-            const reason = 'Channel closed';
+        it('should remove the user from the channel', () => {
+            const removeUserSpy = jest.spyOn(channelEngine, 'removeUser');
+            const reason = 'Bad behavior';
 
-            mockManager.broadcast.mockImplementation(() => {});
-            mockManager.close.mockImplementation(() => {});
+            channelEngine.kickUser(userId, reason);
 
-            channelEngine.destroy(reason);
-
-            expect(mockManager.broadcast).toHaveBeenCalledWith(expect.objectContaining({
-                action: ServerActions.ERROR,
-                event: 'destroyed',
-                payload: { message: reason },
-            }));
-            expect(mockManager.close).toHaveBeenCalled();
+            expect(removeUserSpy).toHaveBeenCalledWith(userId);
         });
     });
 
     describe('removeUser', () => {
-        it('should remove a user and call leaveCallback if set', () => {
-            const userId = 'user1';
-            const userData = { id: userId,
-                assigns: {},
-                presence: {} };
+        const userId = 'user1';
+        const assigns: PondAssigns = { role: 'user' };
+        const presence: PondPresence = { status: 'online' };
+        let onMessage: jest.Mock;
 
-            mockManager.removeUser.mockReturnValue(userData);
-            mockLobbyEngine.leaveCallback = jest.fn();
+        beforeEach(() => {
+            // Add a user
+            onMessage = jest.fn();
+            channelEngine.addUser(userId, assigns, onMessage);
+
+            // Add presence
+            channelEngine.trackPresence(userId, presence);
+        });
+
+        it('should remove the user from assigns and presence', () => {
+            channelEngine.removeUser(userId);
+
+            // Check user was removed
+            expect(channelEngine.users.has(userId)).toBe(false);
+
+            // Presence should be removed too
+            const presences = channelEngine.getPresence();
+
+            expect(presences).not.toHaveProperty(userId);
+        });
+
+        it('should trigger leave callback if set', () => {
+            // Set up a leave callback
+            const leaveCallback = jest.fn();
+
+            mockLobbyEngine.leaveCallback = leaveCallback;
+
+            // Create a channel wrapper spy
+            const wrapChannelSpy = jest.spyOn(mockLobbyEngine, 'wrapChannel');
 
             channelEngine.removeUser(userId);
 
-            expect(mockManager.removeUser).toHaveBeenCalledWith(userId);
-            expect(mockLobbyEngine.leaveCallback).toHaveBeenCalledWith(expect.objectContaining({
-                user: userData,
+            // Check callback was triggered with correct data
+            expect(leaveCallback).toHaveBeenCalledWith(expect.objectContaining({
+                user: expect.objectContaining({
+                    id: userId,
+                    assigns,
+                    presence,
+                }),
                 channel: expect.any(Object),
             }));
+
+            // Check the channel was wrapped
+            expect(wrapChannelSpy).toHaveBeenCalledWith(channelEngine);
+        });
+
+        it('should not error when removing a non-existent user', () => {
+            expect(() => {
+                channelEngine.removeUser('nonexistent');
+            }).not.toThrow();
         });
     });
 
-    describe('getUser', () => {
-        it('should return user data', () => {
-            const userId = 'user1';
-            const userData = { id: userId,
-                assigns: {},
-                presence: {} };
+    describe('destroy', () => {
+        it('should send destroyed message to all users', () => {
+            // Replace the sendMessage method with a mock
+            const sendMessageMock = jest.fn();
 
-            mockManager.getUserData.mockReturnValue(userData);
+            channelEngine.sendMessage = sendMessageMock;
 
-            const result = channelEngine.getUser(userId);
+            const reason = 'Channel closed';
 
-            expect(result).toEqual(userData);
+            channelEngine.destroy(reason);
+
+            // Check message parameters directly
+            expect(sendMessageMock).toHaveBeenCalled();
+            expect(sendMessageMock.mock.calls[0][0]).toBe(SystemSender.CHANNEL);
+            expect(sendMessageMock.mock.calls[0][1]).toBe(ChannelReceiver.ALL_USERS);
+            expect(sendMessageMock.mock.calls[0][2]).toBe(ServerActions.ERROR);
+            expect(sendMessageMock.mock.calls[0][3]).toBe('destroyed');
+            expect(sendMessageMock.mock.calls[0][4]).toEqual({ message: reason });
+        });
+
+        it('should use default message if no reason provided', () => {
+            // Replace the sendMessage method with a mock
+            const sendMessageMock = jest.fn();
+
+            channelEngine.sendMessage = sendMessageMock;
+
+            channelEngine.destroy();
+
+            // Check defaults
+            expect(sendMessageMock).toHaveBeenCalled();
+            expect(sendMessageMock.mock.calls[0][4]).toEqual({
+                message: 'Channel has been destroyed',
+            });
+        });
+
+        it('should close the channel', () => {
+            // Using a different approach since we can't spy on private methods
+            // Mock the close method
+            const closeSpy = jest.spyOn(channelEngine as any, 'close').mockImplementation(() => {});
+
+            channelEngine.destroy();
+
+            expect(closeSpy).toHaveBeenCalled();
         });
     });
 
-    describe('ChannelEngine additional methods', () => {
-        it('should return all users', () => {
-            const users = new Set(['user1', 'user2']);
+    describe('close', () => {
+        const userId = 'user1';
+        const assigns: PondAssigns = { role: 'user' };
+        const presence: PondPresence = { status: 'online' };
 
-            mockManager.userIds = users;
+        beforeEach(() => {
+            // Add a user with presence
+            const onMessage = jest.fn();
 
-            expect(channelEngine.users).toEqual(users);
+            channelEngine.addUser(userId, assigns, onMessage);
+            channelEngine.trackPresence(userId, presence);
         });
 
-        it('should return the channel name', () => {
-            expect(channelEngine.name).toBe('test-channel');
+        it('should clear all user data', () => {
+            // Call close using the public interface
+            // Need a special approach since it's private
+            (channelEngine as any).close();
+
+            // Users should be empty
+            expect(channelEngine.users.size).toBe(0);
+
+            // Presence should be empty
+            expect(Object.keys(channelEngine.getPresence())).toHaveLength(0);
         });
     });
 });

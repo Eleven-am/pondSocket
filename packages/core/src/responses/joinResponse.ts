@@ -33,10 +33,16 @@ export class JoinResponse {
         this.#newAssigns = { ...user.assigns };
     }
 
+    /**
+     * Whether the request has been handled
+     */
     get hasResponded (): boolean {
         return this.#executed;
     }
 
+    /**
+     * Accepts the join request
+     */
     accept (): JoinResponse {
         this.#performChecks();
         const onMessage = this.#engine.parent.parent.sendMessage.bind(this.#engine.parent.parent, this.#user.socket);
@@ -49,6 +55,9 @@ export class JoinResponse {
         return this;
     }
 
+    /**
+     * Declines the join request
+     */
     decline (message?: string, errorCode?: number): JoinResponse {
         this.#performChecks();
 
@@ -68,9 +77,12 @@ export class JoinResponse {
         return this;
     }
 
+    /**
+     * Assigns data to the user
+     */
     assign (assigns: PondAssigns): JoinResponse {
         if (this.#accepted) {
-            void this.#engine.updateAssigns(this.#user.clientId, assigns);
+            this.#engine.updateAssigns(this.#user.clientId, assigns);
         } else {
             this.#newAssigns = {
                 ...this.#newAssigns,
@@ -81,6 +93,9 @@ export class JoinResponse {
         return this;
     }
 
+    /**
+     * Sends a direct reply to the user
+     */
     reply (event: string, payload: PondMessage): JoinResponse {
         const message: ChannelEvent = {
             action: ServerActions.SYSTEM,
@@ -95,6 +110,9 @@ export class JoinResponse {
         return this;
     }
 
+    /**
+     * Broadcasts a message to specific users
+     */
     broadcastTo (event: string, payload: PondMessage, userIds: string | string[]): JoinResponse {
         const ids = Array.isArray(userIds) ? userIds : [userIds];
 
@@ -103,38 +121,55 @@ export class JoinResponse {
         return this;
     }
 
+    /**
+     * Broadcasts a message to all users in the channel
+     */
     broadcast (event: string, payload: PondMessage): JoinResponse {
         this.#sendMessage(ChannelReceiver.ALL_USERS, event, payload);
 
         return this;
     }
 
+    /**
+     * Broadcasts a message to all users except the sender
+     */
     broadcastFrom (event: string, payload: PondMessage): JoinResponse {
         this.#sendMessage(ChannelReceiver.ALL_EXCEPT_SENDER, event, payload);
 
         return this;
     }
 
+    /**
+     * Tracks the user's presence
+     */
     trackPresence (presence: PondPresence): JoinResponse {
         this.#engine.trackPresence(this.#user.clientId, presence);
 
         return this;
     }
 
+    /**
+     * Sends a message to specific recipients
+     */
     #sendMessage (recipient: ChannelReceivers, event: string, payload: PondObject) {
         this.#engine.sendMessage(this.#user.clientId, recipient, ServerActions.BROADCAST, event, payload, this.#user.requestId);
     }
 
+    /**
+     * Sends a direct message to the client
+     */
     #directMessage (event: ChannelEvent) {
         this.#engine.parent.parent.sendMessage(this.#user.socket, event);
     }
 
+    /**
+     * Performs checks before handling the request
+     */
     #performChecks (): void {
         if (this.#executed) {
             const message = `Request to join channel ${this.#engine.name} rejected: Request already executed`;
-            const code = 403;
 
-            throw new HttpError(code, message);
+            throw new HttpError(403, message);
         }
 
         this.#executed = true;

@@ -19,6 +19,6 @@ export class MockEndpointEngine extends EndpointEngine {
     createManager = jest.fn();
 
     constructor () {
-        super(null);
+        super();
     }
 }

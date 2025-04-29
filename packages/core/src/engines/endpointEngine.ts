@@ -10,15 +10,13 @@ import {
     uuid,
     SystemSender,
     Events,
-    Unsubscribe,
 } from '@eleven-am/pondsocket-common';
 import { WebSocket } from 'ws';
 
 import { LobbyEngine } from './lobbyEngine';
 import { Middleware } from '../abstracts/middleware';
-import { SocketCache, AuthorizationHandler, RequestCache, JoinRequestOptions, ClientFactory } from '../abstracts/types';
+import { SocketCache, AuthorizationHandler, RequestCache, JoinRequestOptions } from '../abstracts/types';
 import { HttpError } from '../errors/httpError';
-import { ManagerFactory } from '../managers/managerFactory';
 import { parseAddress } from '../matcher/matcher';
 import { JoinRequest } from '../requests/joinRequest';
 import { JoinResponse } from '../responses/joinResponse';
@@ -26,23 +24,23 @@ import { PondChannel } from '../wrappers/pondChannel';
 
 
 export class EndpointEngine {
-    readonly #clientFactory: ClientFactory | null;
-
     readonly #sockets: Map<string, SocketCache>;
 
     readonly #middleware: Middleware<RequestCache, JoinParams>;
 
     readonly #lobbyEngines: Map<PondPath<string>, LobbyEngine>;
 
-    constructor (clientFactory: ClientFactory | null) {
+    constructor () {
         this.#sockets = new Map();
         this.#lobbyEngines = new Map();
         this.#middleware = new Middleware();
-        this.#clientFactory = clientFactory;
     }
 
+    /**
+     * Creates a new channel on a specified path
+     */
     createChannel<Path extends string> (path: PondPath<Path>, handler: AuthorizationHandler<Path>) {
-        const pondChannel = new LobbyEngine(this);
+        const lobbyEngine = new LobbyEngine(this);
 
         this.#middleware.use((user, joinParams, next) => {
             const event = parseAddress(path, user.channelName);
@@ -55,7 +53,7 @@ export class EndpointEngine {
                     joinParams,
                 };
 
-                const channel = pondChannel.getOrCreateChannel(user.channelName);
+                const channel = lobbyEngine.getOrCreateChannel(user.channelName);
                 const request = new JoinRequest(options, channel);
                 const response = new JoinResponse(user, channel);
 
@@ -65,15 +63,21 @@ export class EndpointEngine {
             next();
         });
 
-        this.#lobbyEngines.set(path, pondChannel);
+        this.#lobbyEngines.set(path, lobbyEngine);
 
-        return new PondChannel(pondChannel);
+        return new PondChannel(lobbyEngine);
     }
 
+    /**
+     * Gets all connected clients
+     */
     getClients () {
         return [...this.#sockets.values()];
     }
 
+    /**
+     * Gets a specific user by client ID
+     */
     getUser (clientId: string) {
         const user = this.#sockets.get(clientId);
 
@@ -84,6 +88,9 @@ export class EndpointEngine {
         return user;
     }
 
+    /**
+     * Manages a new WebSocket connection
+     */
     manageSocket (cache: SocketCache) {
         this.#sockets.set(cache.clientId, cache);
         cache.socket.on('message', (message: string) => this.#readMessage(cache, message));
@@ -101,14 +108,16 @@ export class EndpointEngine {
         this.sendMessage(cache.socket, event);
     }
 
-    createManager (channelName: string, onLeave: Unsubscribe) {
-        return ManagerFactory.create(channelName, this.#clientFactory, onLeave);
-    }
-
+    /**
+     * Sends a message to a WebSocket
+     */
     sendMessage (socket: WebSocket, message: ChannelEvent) {
         socket.send(JSON.stringify(message));
     }
 
+    /**
+     * Closes one or more client connections
+     */
     closeConnection (clientIds: string | string[]) {
         const clients = typeof clientIds === 'string' ? [clientIds] : clientIds;
 
@@ -120,6 +129,9 @@ export class EndpointEngine {
             });
     }
 
+    /**
+     * Handles a socket closing
+     */
     #handleSocketClose (cache: SocketCache) {
         try {
             this.#sockets.delete(cache.clientId);
@@ -129,6 +141,9 @@ export class EndpointEngine {
         }
     }
 
+    /**
+     * Processes incoming messages from clients
+     */
     #handleMessage (cache: SocketCache, message: ClientMessage) {
         switch (message.action) {
             case ClientActions.JOIN_CHANNEL:
@@ -148,6 +163,9 @@ export class EndpointEngine {
         }
     }
 
+    /**
+     * Handles a join channel request
+     */
     #joinChannel (channel: string, socket: SocketCache, joinParams: JoinParams, requestId: string) {
         const cache: RequestCache = {
             ...socket,
@@ -161,24 +179,33 @@ export class EndpointEngine {
         });
     }
 
+    /**
+     * Handles a leave channel request
+     */
     #leaveChannel (channel: string, socket: SocketCache) {
         const engine = this.#retrieveChannel(channel);
 
         engine.removeUser(socket.clientId);
     }
 
+    /**
+     * Gets a channel engine for a given channel name
+     */
     #retrieveChannel (channel: string) {
-        for (const [path, manager] of this.#lobbyEngines) {
+        for (const [path, lobby] of this.#lobbyEngines) {
             const event = parseAddress(path, channel);
 
             if (event) {
-                return manager.getChannel(channel);
+                return lobby.getChannel(channel);
             }
         }
 
         throw new HttpError(404, `GatewayEngine: Channel ${channel} does not exist`);
     }
 
+    /**
+     * Builds an error response
+     */
     #buildError (error: unknown) {
         let message: string;
         let status: number;
@@ -210,16 +237,21 @@ export class EndpointEngine {
         return event;
     }
 
+    /**
+     * Broadcasts a message from a client
+     */
     #broadcastMessage (socket: SocketCache, message: ClientMessage) {
         const engine = this.#retrieveChannel(message.channelName);
 
         engine.broadcastMessage(socket.clientId, message);
     }
 
+    /**
+     * Reads and processes a message from a WebSocket
+     */
     #readMessage (cache: SocketCache, message: string) {
         try {
             const data = JSON.parse(message);
-
             const result = clientMessageSchema.parse(data);
 
             this.#handleMessage(cache, result);

@@ -1,7 +1,7 @@
 import { PondPath, PondMessage } from '@eleven-am/pondsocket-common';
 
 import { Channel } from './channel';
-import { LeaveCallback, EventHandler } from '../abstracts/types';
+import { LeaveCallback, EventHandler, OutgoingEventHandler } from '../abstracts/types';
 import { LobbyEngine } from '../engines/lobbyEngine';
 
 
@@ -20,6 +20,12 @@ export class PondChannel {
 
     public onLeave (callback: LeaveCallback): PondChannel {
         this.#lobby.onLeave(callback);
+
+        return this;
+    }
+
+    public onOutgoing<Event extends string> (event: PondPath<Event>, handler: OutgoingEventHandler<Event>) {
+        this.#lobby.handleOutgoingEvent(event, handler);
 
         return this;
     }
