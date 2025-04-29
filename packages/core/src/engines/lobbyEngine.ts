@@ -155,6 +155,17 @@ export class LobbyEngine {
     }
 
     /**
+     * Broadcasts an event to all users in a channel
+     */
+    deleteChannel (channelName: string) {
+        const channel = this.#channels.get(channelName);
+
+        if (channel) {
+            this.#channels.delete(channelName);
+        }
+    }
+
+    /**
      * Gets a channel by name or null if not found
      */
     #getChannel (channelName: string): ChannelEngine | null {

@@ -322,6 +322,9 @@ export class ChannelEngine {
 
         // Close publisher
         this.#publisher.close();
+
+        // Remove the channel from the parent
+        this.parent.deleteChannel(this.name);
     }
 
     /**
