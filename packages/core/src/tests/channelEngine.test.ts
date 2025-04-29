@@ -11,6 +11,8 @@ import { ChannelEngine } from '../engines/channelEngine';
 import { HttpError } from '../errors/httpError';
 import { MockLobbyEngine } from './mocks/lobbyEngine';
 
+const flushPromises = (value: number) => new Promise((resolve) => setTimeout(resolve, value));
+
 describe('ChannelEngine', () => {
     let channelEngine: ChannelEngine;
     let mockLobbyEngine: MockLobbyEngine;
@@ -85,7 +87,7 @@ describe('ChannelEngine', () => {
     });
 
     describe('sendMessage', () => {
-        it('should publish a message to the internal publisher', () => {
+        it('should publish a message to the internal publisher', async () => {
             // Add a user first
             const userId = 'user1';
             const assigns: PondAssigns = { username: 'TestUser' };
@@ -98,6 +100,9 @@ describe('ChannelEngine', () => {
             const payload = { message: 'test message' };
 
             channelEngine.sendMessage(userId, ChannelReceiver.ALL_USERS, ServerActions.BROADCAST, event, payload);
+
+            // Wait a bit to ensure the message is processed
+            await flushPromises(1000);
 
             // Check that onMessage was called with the correct event
             expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({
@@ -122,7 +127,7 @@ describe('ChannelEngine', () => {
             }).toThrow(HttpError);
         });
 
-        it('should allow CHANNEL as a sender', () => {
+        it('should allow CHANNEL as a sender', async () => {
             // Add a user to receive the message
             const userId = 'user1';
             const assigns: PondAssigns = { username: 'TestUser' };
@@ -138,6 +143,9 @@ describe('ChannelEngine', () => {
                 'test-event',
                 { message: 'test' },
             );
+
+            // Wait a bit to ensure the message is processed
+            await flushPromises(1000);
 
             // Check that message was sent
             expect(onMessage).toHaveBeenCalled();

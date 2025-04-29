@@ -330,6 +330,10 @@ export class ChannelEngine {
     #buildSubscriber (userId: string, onMessage: (event: ChannelEvent) => void): void {
         const subscription = this.#publisher.subscribe(async ({ recipients, ...event }) => {
             if (recipients.includes(userId)) {
+                if (event.action === ServerActions.SYSTEM) {
+                    return onMessage(event);
+                }
+
                 const newEvent = await this.parent.manageOutgoingEvents(event, userId, this);
 
                 if (newEvent) {

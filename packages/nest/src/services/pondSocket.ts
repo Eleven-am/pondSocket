@@ -1,5 +1,5 @@
 import PondSocket from '@eleven-am/pondsocket';
-import type { Endpoint, RedisOptions } from '@eleven-am/pondsocket/types';
+import type { Endpoint } from '@eleven-am/pondsocket/types';
 import { DiscoveryService } from '@golevelup/nestjs-discovery';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 // eslint-disable-next-line import/no-unresolved
@@ -28,14 +28,12 @@ export class PondSocketService implements OnModuleInit {
         private readonly globalGuards: Constructor<CanActivate>[],
         private readonly globalPipes: Constructor<PipeTransform>[],
         private readonly isExclusiveSocketServer: boolean,
-        private readonly redisOptions?: RedisOptions,
     ) {}
 
     async onModuleInit () {
         const instances = await this.getGroupedInstances();
 
         const socket = new PondSocket({
-            redisOptions: this.redisOptions,
             server: this.adapterHost.httpAdapter.getHttpServer(),
             exclusiveServer: this.isExclusiveSocketServer,
         });
