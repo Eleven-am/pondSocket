@@ -9,7 +9,6 @@ import type {
     PondAssigns,
     PondMessage,
     PondPresence,
-    RedisOptions,
 } from '@eleven-am/pondsocket/types';
 import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 import type { ModuleMetadata, PipeTransform } from '@nestjs/common';
@@ -63,15 +62,8 @@ export type GroupedInstances = {
 export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
     pipes?: Constructor<PipeTransform>[];
-    redisOptions?: RedisOptions;
     isExclusiveSocketServer?: boolean;
     isGlobal?: boolean;
-}
-
-export interface AsyncMetadata extends Omit<Metadata, 'redisOptions'> {
-    inject?: any[];
-    imports?: any[];
-    useFactory: (...args: any[]) => Promise<RedisOptions> | RedisOptions;
 }
 
 export type PondResponse<Event extends string = string, Payload extends PondMessage = PondMessage, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> = {

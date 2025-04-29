@@ -6,7 +6,7 @@ import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 import { getLocalGuards } from '../managers/guards';
 import { getLocalPipes } from '../managers/pipes';
 import { PondSocketService } from '../services/pondSocket';
-import { Metadata, AsyncMetadata } from '../types';
+import { Metadata } from '../types';
 
 export class PondSocketModule {
     static forRoot (metadata: Metadata): DynamicModule {
@@ -19,27 +19,8 @@ export class PondSocketModule {
                 metadata.guards ?? [],
                 metadata.pipes ?? [],
                 metadata.isExclusiveSocketServer ?? false,
-                metadata.redisOptions,
             ),
             inject: [ModuleRef, HttpAdapterHost, DiscoveryService],
-        };
-
-        return this.buildModule(pondSocketProvider, metadata);
-    }
-
-    static forRootAsync ({ inject, useFactory, ...metadata }: AsyncMetadata): DynamicModule {
-        const pondSocketProvider: Provider = {
-            provide: PondSocketService,
-            useFactory: async (moduleRef: ModuleRef, adapterHost: HttpAdapterHost, discovery: DiscoveryService, ...args: any[]) => new PondSocketService(
-                moduleRef,
-                discovery,
-                adapterHost,
-                metadata.guards ?? [],
-                metadata.pipes ?? [],
-                metadata.isExclusiveSocketServer ?? false,
-                await useFactory(...args),
-            ),
-            inject: [ModuleRef, HttpAdapterHost, DiscoveryService, ...(inject ?? [])],
         };
 
         return this.buildModule(pondSocketProvider, metadata);

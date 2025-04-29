@@ -13,7 +13,6 @@ import type {
     PondMessage,
     PondPresence,
     UserData,
-    RedisOptions,
 } from '@eleven-am/pondsocket/types';
 import type { DynamicModule, ModuleMetadata, PipeTransform } from '@nestjs/common';
 
@@ -33,15 +32,8 @@ interface CanActivate {
 interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
     pipes?: Constructor<PipeTransform>[];
-    redisOptions?: RedisOptions;
     isExclusiveSocketServer?: boolean;
     isGlobal?: boolean;
-}
-
-export interface AsyncMetadata extends Omit<Metadata, 'redisOptions'> {
-    inject?: any[];
-    imports?: any[];
-    useFactory: (...args: any[]) => Promise<RedisOptions> | RedisOptions;
 }
 
 type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
@@ -314,8 +306,6 @@ declare function UsePipes (...validators: Constructor<PipeTransform>[]): ClassDe
 declare function createParamDecorator<Input, ParamType> (callback: ParamDecoratorCallback<Input, ParamType>): (data: Input) => ParameterDecorator;
 
 declare class PondSocketModule {
-    static forRoot({ guards, providers, imports, exports, isGlobal, redisOptions }: Metadata): DynamicModule;
-
-    static forRootAsync({ guards, providers, imports, exports, isGlobal, useFactory, inject }: AsyncMetadata): DynamicModule;
+    static forRoot({ guards, providers, imports, exports, isGlobal }: Metadata): DynamicModule;
 }
 
