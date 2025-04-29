@@ -519,11 +519,13 @@ describe('ChannelEngine', () => {
         it('should close the channel', () => {
             // Using a different approach since we can't spy on private methods
             // Mock the close method
-            const closeSpy = jest.spyOn(mockLobbyEngine as any, 'deleteChannel').mockImplementation(() => {});
+            const closeSpy = jest.spyOn(channelEngine as any, 'close').mockImplementation(() => {});
+            const deleteChannel = jest.spyOn(mockLobbyEngine as any, 'deleteChannel').mockImplementation(() => {});
 
             channelEngine.destroy();
 
             expect(closeSpy).toHaveBeenCalled();
+            expect(deleteChannel).toHaveBeenCalledWith(channelEngine.name);
         });
     });
 
