@@ -1,7 +1,16 @@
-import type { Channel, ConnectionResponse, EventResponse, JoinResponse } from '@eleven-am/pondsocket/types';
+import {
+    Channel,
+    JoinContext,
+    EventContext,
+    ConnectionContext, LeaveEvent,
+} from '@eleven-am/pondsocket/types';
 
 import { PondResponse } from '../types';
-import { isConnectionResponse, isEventResponse, isJoinResponse } from './narrow';
+import {
+    isJoinContext,
+    isEventContext,
+    isConnectionContext, isLeaveEvent,
+} from './narrow';
 
 function isNotEmpty<TValue> (value: TValue | null | undefined): value is TValue {
     return value !== null &&
@@ -14,9 +23,9 @@ export function performResponse (
     socketId: string,
     channel: Channel | null,
     data: PondResponse | null | undefined,
-    response?: ConnectionResponse | JoinResponse | EventResponse,
+    context: JoinContext<string> | EventContext<string> | ConnectionContext<string> | LeaveEvent,
 ) {
-    if (response && response.hasResponded || !isNotEmpty(data)) {
+    if ((isLeaveEvent(context) || !isNotEmpty(data)) || (!isEventContext(context) && context.hasResponded)) {
         return;
     }
 
@@ -30,39 +39,39 @@ export function performResponse (
         ...rest
     } = data;
 
-    if (response) {
-        if (isConnectionResponse(response) || isJoinResponse(response)) {
-            response
+    if (context) {
+        if (isConnectionContext(context) || isJoinContext(context)) {
+            context
                 .assign(typeof assigns === 'object' ? assigns : {})
                 .accept();
         } else {
-            response
+            (context as EventContext<string>)
                 .assign(typeof assigns === 'object' ? assigns : {});
         }
 
         if (isNotEmpty(rest)) {
             if (event) {
-                response.reply(event, rest);
+                context.reply(event, rest);
             }
 
-            if (isJoinResponse(response) || isEventResponse(response)) {
+            if (isJoinContext(context) || isEventContext(context)) {
                 if (broadcast) {
-                    response.broadcast(broadcast, rest);
+                    context.broadcast(broadcast, rest);
                 }
 
                 if (broadcastFrom) {
-                    response.broadcastFrom(broadcastFrom, rest);
+                    context.broadcastFrom(broadcastFrom, rest);
                 }
 
                 if (broadcastTo) {
-                    response.broadcastTo(broadcastTo.event, rest, broadcastTo.users);
+                    context.broadcastTo(broadcastTo.event, rest, broadcastTo.users);
                 }
             }
         }
     }
 
     if (channel) {
-        if (isNotEmpty(rest) && !response) {
+        if (isNotEmpty(rest) && !context) {
             if (broadcast || event) {
                 const newEvent = (broadcast || event) as string;
 

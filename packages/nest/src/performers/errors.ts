@@ -1,10 +1,10 @@
-import type { ConnectionResponse, EventResponse, JoinResponse } from '@eleven-am/pondsocket/types';
+import type { ConnectionContext, JoinContext, EventContext } from '@eleven-am/pondsocket/types';
 // eslint-disable-next-line import/no-unresolved
 import { HttpException } from '@nestjs/common';
 
-import { isEventResponse } from './narrow';
+import { isEventContext } from './narrow';
 
-export function performErrors (error: unknown, response: ConnectionResponse | JoinResponse | EventResponse) {
+export function performErrors (error: unknown, response: ConnectionContext<string> | JoinContext<string> | EventContext<string>) {
     let message: string;
     let data: unknown;
     let status: number;
@@ -21,7 +21,7 @@ export function performErrors (error: unknown, response: ConnectionResponse | Jo
         status = 500;
     }
 
-    if (isEventResponse(response)) {
+    if (isEventContext(response)) {
         return response.reply('UNKNOWN_ERROR', {
             message,
             data,

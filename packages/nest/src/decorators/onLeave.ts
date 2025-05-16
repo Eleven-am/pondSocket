@@ -8,15 +8,19 @@ export function OnLeave (): MethodDecorator {
         const { set } = manageLeave(target);
 
         set('', async (instance, moduleRef, globalGuards, globalPipes, leaveEvent) => {
-            await performAction(
-                instance,
-                moduleRef,
-                globalGuards,
-                globalPipes,
-                originalMethod,
-                propertyKey as string,
-                leaveEvent,
-            );
+            try {
+                await performAction(
+                    instance,
+                    moduleRef,
+                    globalGuards,
+                    globalPipes,
+                    originalMethod,
+                    propertyKey as string,
+                    leaveEvent,
+                );
+            } catch (err) {
+                // no-op
+            }
         });
     };
 }

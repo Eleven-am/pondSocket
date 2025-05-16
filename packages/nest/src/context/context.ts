@@ -1,56 +1,39 @@
 import type { PondEvent, UserData } from '@eleven-am/pondsocket-common';
-
-import { NestRequest, NestResponse } from '../types';
+import { NestContext } from '../types';
 
 export class Context {
     readonly #data: Record<string, unknown> = {};
 
-    readonly #request: NestRequest;
-
-    readonly #response: NestResponse;
+    readonly #context: NestContext;
 
     readonly #instance: any;
 
     readonly #propertyKey: string;
 
     constructor (
-        request: NestRequest,
-        response: NestResponse,
+        context: NestContext,
         instance: any,
         propertyKey: string,
     ) {
-        this.#request = request;
-        this.#response = response;
+        this.#context = context;
         this.#instance = instance;
         this.#propertyKey = propertyKey;
     }
 
-    get joinRequest () {
-        return this.#request.joinRequest ?? null;
+    get joinContext () {
+        return this.#context.join ?? null;
     }
 
-    get eventRequest () {
-        return this.#request.eventRequest ?? null;
+    get eventContext () {
+        return this.#context.event ?? null;
     }
 
-    get connection () {
-        return this.#request.connection ?? null;
+    get connectionContext () {
+        return this.#context.connection ?? null;
     }
 
     get leaveEvent () {
-        return this.#request.leveeEvent ?? null;
-    }
-
-    get joinResponse () {
-        return this.#response.joinResponse ?? null;
-    }
-
-    get eventResponse () {
-        return this.#response.eventResponse ?? null;
-    }
-
-    get connectionResponse () {
-        return this.#response.connection ?? null;
+        return this.#context.leave ?? null;
     }
 
     get presence () {
@@ -62,9 +45,9 @@ export class Context {
     }
 
     get user () {
-        if (this.connection) {
+        if (this.connectionContext) {
             const user: UserData = {
-                id: this.connection.id,
+                id: this.connectionContext.clientId,
                 assigns: {},
                 presence: {},
             };
@@ -74,18 +57,18 @@ export class Context {
             return this.leaveEvent.user;
         }
 
-        return this.joinRequest?.user ?? this.eventRequest!.user;
+        return this.joinContext?.user ?? this.eventContext!.user;
     }
 
     get channel () {
-        return this.joinRequest?.channel ?? this.eventRequest?.channel ?? this.leaveEvent?.channel ?? null;
+        return this.joinContext?.channel ?? this.eventContext?.channel ?? this.leaveEvent?.channel ?? null;
     }
 
     get event () {
-        if (this.connection) {
+        if (this.connectionContext) {
             const event: PondEvent<string> = {
-                params: this.connection.params,
-                query: this.connection.query,
+                params: this.connectionContext.params,
+                query: this.connectionContext.query,
                 payload: {},
                 event: 'CONNECTION',
             };
@@ -93,7 +76,7 @@ export class Context {
             return event;
         }
 
-        return this.joinRequest?.event ?? this.eventRequest?.event ?? null;
+        return this.joinContext?.event ?? this.eventContext?.event ?? null;
     }
 
     getClass () {

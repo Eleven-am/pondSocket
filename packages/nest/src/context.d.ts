@@ -1,18 +1,17 @@
 import type {
     Channel as PondChannel,
-    ConnectionResponse,
-    EventRequest,
-    EventResponse,
-    IncomingConnection,
-    JoinRequest,
-    JoinResponse,
     LeaveEvent,
+    ConnectionContext,
+    JoinContext,
+    EventContext,
     PondAssigns,
     PondEvent,
     PondEventMap,
     PondMessage,
     PondPresence,
     UserData,
+    Params,
+    JoinParams,
 } from '@eleven-am/pondsocket/types';
 import type { DynamicModule, ModuleMetadata, PipeTransform } from '@nestjs/common';
 
@@ -178,16 +177,10 @@ declare const GetChannel: () => ParameterDecorator;
 declare const GetConnectionHeaders: () => ParameterDecorator;
 
 /**
- * @desc Parameter decorator that retrieves the current connection request
- * @returns {IncomingConnection}
+ * @desc Parameter decorator that retrieves the current connection context
+ * @returns {ConnectionContext<string>}
  */
-declare const GetConnectionRequest: () => ParameterDecorator;
-
-/**
- * @desc Parameter decorator that retrieves the current connection response
- * @returns {ConnectionResponse}
- */
-declare const GetConnectionResponse: () => ParameterDecorator;
+declare const GetConnectionContext: () => ParameterDecorator;
 
 /**
  * @desc Parameter decorator that retrieves the current context
@@ -214,16 +207,10 @@ declare const GetEventPayload: () => ParameterDecorator;
 declare const GetEventQuery: () => ParameterDecorator;
 
 /**
- * @desc Parameter decorator that retrieves the current event request
- * @returns {EventRequest}
+ * @desc Parameter decorator that retrieves the current event context
+ * @returns {EventContext<string>}
  */
-declare const GetEventRequest: () => ParameterDecorator;
-
-/**
- * @desc Parameter decorator that retrieves the current event response
- * @returns {EventResponse}
- */
-declare const GetEventResponse: () => ParameterDecorator;
+declare const GetEventContext: () => ParameterDecorator;
 
 /**
  * @desc Parameter decorator that retrieves the current join params
@@ -232,16 +219,10 @@ declare const GetEventResponse: () => ParameterDecorator;
 declare const GetJoinParams: () => ParameterDecorator;
 
 /**
- * @desc Parameter decorator that retrieves the current join request
- * @returns {JoinRequest}
+ * @desc Parameter decorator that retrieves the current join context
+ * @returns {JoinContext<string>}
  */
-declare const GetJoinRequest: () => ParameterDecorator;
-
-/**
- * @desc Parameter decorator that retrieves the current join response
- * @returns {JoinResponse}
- */
-declare const GetJoinResponse: () => ParameterDecorator;
+declare const GetJoinContext: () => ParameterDecorator;
 
 /**
  * @desc Parameter decorator that retrieves the current leave event

@@ -1,12 +1,4 @@
-import type {
-    ConnectionResponse,
-    EventRequest,
-    EventResponse,
-    IncomingConnection,
-    JoinRequest,
-    JoinResponse,
-    LeaveEvent,
-} from '@eleven-am/pondsocket/types';
+import type { LeaveEvent, JoinContext, EventContext, ConnectionContext } from '@eleven-am/pondsocket/types';
 import type { PipeTransform } from '@nestjs/common';
 import type { ModuleRef } from '@nestjs/core';
 
@@ -14,15 +6,8 @@ import { Context } from '../context/context';
 import { retrieveInstance } from '../helpers/misc';
 import { manageGuards } from '../managers/guards';
 import { manageParameters } from '../managers/parametres';
-import { NestRequest, NestResponse, PondResponse, Constructor, CanActivate } from '../types';
-import {
-    isConnectionRequest,
-    isConnectionResponse,
-    isEventRequest,
-    isEventResponse,
-    isJoinRequest,
-    isJoinResponse,
-} from './narrow';
+import { NestContext, PondResponse, Constructor, CanActivate } from '../types';
+import { isJoinContext, isEventContext, isConnectionContext } from './narrow';
 import { performResponse } from './response';
 
 async function retrieveParameters (context: Context, globalPipes: Constructor<PipeTransform>[], moduleRef: ModuleRef) {
@@ -42,8 +27,10 @@ async function retrieveParameters (context: Context, globalPipes: Constructor<Pi
 }
 
 async function performGuards (moduleRef: ModuleRef, globalGuards: Constructor<CanActivate>[], context: Context) {
-    const classGuards = manageGuards(context.getClass()).get();
-    const methodGuards = manageGuards(context.getInstance(), context.getMethod()).get();
+    const classGuards = manageGuards(context.getClass())
+        .get();
+    const methodGuards = manageGuards(context.getInstance(), context.getMethod())
+        .get();
 
     const guards = globalGuards
         .concat(classGuards, methodGuards)
@@ -55,6 +42,32 @@ async function performGuards (moduleRef: ModuleRef, globalGuards: Constructor<Ca
     return results.every((result) => result);
 }
 
+function getNestContext (
+    context: LeaveEvent | JoinContext<string> | EventContext<string> | ConnectionContext<string>,
+): NestContext {
+    if (isJoinContext(context)) {
+        return {
+            join: context,
+        }
+    }
+
+    if (isEventContext(context)) {
+        return {
+            event: context,
+        }
+    }
+
+    if (isConnectionContext(context)) {
+        return {
+            connection: context,
+        }
+    }
+
+    return {
+        leave: context,
+    }
+}
+
 export async function performAction (
     instance: any,
     moduleRef: ModuleRef,
@@ -62,29 +75,10 @@ export async function performAction (
     globalPipes: Constructor<PipeTransform>[],
     originalMethod: (...args: any[]) => Promise<PondResponse | null | undefined>,
     propertyKey: string,
-    leaveEvent: LeaveEvent | null,
-    request?: IncomingConnection<string> | JoinRequest<string> | EventRequest<string>,
-    response?: ConnectionResponse | JoinResponse | EventResponse,
+    input: LeaveEvent | JoinContext<string> | EventContext<string> | ConnectionContext<string>,
 ) {
-    const req: NestRequest = {};
-    const res: NestResponse = {};
-
-    if (request && response) {
-        if (isJoinRequest(request) && isJoinResponse(response)) {
-            req.joinRequest = request;
-            res.joinResponse = response;
-        } else if (isEventRequest(request) && isEventResponse(response)) {
-            req.eventRequest = request;
-            res.eventResponse = response;
-        } else if (isConnectionRequest(request) && isConnectionResponse(response)) {
-            req.connection = request;
-            res.connection = response;
-        }
-    } else if (leaveEvent) {
-        req.leveeEvent = leaveEvent;
-    }
-
-    const context = new Context(req, res, instance, propertyKey);
+    const ctx = getNestContext(input);
+    const context = new Context(ctx, instance, propertyKey);
     const channel = context.channel;
     const socketId = context.user.id;
 
@@ -96,8 +90,8 @@ export async function performAction (
             await retrieveParameters(context, globalPipes, moduleRef),
         );
 
-        performResponse(socketId, channel, data, response);
-    } else if (response && (isJoinResponse(response) || isConnectionResponse(response))) {
-        response.decline('Unauthorized', 403);
+        performResponse(socketId, channel, data, input);
+    } else if (isJoinContext(input) || isJoinContext(input)) {
+        input.decline('Unauthorized', 403);
     }
 }

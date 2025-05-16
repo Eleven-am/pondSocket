@@ -1,11 +1,8 @@
 import type {
-    ConnectionResponse,
-    EventRequest,
-    EventResponse,
-    IncomingConnection,
-    JoinRequest,
-    JoinResponse,
     LeaveEvent,
+    ConnectionContext,
+    JoinContext,
+    EventContext,
     PondAssigns,
     PondMessage,
     PondPresence,
@@ -16,17 +13,11 @@ import type { ModuleRef } from '@nestjs/core';
 
 import type { Context } from './context/context';
 
-export interface NestRequest {
-    connection?: IncomingConnection<string>;
-    joinRequest?: JoinRequest<string>;
-    eventRequest?: EventRequest<string>;
-    leveeEvent?: LeaveEvent;
-}
-
-export interface NestResponse {
-    connection?: ConnectionResponse;
-    joinResponse?: JoinResponse;
-    eventResponse?: EventResponse;
+export interface NestContext {
+    connection?: ConnectionContext<string>;
+    join?: JoinContext<string>;
+    event?: EventContext<string>;
+    leave?: LeaveEvent;
 }
 
 export type ParamDecoratorCallback<Input> = (data: Input, context: Context, type: unknown) => unknown | Promise<unknown>;
@@ -36,11 +27,11 @@ export interface ParamDecoratorMetadata {
     callback: (context: Context, globalPipes: Constructor<PipeTransform>[], moduleRef: ModuleRef) => Promise<unknown>;
 }
 
-export type HandlerFunction<Req, Res> = (instance: unknown, moduleRef: ModuleRef, globalGuards: Constructor<CanActivate>[], globalPipes: Constructor<PipeTransform>[], request: Req, response: Res) => Promise<void>;
+export type HandlerFunction<Context> = (instance: unknown, moduleRef: ModuleRef, globalGuards: Constructor<CanActivate>[], globalPipes: Constructor<PipeTransform>[], ctx: Context) => Promise<void>;
 
-export type HandlerData<Req, Res> = {
+export type HandlerData<Context> = {
     path: string;
-    value: HandlerFunction<Req, Res>;
+    value: HandlerFunction<Context>;
 }
 
 export type Constructor<T, Parameters extends any[] = any[]> = new (...args: Parameters) => T;

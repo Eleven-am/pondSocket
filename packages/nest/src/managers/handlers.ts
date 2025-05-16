@@ -1,8 +1,8 @@
 import { HandlerData, HandlerFunction } from '../types';
 import { manageClass } from './class';
 
-export function manageHandlers<Request, Response> (key: symbol, target: any) {
-    const { get, set } = manageClass<HandlerData<Request, Response>[]>(
+export function manageHandlers<Context> (key: symbol, target: any) {
+    const { get, set } = manageClass<HandlerData<Context>[]>(
         key,
         target,
     );
@@ -13,7 +13,7 @@ export function manageHandlers<Request, Response> (key: symbol, target: any) {
         },
         set (
             path: string,
-            value: HandlerFunction<Request, Response>,
+            value: HandlerFunction<Context>,
         ) {
             const handlers = get() || [];
 

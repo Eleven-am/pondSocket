@@ -291,7 +291,7 @@ import {
     OnConnection,
     OnJoin,
     OnEvent,
-    GetConnectionRequest,
+    GetConnectionContext,
     GetConnectionResponse,
     // GetJoinRequest,
     // GetJoinResponse,
@@ -314,7 +314,7 @@ import {MessageService} from './message.service';
 @Endpoint('/api/socket')
 export class SocketEndpoint {
     @OnConnection()
-    onConnection(@GetConnectionRequest() req: IncomingConnection, @GetConnectionResponse() res: ConnectionResponse) {
+    onConnection(@GetConnectionContext() req: IncomingConnection, @GetConnectionResponse() res: ConnectionResponse) {
         // Handle socket connection and authentication
         res.accept()
             .assign({role: 'user'});

@@ -55,11 +55,11 @@ export class PondSocketService implements OnModuleInit {
         const channels = [...new Set([...groupedInstance.channels.map((channel) => channel)])];
         const [handler] = get();
 
-        const endpoint = socket.createEndpoint(metadata, async (request, response) => {
+        const endpoint = socket.createEndpoint(metadata, async (context) => {
             if (handler) {
-                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, request, response);
+                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, context);
             } else {
-                response.accept();
+                context.accept();
             }
         });
 
@@ -86,11 +86,11 @@ export class PondSocketService implements OnModuleInit {
         const { get } = manageJoin(instance);
         const [handler] = get();
 
-        const channelInstance = endpoint.createChannel(path, async (request, response) => {
+        const channelInstance = endpoint.createChannel(path, async (context) => {
             if (handler) {
-                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, request, response);
+                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, context);
             } else {
-                response.accept();
+                context.accept();
             }
         });
 
@@ -105,8 +105,8 @@ export class PondSocketService implements OnModuleInit {
         const { get: getLeaveHandlers } = manageLeave(instance);
 
         getEventHandlers().forEach((handler) => {
-            channelInstance.onEvent(handler.path, async (request, response) => {
-                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, request, response);
+            channelInstance.onEvent(handler.path, async (context) => {
+                await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, context);
             });
 
             this.logger.log(`Mapped {${endpointPath}${path}} event {${handler.path}}`);

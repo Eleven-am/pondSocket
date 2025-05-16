@@ -8,7 +8,7 @@ export function OnConnectionRequest (): MethodDecorator {
         const originalMethod = descriptor.value as (...args: any[]) => Promise<PondResponse | null | undefined>;
         const { set } = manageConnection(target);
 
-        set('', async (instance, moduleRef, globalGuards, globalPipes, request, response) => {
+        set('', async (instance, moduleRef, globalGuards, globalPipes, ctx) => {
             try {
                 await performAction(
                     instance,
@@ -17,12 +17,10 @@ export function OnConnectionRequest (): MethodDecorator {
                     globalPipes,
                     originalMethod,
                     propertyKey as string,
-                    null,
-                    request,
-                    response,
+                    ctx
                 );
             } catch (error) {
-                performErrors(error, response);
+                performErrors(error, ctx);
             }
         });
     };

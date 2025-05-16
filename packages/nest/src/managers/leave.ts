@@ -4,7 +4,7 @@ import { manageHandlers } from './handlers';
 import { onLeaveHandlerKey } from '../constants';
 
 export function manageLeave (target: unknown) {
-    return manageHandlers<LeaveEvent, void>(
+    return manageHandlers<LeaveEvent>(
         onLeaveHandlerKey,
         target,
     );
