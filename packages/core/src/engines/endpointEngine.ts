@@ -16,10 +16,9 @@ import { WebSocket } from 'ws';
 import { LobbyEngine } from './lobbyEngine';
 import { Middleware } from '../abstracts/middleware';
 import { SocketCache, AuthorizationHandler, RequestCache, JoinRequestOptions } from '../abstracts/types';
+import { JoinContext } from '../contexts/joinContext';
 import { HttpError } from '../errors/httpError';
 import { parseAddress } from '../matcher/matcher';
-import { JoinRequest } from '../requests/joinRequest';
-import { JoinResponse } from '../responses/joinResponse';
 import { PondChannel } from '../wrappers/pondChannel';
 
 
@@ -54,10 +53,9 @@ export class EndpointEngine {
                 };
 
                 const channel = lobbyEngine.getOrCreateChannel(user.channelName);
-                const request = new JoinRequest(options, channel);
-                const response = new JoinResponse(user, channel);
+                const context = new JoinContext(options, channel, user);
 
-                return handler(request, response, next);
+                return handler(context, next);
             }
 
             next();

@@ -8,9 +8,8 @@ import {
 } from '@eleven-am/pondsocket-common';
 
 import { SocketCache } from '../abstracts/types';
+import { JoinContext } from '../contexts/joinContext';
 import { EndpointEngine } from '../engines/endpointEngine';
-import { JoinRequest } from '../requests/joinRequest';
-import { JoinResponse } from '../responses/joinResponse';
 import { PondChannel } from '../wrappers/pondChannel';
 import { MockWebSocket } from './mocks/mockWebSocket';
 
@@ -39,8 +38,8 @@ describe('EndpointEngine', () => {
 
         it('should handle join requests for the created channel', async () => {
             const path = '/test-channel' as PondPath<'/test-channel'>;
-            const handler = jest.fn((request, response: JoinResponse) => {
-                response.accept();
+            const handler = jest.fn((ctx: JoinContext<any>) => {
+                ctx.accept();
             });
 
             endpointEngine.createChannel(path, handler);
@@ -76,8 +75,7 @@ describe('EndpointEngine', () => {
             expect(handler).toHaveBeenCalled();
 
             // test the handler's arguments
-            expect(handler.mock.calls[0][0]).toBeInstanceOf(JoinRequest);
-            expect(handler.mock.calls[0][1]).toBeInstanceOf(JoinResponse);
+            expect(handler.mock.calls[0][0]).toBeInstanceOf(JoinContext);
 
             // Verify that a response was sent back to the client
             expect(mockSocket.send).toHaveBeenCalledWith(expect.stringContaining('"event":"CONNECTION"'));

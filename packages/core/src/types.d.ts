@@ -1,4 +1,4 @@
-import { Server, ServerResponse, IncomingMessage } from 'http';
+import { Server, ServerResponse, IncomingMessage, IncomingHttpHeaders } from 'http';
 
 import {
     IncomingConnection,
@@ -13,6 +13,7 @@ import {
     UserAssigns,
     JoinParams,
     EventParams,
+    Params,
 } from '@eleven-am/pondsocket-common';
 import { WebSocket, WebSocketServer } from 'ws';
 
@@ -33,7 +34,7 @@ export type LeaveCallback<EventTypes extends PondEventMap = PondEventMap, Presen
 
 export type OutgoingHandler<Event extends string, EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> = (event: OutgoingEvent<Event, EventTypes, PresenceType, AssignType>) => PondMessage | Promise<PondMessage> | void | Promise<void>;
 
-export type RequestHandler<Request, Response> = (request: Request, response: Response) => void | Promise<void>;
+export type RequestHandler<Request> = (request: Request) => void | Promise<void>;
 
 export interface PondSocketOptions {
     server?: Server;
@@ -61,18 +62,16 @@ export declare class PondSocket {
      * @param path - the pattern to accept || can also be a regex
      * @param handler - the handler function to authenticate the socket
      * @example
-     * const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
-     *    const token = req.query.token;
+     * const endpoint = pond.createEndpoint('/api/socket', (context) => {
+     *    const token = context.query.token;
      *    if (!token)
-     *       return res.decline('No token provided');
-     *    res.accept({
-     *       assign: {
-     *           token
-     *       }
-     *    });
+     *       return context.decline('No token provided');
+     *    context.assign({
+     *       token
+     *    }).accept();
      * })
      */
-    createEndpoint<Path extends string>(path: PondPath<Path>, handler: RequestHandler<IncomingConnection<Path>, ConnectionResponse>): Endpoint;
+    createEndpoint<Path extends string>(path: PondPath<Path>, handler: RequestHandler<ConnectionContext<Path>>): Endpoint;
 }
 
 export declare class Endpoint {
@@ -83,15 +82,14 @@ export declare class Endpoint {
      * @returns {PondChannel} - The PondChannel instance for the new channel
      *
      * @example
-     * const channel = endpoint.createChannel('/chat', (request, response) => {
-     *     if (request.user.assigns.admin)
-     *         response.accept();
-     *
+     * const channel = endpoint.createChannel('/chat', (context) => {
+     *     if (context.user.assigns.admin)
+     *         context.accept();
      *     else
-     *         response.decline('You are not an admin', 403);
+     *         context.decline('You are not an admin', 403);
      * });
      */
-    createChannel<Path extends string, EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns>(path: PondPath<Path>, handler: RequestHandler<JoinRequest<Path, PresenceType, AssignType>, JoinResponse<EventType, PresenceType, AssignType>>): PondChannel<EventType, PresenceType, AssignType>;
+    createChannel<Path extends string, EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns>(path: PondPath<Path>, handler: RequestHandler<JoinContext<Path, EventType, PresenceType, AssignType>>): PondChannel<EventType, PresenceType, AssignType>;
 
     /**
      * @desc Closes specific clients connected to this endpoint
@@ -111,13 +109,13 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
      * @param {PondPath<string>} event - The event to handle
      * @param {RequestHandler} handler - The handlers to execute when the event is received
      * @example
-     * pond.onEvent('echo', (request, response) => {
-     *     response.reply('echo', {
-     *         message: request.event.payload,
+     * pond.onEvent('echo', (context) => {
+     *     context.reply('echo', {
+     *         message: context.event.payload,
      *     });
      * });
      */
-    onEvent<Event extends string>(event: PondPath<Event>, handler: RequestHandler<EventRequest<Event, PresenceType, AssignType>, EventResponse<EventType, PresenceType, AssignType>>): void;
+    onEvent<Event extends string>(event: PondPath<Event>, handler: RequestHandler<EventContext<Event, EventType, PresenceType, AssignType>>): void;
 
     /**
      * @desc Handles the leave event for a user, can occur when a user disconnects or leaves a channel, use this to clean up any resources
@@ -284,72 +282,122 @@ export declare class Channel<EventTypes extends PondEventMap = PondEventMap, Pre
     upsertPresence(userId: string, presence: PresenceType): Channel<EventTypes, PresenceType, AssignType>;
 }
 
-export declare class JoinRequest<Path extends string, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
-    get event(): PondEvent<Path>;
-
-    get channelName(): string;
-
-    get channel(): Channel
-
-    get joinParams(): JoinParams;
-
-    get presences(): UserPresences;
-
-    get assigns(): UserAssigns;
-
-    get user(): UserData<PresenceType, AssignType>;
-}
-
-export declare class EventRequest<Path extends string, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
-    get event(): PondEvent<Path>;
-
-    get channelName(): string;
-
-    get channel(): Channel;
-
-    get presences(): UserPresences;
-
-    get assigns(): UserAssigns;
-
-    get user(): UserData<PresenceType, AssignType>;
-}
-
-export declare class ConnectionResponse {
+export declare class ConnectionContext<Path extends string> {
     /**
      * @desc Checks if the server has responded to the connection request.
      */
     get hasResponded(): boolean;
 
     /**
+     * @desc Get the connection details.
+     */
+    get connection(): IncomingConnection<Path>;
+
+    /**
+     * @desc Get the client ID.
+     */
+    get clientId(): string;
+
+    /**
+     * @desc Get the request ID.
+     */
+    get requestId(): string;
+
+    /**
+     * @desc Get the request headers.
+     */
+    get headers(): IncomingHttpHeaders;
+
+    /**
+     * @desc Get the request cookies.
+     */
+    get cookies(): Record<string, string>;
+
+    /**
+     * @desc Get the client address.
+     */
+    get address(): string;
+
+    /**
+     * @desc Get the event parameters.
+     */
+    get event(): EventParams<Path>;
+
+    /**
+     * @desc Get the query parameters.
+     */
+    get query(): Record<string, string>;
+
+    /**
+     * @desc Get the path parameters.
+     */
+    get params(): Params<Path>;
+
+    /**
      * @desc Assigns data to the user.
      * @param {PondAssigns} assigns - The data to assign.
-     * @returns {ConnectionResponse} - The ConnectionResponse instance for chaining.
+     * @returns {ConnectionContext} - The ConnectionContext instance for chaining.
      */
-    assign(assigns: PondAssigns): ConnectionResponse;
+    assign(assigns: PondAssigns): ConnectionContext<Path>;
 
     /**
      * @desc Accepts the connection request to the endpoint.
      */
-    accept(): ConnectionResponse;
+    accept(): ConnectionContext<Path>;
 
     /**
      * @desc Rejects the request with the given error message
      * @param {string} message - The error message
      * @param {number} errorCode - The error code
      */
-    decline(message?: string, errorCode?: number): void;
+    decline(message?: string, errorCode?: number): ConnectionContext<Path>;
 
     /**
      * @desc Emits a direct message to the client
      * @param {string} event - The event name
      * @param {PondMessage} payload - The payload to send
      */
-    reply(event: string, payload: PondMessage): ConnectionResponse;
+    reply(event: string, payload: PondMessage): ConnectionContext<Path>;
 }
 
-export declare class JoinResponse<EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
+export declare class JoinContext<Path extends string, EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
     /**
-     * @desc Checks if the server has responded to the connection request.
+     * @desc Get the event information.
+     */
+    get event(): PondEvent<Path>;
+
+    /**
+     * @desc Get the channel name.
+     */
+    get channelName(): string;
+
+    /**
+     * @desc Get the channel instance.
+     */
+    get channel(): Channel;
+
+    /**
+     * @desc Get the join parameters.
+     */
+    get joinParams(): JoinParams;
+
+    /**
+     * @desc Get all current presences in the channel.
+     */
+    get presences(): UserPresences;
+
+    /**
+     * @desc Get all current assigns in the channel.
+     */
+    get assigns(): UserAssigns;
+
+    /**
+     * @desc Get the user data.
+     */
+    get user(): UserData<PresenceType, AssignType>;
+
+    /**
+     * @desc Checks if the server has responded to the join request.
      */
     get hasResponded(): boolean;
 
@@ -357,42 +405,41 @@ export declare class JoinResponse<EventType extends PondEventMap = PondEventMap,
      * @desc Assigns data to the client
      * @param {PondAssigns} assigns - The data to assign
      */
-    assign(assigns: AssignType): JoinResponse;
+    assign(assigns: AssignType): JoinContext<Path, PresenceType, AssignType>;
 
     /**
      * @desc Accepts the join request to the channel.
-     * @returns {JoinResponse} - The JoinResponse instance for chaining.
+     * @returns {JoinContext} - The JoinContext instance for chaining.
      */
-    accept(): JoinResponse;
+    accept(): JoinContext<Path, PresenceType, AssignType>;
 
     /**
      * @desc Rejects the request and optionally assigns data to the client
      * @param {string} message - The error message
      * @param {number} errorCode - The error code
      */
-    decline(message?: string, errorCode?: number): JoinResponse;
+    decline(message?: string, errorCode?: number): JoinContext<Path, PresenceType, AssignType>;
 
     /**
      * @desc Emits a direct message to the client
      * @param {string} event - The event name
      * @param {PondMessage} payload - The payload to send
-     * @param {PondAssigns} assigns - The data to assign to the client
      */
-    reply<Key extends keyof EventType>(event: Key, payload: EventType[Key], assigns?: AssignType): JoinResponse;
+    reply<Key extends keyof EventType>(event: Key, payload: EventType[Key]): JoinContext<Path, PresenceType, AssignType>;
 
     /**
      * @desc Emits a message to all clients in the channel
      * @param {string} event - The event name
      * @param {PondMessage} payload - The payload to send
      */
-    broadcast<Key extends keyof EventType>(event: Key, payload: EventType[Key]): JoinResponse;
+    broadcast<Key extends keyof EventType>(event: Key, payload: EventType[Key]): JoinContext<Path, PresenceType, AssignType>;
 
     /**
      * @desc Emits a message to all clients in the channel except the sender
      * @param event - the event name
      * @param payload - the payload to send
      */
-    broadcastFrom<Key extends keyof EventType>(event: Key, payload: EventType[Key]): JoinResponse;
+    broadcastFrom<Key extends keyof EventType>(event: Key, payload: EventType[Key]): JoinContext<Path, PresenceType, AssignType>;
 
     /**
      * @desc Emits a message to a specific set of clients
@@ -400,89 +447,114 @@ export declare class JoinResponse<EventType extends PondEventMap = PondEventMap,
      * @param {PondMessage} payload - The payload to send
      * @param {string | string[]} userIds - The ids of the clients to send the message to
      */
-    broadcastTo<Key extends keyof EventType>(event: Key, payload: EventType[Key], userIds: string | string[]): JoinResponse;
+    broadcastTo<Key extends keyof EventType>(event: Key, payload: EventType[Key], userIds: string | string[]): JoinContext<Path, PresenceType, AssignType>;
 
     /**
      * @desc tracks the presence of a client
      * @param {PondPresence} presence - the presence data to track
      */
-    trackPresence(presence: PresenceType): JoinResponse;
+    trackPresence(presence: PresenceType): JoinContext<Path, PresenceType, AssignType>;
 }
 
-export declare class EventResponse<EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
+export declare class EventContext<Path extends string, EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
     /**
-     * @desc Checks if the server has responded to the connection request.
+     * @desc Get the event information.
      */
-    get hasResponded(): boolean;
+    get event(): PondEvent<Path>;
+
+    /**
+     * @desc Get the channel name.
+     */
+    get channelName(): string;
+
+    /**
+     * @desc Get the channel instance.
+     */
+    get channel(): Channel;
+
+    /**
+     * @desc Get all current presences in the channel.
+     */
+    get presences(): UserPresences;
+
+    /**
+     * @desc Get all current assigns in the channel.
+     */
+    get assigns(): UserAssigns;
+
+    /**
+     * @desc Get the user who sent the request.
+     */
+    get user(): UserData<PresenceType, AssignType>;
 
     /**
      * @desc Assigns data to the client.
      * @param {PondAssigns} assigns - The data to assign to the client.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    assign(assigns: AssignType): EventResponse<EventType, PresenceType, AssignType>;
+    assign(assigns: AssignType): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Emits a direct message to the client.
      * @param {string} event - The event name.
      * @param {PondMessage} payload - The payload to send.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    reply<Event extends keyof EventType>(event: Event, payload: EventType[Event]): EventResponse<EventType, PresenceType, AssignType>;
+    reply<Event extends keyof EventType>(event: Event, payload: EventType[Event]): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Sends a message to all clients in the channel.
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The payload to send.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    broadcast<Event extends keyof EventType>(event: Event, payload: EventType[Event]): EventResponse<EventType, PresenceType, AssignType>;
+    broadcast<Event extends keyof EventType>(event: Event, payload: EventType[Event]): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Sends a message to all clients in the channel except the client making the request.
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The payload to send.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    broadcastFrom<UserEvent extends keyof EventType>(event: UserEvent, payload: EventType[UserEvent]): EventResponse<EventType, PresenceType, AssignType>;
+    broadcastFrom<UserEvent extends keyof EventType>(event: UserEvent, payload: EventType[UserEvent]): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Sends a message to a set of clients in the channel.
      * @param {string} event - The event to send.
      * @param {PondMessage} payload - The payload to send.
      * @param {string | string[]} userIds - The ids of the clients to send the message to.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    broadcastTo<UserEvent extends keyof EventType>(event: UserEvent, payload: EventType[UserEvent], userIds: string | string[]): EventResponse<EventType, PresenceType, AssignType>;
+    broadcastTo<UserEvent extends keyof EventType>(event: UserEvent, payload: EventType[UserEvent], userIds: string | string[]): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Tracks a user's presence in the channel.
      * @param {PondPresence} presence - The initial presence data.
      * @param {string} userId - The id of the user to track.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    trackPresence(presence: PresenceType, userId?: string): EventResponse<EventType, PresenceType, AssignType>;
+    trackPresence(presence: PresenceType, userId?: string): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Updates a user's presence in the channel.
      * @param {PondPresence} presence - The updated presence data.
      * @param {string} userId - The id of the user to update.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    updatePresence(presence: PresenceType, userId?: string): EventResponse;
+    updatePresence(presence: PresenceType, userId?: string): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Removes a user's presence from the channel.
      * @param {string} userId - The id of the user to remove.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    removePresence(userId?: string): EventResponse;
+    removePresence(userId?: string): EventContext<Path, EventType, PresenceType, AssignType>;
 
     /**
      * @desc Evicts a user from the channel.
      * @param {string} reason - The reason for the eviction.
      * @param {string} userId - The id of the user to evict.
-     * @returns {EventResponse} - The EventResponse instance for chaining.
+     * @returns {EventContext} - The EventContext instance for chaining.
      */
-    evictUser(reason: string, userId?: string): EventResponse;
+    evictUser(reason: string, userId?: string): EventContext<Path, EventType, PresenceType, AssignType>;
 }

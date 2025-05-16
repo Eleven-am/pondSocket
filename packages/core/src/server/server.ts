@@ -12,9 +12,9 @@ import {
     ConnectionParams,
     ConnectionResponseOptions,
 } from '../abstracts/types';
+import { ConnectionContext } from '../contexts/connectionContext';
 import { EndpointEngine } from '../engines/endpointEngine';
 import { parseAddress } from '../matcher/matcher';
-import { ConnectionResponse } from '../responses/connectionResponse';
 import { Endpoint } from '../wrappers/endpoint';
 
 export class PondSocket {
@@ -26,7 +26,11 @@ export class PondSocket {
 
     readonly #middleware: Middleware<SocketRequest, ConnectionParams>;
 
-    constructor ({ server, socketServer, exclusiveServer = true }: PondSocketOptions = {}) {
+    constructor ({
+        server,
+        socketServer,
+        exclusiveServer = true,
+    }: PondSocketOptions = {}) {
         this.#middleware = new Middleware();
         this.#exclusiveServer = exclusiveServer;
         this.#server = server ?? new HTTPServer();
@@ -57,27 +61,27 @@ export class PondSocket {
         this.#middleware.use((req, params, next) => {
             const event = parseAddress(path, req.address);
 
-            if (event) {
-                const request: IncomingConnection<Path> = {
-                    ...event,
-                    cookies: this.#getCookies(req.headers),
-                    headers: req.headers,
-                    address: req.address,
-                    id: req.id,
-                };
-
-                const newParams: ConnectionResponseOptions = {
-                    params,
-                    engine: endpoint,
-                    webSocketServer: this.#socketServer,
-                };
-
-                const response = new ConnectionResponse(request.id, newParams);
-
-                return handler(request, response, next);
+            if (!event) {
+                return next();
             }
 
-            return next();
+            const request: IncomingConnection<Path> = {
+                ...event,
+                cookies: this.#getCookies(req.headers),
+                headers: req.headers,
+                address: req.address,
+                id: req.id,
+            };
+
+            const newParams: ConnectionResponseOptions = {
+                params,
+                engine: endpoint,
+                webSocketServer: this.#socketServer,
+            };
+
+            const context = new ConnectionContext(request, newParams);
+
+            return handler(context, next);
         });
 
         return new Endpoint(endpoint);
@@ -165,12 +169,14 @@ export class PondSocket {
             return {};
         }
 
-        return cookieHeader.split(';').reduce((cookies, cookie) => {
-            const [name, value] = cookie.trim().split('=');
+        return cookieHeader.split(';')
+            .reduce((cookies, cookie) => {
+                const [name, value] = cookie.trim()
+                    .split('=');
 
-            cookies[name] = decodeURIComponent(value);
+                cookies[name] = decodeURIComponent(value);
 
-            return cookies;
-        }, {} as Record<string, string>);
+                return cookies;
+            }, {} as Record<string, string>);
     }
 }

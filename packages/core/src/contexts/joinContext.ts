@@ -1,4 +1,7 @@
 import {
+    PondEvent,
+    UserData,
+    JoinParams,
     PondAssigns,
     PondMessage,
     ChannelReceiver,
@@ -10,14 +13,21 @@ import {
     ErrorTypes,
 } from '@eleven-am/pondsocket-common';
 
-import { RequestCache } from '../abstracts/types';
+import { JoinRequestOptions, RequestCache } from '../abstracts/types';
 import { ChannelEngine } from '../engines/channelEngine';
 import { HttpError } from '../errors/httpError';
+import { Channel } from '../wrappers/channel';
 
-export class JoinResponse {
-    readonly #user: RequestCache;
+/**
+ * JoinContext combines the functionality of JoinRequest and JoinResponse
+ * to provide a unified interface for handling join events in a channel.
+ */
+export class JoinContext<Path extends string> {
+    readonly #options: JoinRequestOptions<Path>;
 
     readonly #engine: ChannelEngine;
+
+    readonly #user: RequestCache;
 
     #newAssigns: PondAssigns;
 
@@ -25,12 +35,71 @@ export class JoinResponse {
 
     #accepted: boolean;
 
-    constructor (user: RequestCache, engine: ChannelEngine) {
-        this.#user = user;
+    constructor (options: JoinRequestOptions<Path>, engine: ChannelEngine, user: RequestCache) {
+        this.#options = options;
         this.#engine = engine;
+        this.#user = user;
         this.#executed = false;
         this.#accepted = false;
         this.#newAssigns = { ...user.assigns };
+    }
+
+    /**
+     * The event information
+     */
+    get event (): PondEvent<Path> {
+        return {
+            event: this.#engine.name,
+            query: this.#options.params.query,
+            params: this.#options.params.params,
+            payload: this.#options.joinParams,
+        };
+    }
+
+    /**
+     * The channel name
+     */
+    get channelName (): string {
+        return this.#engine.name;
+    }
+
+    /**
+     * The channel instance
+     */
+    get channel (): Channel {
+        return new Channel(this.#engine);
+    }
+
+    /**
+     * All current presences in the channel
+     */
+    get presences () {
+        return this.#engine.getPresence();
+    }
+
+    /**
+     * All current assigns in the channel
+     */
+    get assigns () {
+        return this.#engine.getAssigns();
+    }
+
+    /**
+     * The user who sent the request
+     */
+    get user (): UserData {
+        return {
+            id: this.#options.clientId,
+            assigns: this.#options.assigns,
+            presence: {},
+        };
+    }
+
+    /**
+     * The join parameters
+     */
+    get joinParams (): JoinParams {
+        return this.#options.joinParams;
     }
 
     /**
@@ -43,7 +112,7 @@ export class JoinResponse {
     /**
      * Accepts the join request
      */
-    accept (): JoinResponse {
+    accept (): JoinContext<Path> {
         this.#performChecks();
         const onMessage = this.#engine.parent.parent.sendMessage.bind(this.#engine.parent.parent, this.#user.socket);
 
@@ -58,7 +127,7 @@ export class JoinResponse {
     /**
      * Declines the join request
      */
-    decline (message?: string, errorCode?: number): JoinResponse {
+    decline (message?: string, errorCode?: number): JoinContext<Path> {
         this.#performChecks();
 
         const errorMessage: ChannelEvent = {
@@ -80,7 +149,7 @@ export class JoinResponse {
     /**
      * Assigns data to the user
      */
-    assign (assigns: PondAssigns): JoinResponse {
+    assign (assigns: PondAssigns): JoinContext<Path> {
         if (this.#accepted) {
             this.#engine.updateAssigns(this.#user.clientId, assigns);
         } else {
@@ -96,7 +165,7 @@ export class JoinResponse {
     /**
      * Sends a direct reply to the user
      */
-    reply (event: string, payload: PondMessage): JoinResponse {
+    reply (event: string, payload: PondMessage): JoinContext<Path> {
         const message: ChannelEvent = {
             action: ServerActions.SYSTEM,
             channelName: this.#engine.name,
@@ -113,7 +182,7 @@ export class JoinResponse {
     /**
      * Broadcasts a message to specific users
      */
-    broadcastTo (event: string, payload: PondMessage, userIds: string | string[]): JoinResponse {
+    broadcastTo (event: string, payload: PondMessage, userIds: string | string[]): JoinContext<Path> {
         const ids = Array.isArray(userIds) ? userIds : [userIds];
 
         this.#sendMessage(ids, event, payload);
@@ -124,7 +193,7 @@ export class JoinResponse {
     /**
      * Broadcasts a message to all users in the channel
      */
-    broadcast (event: string, payload: PondMessage): JoinResponse {
+    broadcast (event: string, payload: PondMessage): JoinContext<Path> {
         this.#sendMessage(ChannelReceiver.ALL_USERS, event, payload);
 
         return this;
@@ -133,7 +202,7 @@ export class JoinResponse {
     /**
      * Broadcasts a message to all users except the sender
      */
-    broadcastFrom (event: string, payload: PondMessage): JoinResponse {
+    broadcastFrom (event: string, payload: PondMessage): JoinContext<Path> {
         this.#sendMessage(ChannelReceiver.ALL_EXCEPT_SENDER, event, payload);
 
         return this;
@@ -142,7 +211,7 @@ export class JoinResponse {
     /**
      * Tracks the user's presence
      */
-    trackPresence (presence: PondPresence): JoinResponse {
+    trackPresence (presence: PondPresence): JoinContext<Path> {
         this.#engine.trackPresence(this.#user.clientId, presence);
 
         return this;
@@ -152,7 +221,14 @@ export class JoinResponse {
      * Sends a message to specific recipients
      */
     #sendMessage (recipient: ChannelReceivers, event: string, payload: PondObject) {
-        this.#engine.sendMessage(this.#user.clientId, recipient, ServerActions.BROADCAST, event, payload, this.#user.requestId);
+        this.#engine.sendMessage(
+            this.#user.clientId,
+            recipient,
+            ServerActions.BROADCAST,
+            event,
+            payload,
+            this.#user.requestId,
+        );
     }
 
     /**

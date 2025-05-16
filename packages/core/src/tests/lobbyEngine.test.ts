@@ -1,11 +1,10 @@
 import { PondPath, UserData, ServerActions } from '@eleven-am/pondsocket-common';
 
 import { BroadcastEvent, LeaveEvent } from '../abstracts/types';
+import { EventContext } from '../contexts/eventContext';
 import { ChannelEngine } from '../engines/channelEngine';
 import { LobbyEngine } from '../engines/lobbyEngine';
 import { HttpError } from '../errors/httpError';
-import { EventRequest } from '../requests/eventRequest';
-import { EventResponse } from '../responses/eventResponse';
 import { Channel } from '../wrappers/channel';
 import { MockChannelEngine } from './mocks/channelEnegine';
 import { MockEndpointEngine } from './mocks/endpointEngine';
@@ -105,9 +104,8 @@ describe('LobbyEngine', () => {
             lobbyEngine.middleware.run(mockEvent, mockChannel, mockNext);
 
             expect(handler).toHaveBeenCalledTimes(1);
-            expect(handler.mock.calls[0][0]).toBeInstanceOf(EventRequest);
-            expect(handler.mock.calls[0][1]).toBeInstanceOf(EventResponse);
-            expect(handler.mock.calls[0][2]).toBeDefined();
+            expect(handler.mock.calls[0][0]).toBeInstanceOf(EventContext);
+            expect(handler.mock.calls[0][1]).toBeDefined();
         });
     });
 

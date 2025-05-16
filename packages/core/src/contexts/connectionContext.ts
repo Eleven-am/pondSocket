@@ -1,11 +1,25 @@
-import { PondAssigns, PondMessage, ChannelEvent, SystemSender, ServerActions } from '@eleven-am/pondsocket-common';
+import { IncomingHttpHeaders } from 'http';
+
+import {
+    PondAssigns,
+    PondMessage,
+    ChannelEvent,
+    SystemSender,
+    ServerActions,
+    IncomingConnection,
+    Params,
+    EventParams,
+} from '@eleven-am/pondsocket-common';
 import { WebSocketServer } from 'ws';
 
 import { ConnectionParams, SocketCache, ConnectionResponseOptions } from '../abstracts/types';
 import { EndpointEngine } from '../engines/endpointEngine';
 import { HttpError } from '../errors/httpError';
 
-export class ConnectionResponse {
+/**
+ * ConnectionContext combines IncomingConnection data with ConnectionResponse functionality.
+ */
+export class ConnectionContext<Path extends string> {
     #executed: boolean;
 
     #assigns: PondAssigns;
@@ -18,20 +32,98 @@ export class ConnectionResponse {
 
     readonly #webSocketServer: WebSocketServer;
 
-    constructor (clientId: string, { engine, params, webSocketServer }: ConnectionResponseOptions) {
+    readonly #connectionData: IncomingConnection<Path>;
+
+    constructor (
+        connectionData: IncomingConnection<Path>,
+        { engine, params, webSocketServer }: ConnectionResponseOptions,
+    ) {
         this.#webSocketServer = webSocketServer;
-        this.#clientId = clientId;
+        this.#clientId = connectionData.id;
         this.#executed = false;
         this.#engine = engine;
         this.#params = params;
         this.#assigns = {};
+        this.#connectionData = connectionData;
     }
 
+    /**
+     * Whether the connection has been handled
+     */
     get hasResponded (): boolean {
         return this.#executed;
     }
 
-    assign (assigns: PondAssigns): ConnectionResponse {
+    /**
+     * Connection details including headers, cookies, address, id, etc.
+     */
+    get connection (): IncomingConnection<Path> {
+        return this.#connectionData;
+    }
+
+    /**
+     * The request parameters
+     */
+    get requestId (): string {
+        return this.#params.requestId;
+    }
+
+    /**
+     * The client ID
+     */
+    get clientId (): string {
+        return this.#clientId;
+    }
+
+    /**
+     * The request headers
+     */
+    get headers (): IncomingHttpHeaders {
+        return this.#connectionData.headers;
+    }
+
+    /**
+     * The request cookies
+     */
+    get cookies (): Record<string, string> {
+        return this.#connectionData.cookies;
+    }
+
+    /**
+     * The client address
+     */
+    get address (): string {
+        return this.#connectionData.address;
+    }
+
+    /**
+     * The event parameters
+     */
+    get event (): EventParams<Path> {
+        return {
+            query: this.#connectionData.query,
+            params: this.#connectionData.params,
+        };
+    }
+
+    /**
+     * The query parameters
+     */
+    get query (): Record<string, string> {
+        return this.#connectionData.query;
+    }
+
+    /**
+     * The path parameters
+     */
+    get params (): Params<Path> {
+        return this.#connectionData.params;
+    }
+
+    /**
+     * Assigns data to the client
+     */
+    assign (assigns: PondAssigns): ConnectionContext<Path> {
         if (!this.#executed) {
             this.#assigns = {
                 ...this.#assigns,
@@ -49,7 +141,10 @@ export class ConnectionResponse {
         return this;
     }
 
-    accept (): ConnectionResponse {
+    /**
+     * Accepts the connection request
+     */
+    accept (): ConnectionContext<Path> {
         this.#performChecks();
 
         this.#webSocketServer.handleUpgrade(
@@ -72,7 +167,10 @@ export class ConnectionResponse {
         return this;
     }
 
-    decline (message?: string, errorCode?: number): ConnectionResponse {
+    /**
+     * Declines the connection request
+     */
+    decline (message?: string, errorCode?: number): ConnectionContext<Path> {
         this.#performChecks();
         const code = errorCode || 400;
         const { socket } = this.#params;
@@ -84,7 +182,10 @@ export class ConnectionResponse {
         return this;
     }
 
-    reply (event: string, payload: PondMessage): ConnectionResponse {
+    /**
+     * Sends a direct reply to the client
+     */
+    reply (event: string, payload: PondMessage): ConnectionContext<Path> {
         if (!this.#executed) {
             throw new HttpError(400, 'Connection has not been accepted');
         }
@@ -104,6 +205,9 @@ export class ConnectionResponse {
         return this;
     }
 
+    /**
+     * Performs checks before handling the request
+     */
     #performChecks (): void {
         if (this.#executed) {
             throw new HttpError(400, 'Response has already been executed');

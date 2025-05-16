@@ -3,7 +3,6 @@ import { IncomingMessage } from 'node:http';
 import internal from 'node:stream';
 
 import {
-    IncomingConnection,
     PondAssigns,
     ChannelEvent,
     JoinParams,
@@ -16,13 +15,11 @@ import {
 } from '@eleven-am/pondsocket-common';
 import { WebSocketServer, WebSocket } from 'ws';
 
+import { ConnectionContext } from '../contexts/connectionContext';
+import { EventContext } from '../contexts/eventContext';
+import { JoinContext } from '../contexts/joinContext';
 import { EndpointEngine } from '../engines/endpointEngine';
 import { HttpError } from '../errors/httpError';
-import { EventRequest } from '../requests/eventRequest';
-import { JoinRequest } from '../requests/joinRequest';
-import { ConnectionResponse } from '../responses/connectionResponse';
-import { EventResponse } from '../responses/eventResponse';
-import { JoinResponse } from '../responses/joinResponse';
 import { Channel } from '../wrappers/channel';
 
 export type NextFunction<Error extends HttpError = HttpError> = (error?: Error) => void;
@@ -48,11 +45,11 @@ export interface OutgoingEvent<Event extends string> {
     channel: Channel;
 }
 
-export type ConnectionHandler<Path extends string> = (request: IncomingConnection<Path>, response: ConnectionResponse, next: NextFunction) => void | Promise<void>;
+export type ConnectionHandler<Path extends string> = (ctx: ConnectionContext<Path>, next: NextFunction) => void | Promise<void>;
 
-export type AuthorizationHandler<Event extends string> = (request: JoinRequest<Event>, response: JoinResponse, next: NextFunction) => void | Promise<void>;
+export type AuthorizationHandler<Path extends string> = (ctx: JoinContext<Path>, next: NextFunction) => void | Promise<void>;
 
-export type EventHandler<Event extends string> = (request: EventRequest<Event>, response: EventResponse, next: NextFunction) => void | Promise<void>;
+export type EventHandler<Path extends string> = (ctx: EventContext<Path>, next: NextFunction) => void | Promise<void>;
 
 export type OutgoingEventHandler<Event extends string> = (event: OutgoingEvent<Event>) => PondMessage | Promise<PondMessage> | void | Promise<void>;
 

@@ -11,10 +11,9 @@ import {
     InternalOutgoingEventHandler,
     OutgoingEvent,
 } from '../abstracts/types';
+import { EventContext } from '../contexts/eventContext';
 import { HttpError } from '../errors/httpError';
 import { parseAddress } from '../matcher/matcher';
-import { EventRequest } from '../requests/eventRequest';
-import { EventResponse } from '../responses/eventResponse';
 import { Channel } from '../wrappers/channel';
 
 
@@ -47,14 +46,14 @@ export class LobbyEngine {
         this.middleware.use((requestEvent, channel, next) => {
             const params = parseAddress(event, requestEvent.event);
 
-            if (params) {
-                const eventRequest = new EventRequest(requestEvent, params, channel);
-                const response = new EventResponse(requestEvent, channel);
-
-                return handler(eventRequest, response, next);
+            if (!params) {
+                return next();
             }
 
-            return next();
+            const context = new EventContext(requestEvent, params, channel);
+
+
+            return handler(context, next);
         });
     }
 

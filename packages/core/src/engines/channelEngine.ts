@@ -307,23 +307,18 @@ export class ChannelEngine {
      * Closes the channel and cleans up resources
      */
     close (): void {
-        // Clear all user subscriptions
         this.#userSubscriptions.forEach((unsubscribe) => unsubscribe());
         this.#userSubscriptions.clear();
 
-        // Clear assigns
         this.#assignsCache.clear();
 
-        // Close presence engine if exists
         if (this.#presenceEngine) {
             this.#presenceEngine.close();
             this.#presenceEngine = null;
         }
 
-        // Close publisher
         this.#publisher.close();
 
-        // Remove the channel from the parent
         this.parent.deleteChannel(this.name);
     }
 
