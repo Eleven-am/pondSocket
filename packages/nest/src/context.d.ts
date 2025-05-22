@@ -54,37 +54,22 @@ declare class Context<Path extends string = string, Event extends PondEventMap =
     /**
      * @desc The request object, available in onJoin handlers
      */
-    get joinRequest (): JoinRequest<Path, Presence, Assigns> | null;
+    get joinContext (): JoinContext<Path, Event, Presence, Assigns> | null;
 
     /**
      * @desc The request object, available in onEvent handlers
      */
-    get eventRequest (): EventRequest<Path, Presence, Assigns> | null;
+    get eventContext (): EventContext<Path, Event, Presence, Assigns> | null;
 
     /**
      * @desc The request object, available in onConnection handlers
      */
-    get connection (): IncomingConnection<Path> | null;
+    get connectionContext (): ConnectionContext<Path> | null;
 
     /**
      * @desc The request object, available in onLeave handlers
      */
     get leaveEvent (): LeaveEvent | null;
-
-    /**
-     * @desc The response object, available in onJoin handlers
-     */
-    get joinResponse (): JoinResponse<Event, Presence, Assigns> | null;
-
-    /**
-     * @desc The response object, available in onEvent handlers
-     */
-    get eventResponse (): EventResponse<Event, Presence, Assigns> | null;
-
-    /**
-     * @desc The response object, available in onConnection handlers
-     */
-    get connectionResponse (): ConnectionResponse | null;
 
     /**
      * @desc The presence object, available on the channel
