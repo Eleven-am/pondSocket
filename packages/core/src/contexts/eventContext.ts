@@ -1,6 +1,5 @@
 import {
     EventParams,
-    PondEvent,
     PondObject,
     ServerActions,
     PondPresence,
@@ -11,82 +10,38 @@ import {
     PondAssigns,
 } from '@eleven-am/pondsocket-common';
 
+import { BaseContext } from './baseContext';
 import { BroadcastEvent } from '../abstracts/types';
 import { ChannelEngine } from '../engines/channelEngine';
-import { Channel } from '../wrappers/channel';
+
 
 /**
  * EventContext combines the functionality of EventRequest and EventResponse
  * to provide a unified interface for handling events in a channel.
  */
-export class EventContext<Path extends string> {
+export class EventContext<Path extends string> extends BaseContext<Path> {
     readonly #event: BroadcastEvent;
-
-    readonly #engine: ChannelEngine;
-
-    readonly #params: EventParams<Path>;
 
     readonly #requestId: string;
 
     constructor (event: BroadcastEvent, params: EventParams<Path>, engine: ChannelEngine) {
+        super(engine, params, event.event, event.payload);
         this.#event = event;
-        this.#params = params;
-        this.#engine = engine;
         this.#requestId = event.requestId;
-    }
-
-    /**
-     * The event information
-     */
-    get event (): PondEvent<Path> {
-        return {
-            event: this.#event.event,
-            query: this.#params.query,
-            params: this.#params.params,
-            payload: this.#event.payload,
-        };
-    }
-
-    /**
-     * The channel name
-     */
-    get channelName (): string {
-        return this.#engine.name;
-    }
-
-    /**
-     * The channel instance
-     */
-    get channel (): Channel {
-        return new Channel(this.#engine);
-    }
-
-    /**
-     * All current presences in the channel
-     */
-    get presences () {
-        return this.#engine.getPresence();
-    }
-
-    /**
-     * All current assigns in the channel
-     */
-    get assigns () {
-        return this.#engine.getAssigns();
     }
 
     /**
      * The user who sent the request
      */
     get user () {
-        return this.#engine.getUserData(this.#event.sender);
+        return this.channel.getUserData(this.#event.sender);
     }
 
     /**
      * Assigns data to the client
      */
     assign (assigns: PondAssigns): EventContext<Path> {
-        this.#engine.updateAssigns(this.#event.sender, assigns);
+        this.channel.updateAssigns(this.#event.sender, assigns);
 
         return this;
     }
@@ -95,7 +50,7 @@ export class EventContext<Path extends string> {
      * Sends a direct reply to the client
      */
     reply (event: string, payload: PondMessage) {
-        this.#engine.sendMessage(
+        this.engine.sendMessage(
             SystemSender.CHANNEL,
             [this.#event.sender],
             ServerActions.SYSTEM,
@@ -140,7 +95,7 @@ export class EventContext<Path extends string> {
      * Tracks a user's presence
      */
     trackPresence (presence: PondPresence, userId = this.#event.sender): EventContext<Path> {
-        this.#engine.trackPresence(userId, presence);
+        this.channel.trackPresence(userId, presence);
 
         return this;
     }
@@ -149,7 +104,7 @@ export class EventContext<Path extends string> {
      * Updates a user's presence
      */
     updatePresence (presence: PondPresence, userId = this.#event.sender): EventContext<Path> {
-        this.#engine.updatePresence(userId, presence);
+        this.channel.updatePresence(userId, presence);
 
         return this;
     }
@@ -158,7 +113,7 @@ export class EventContext<Path extends string> {
      * Kicks a user from the channel
      */
     evictUser (reason: string, userId = this.#event.sender): EventContext<Path> {
-        this.#engine.kickUser(userId, reason);
+        this.channel.evictUser(userId, reason);
 
         return this;
     }
@@ -167,7 +122,7 @@ export class EventContext<Path extends string> {
      * Removes a user's presence
      */
     removePresence (userId = this.#event.sender): EventContext<Path> {
-        this.#engine.removePresence(userId);
+        this.channel.removePresence(userId);
 
         return this;
     }
@@ -176,7 +131,7 @@ export class EventContext<Path extends string> {
      * Sends a message to recipients
      */
     #sendMessage (recipient: ChannelReceivers, event: string, payload: PondObject) {
-        this.#engine.sendMessage(
+        this.engine.sendMessage(
             this.#event.sender,
             recipient,
             ServerActions.BROADCAST,

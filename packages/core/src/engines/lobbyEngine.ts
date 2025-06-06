@@ -85,7 +85,7 @@ export class LobbyEngine {
                 }
 
                 return false;
-            } catch (error) {
+            } catch {
                 return false;
             }
         };

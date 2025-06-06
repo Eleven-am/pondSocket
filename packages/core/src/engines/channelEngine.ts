@@ -350,7 +350,6 @@ export class ChannelEngine {
         if (!this.#presenceEngine) {
             this.#presenceEngine = new PresenceEngine(this.name);
 
-            // Subscribe to presence events and publish them through the channel publisher
             this.#presenceEngine.subscribe((event) => {
                 this.#publisher.publish(event);
             });

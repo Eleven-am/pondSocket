@@ -1,22 +1,22 @@
 import PondSocket from '@eleven-am/pondsocket';
-import type { Endpoint } from '@eleven-am/pondsocket/types';
-import { DiscoveryService } from '@golevelup/nestjs-discovery';
-import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
+import type {Endpoint} from '@eleven-am/pondsocket/types';
+import {DiscoveryService} from '@golevelup/nestjs-discovery';
+import type {DiscoveredClass} from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
 // eslint-disable-next-line import/no-unresolved
-import { Logger, Type, PipeTransform, OnModuleInit } from '@nestjs/common';
+import {Logger, OnModuleInit, PipeTransform, Type} from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
-import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
+import {HttpAdapterHost, ModuleRef} from '@nestjs/core';
 
-import { channelKey, endpointKey } from '../constants';
-import { manageChannel } from '../managers/channel';
-import { manageChannelInstance } from '../managers/channelInstance';
-import { manageConnection } from '../managers/connection';
-import { manageEndpoint } from '../managers/endpoint';
-import { manageEndpointInstance } from '../managers/endpointInstance';
-import { manageEvent } from '../managers/event';
-import { manageJoin } from '../managers/join';
-import { manageLeave } from '../managers/leave';
-import { CanActivate, Constructor, GroupedInstances } from '../types';
+import {channelKey, endpointKey} from '../constants';
+import {manageChannel} from '../managers/channel';
+import {manageChannelInstance} from '../managers/channelInstance';
+import {manageConnection} from '../managers/connection';
+import {manageEndpoint} from '../managers/endpoint';
+import {manageEndpointInstance} from '../managers/endpointInstance';
+import {manageEvent} from '../managers/event';
+import {manageJoin} from '../managers/join';
+import {manageLeave} from '../managers/leave';
+import {CanActivate, Constructor, GroupedInstances} from '../types';
 
 export class PondSocketService implements OnModuleInit {
     private readonly logger = new Logger(PondSocketService.name);
@@ -63,10 +63,10 @@ export class PondSocketService implements OnModuleInit {
             }
         });
 
-        this.logger.log(`Mapped {${metadata}} endpoint`);
+        this.logger.log(`Mapped {${metadata}} Endpoint`);
 
         if (handler) {
-            this.logger.log(`Mapped {${metadata}} connection handler`);
+            this.logger.log(`Mapped {${metadata}, CONNECTION}`);
         }
 
         setEndpoint(endpoint);
@@ -94,10 +94,11 @@ export class PondSocketService implements OnModuleInit {
             }
         });
 
-        this.logger.log(`Mapped {${endpointPath}${path}} channel`);
+		const newPath = `${endpointPath}/${path}`.replace(/\/+/g, '/');
+        this.logger.log(`Mapped {${newPath}} Channel`);
 
         if (handler) {
-            this.logger.log(`Mapped {${endpointPath}${path}} join handler`);
+            this.logger.log(`Mapped {${newPath}, JOIN}`);
         }
 
         setChannel(channelInstance);
@@ -109,7 +110,8 @@ export class PondSocketService implements OnModuleInit {
                 await handler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, context);
             });
 
-            this.logger.log(`Mapped {${endpointPath}${path}} event {${handler.path}}`);
+			const newEventPath = `${newPath}/${handler.path}`.replace(/\/+/g, '/');
+            this.logger.log(`Mapped {${newEventPath}, EVENT}`);
         });
 
         const [leaveHandler] = getLeaveHandlers();
@@ -119,7 +121,7 @@ export class PondSocketService implements OnModuleInit {
                 await leaveHandler.value(instance, this.moduleRef, this.globalGuards, this.globalPipes, event);
             });
 
-            this.logger.log(`Mapped {${endpointPath}${path}} leave handler`);
+            this.logger.log(`Mapped {${newPath}, LEAVE}`);
         }
     }
 
