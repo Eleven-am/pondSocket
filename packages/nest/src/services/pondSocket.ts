@@ -63,7 +63,7 @@ export class PondSocketService implements OnModuleInit {
             }
         });
 
-        this.logger.log(`Mapped {${metadata}} Endpoint`);
+        this.logger.log(`${groupedInstance.endpoint.name} {${metadata}}`);
 
         if (handler) {
             this.logger.log(`Mapped {${metadata}, CONNECTION}`);
@@ -95,7 +95,7 @@ export class PondSocketService implements OnModuleInit {
         });
 
 		const newPath = `${endpointPath}/${path}`.replace(/\/+/g, '/');
-        this.logger.log(`Mapped {${newPath}} Channel`);
+        this.logger.log(`${channel.name} {${newPath}}`);
 
         if (handler) {
             this.logger.log(`Mapped {${newPath}, JOIN}`);
