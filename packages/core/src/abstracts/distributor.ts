@@ -22,6 +22,8 @@ export class RedisDistributedBackend implements IDistributedBackend {
 
     readonly #subject: Subject<DistributedChannelMessage>;
 
+    readonly #nodeId: string;
+
     #isConnected: boolean = false;
 
     constructor (options: RedisDistributedBackendOptions = {}) {
@@ -35,7 +37,9 @@ export class RedisDistributedBackend implements IDistributedBackend {
         } = options;
 
         this.#keyPrefix = keyPrefix;
-        this.#subject = new Subject<DistributedChannelMessage>();
+        this.#nodeId = Math.random().toString(36)
+            .substring(2, 15);
+        this.#subject = new Subject<DistributedChannelMessage & { nodeId: string }>();
 
         // Create Redis clients
         const clientConfig = url
@@ -54,8 +58,8 @@ export class RedisDistributedBackend implements IDistributedBackend {
     /**
      * Gets the subject for subscribing to distributed messages
      */
-    get subject (): Subject<DistributedChannelMessage> {
-        return this.#subject;
+    get subject (): Subject<DistributedChannelMessage & { nodeId: string }> {
+        return this.#subject as Subject<DistributedChannelMessage & { nodeId: string }>;
     }
 
     /**
@@ -63,7 +67,7 @@ export class RedisDistributedBackend implements IDistributedBackend {
      */
     subscribe (endpointName: string, channelName: string, handler: (message: DistributedChannelMessage) => void): Unsubscribe {
         return this.subject.subscribe((message) => {
-            if (message.endpointName === endpointName && message.channelName === channelName) {
+            if (message.endpointName === endpointName && message.channelName === channelName && message.nodeId !== this.#nodeId) {
                 handler(message);
             }
         });
@@ -78,7 +82,12 @@ export class RedisDistributedBackend implements IDistributedBackend {
         }
 
         const key = this.#buildKey(endpointName, channelName);
-        const serializedMessage = JSON.stringify(message);
+        const distributedMessage = {
+            ...message,
+            nodeId: this.#nodeId,
+        };
+
+        const serializedMessage = JSON.stringify(distributedMessage);
 
         await this.#publishClient.publish(key, serializedMessage);
     }
@@ -123,7 +132,7 @@ export class RedisDistributedBackend implements IDistributedBackend {
      */
     #handleRedisMessage (message: string): void {
         try {
-            const parsedMessage: DistributedChannelMessage = JSON.parse(message);
+            const parsedMessage: DistributedChannelMessage & { nodeId: string } = JSON.parse(message);
 
             if (this.#isValidMessage(parsedMessage)) {
                 this.subject.publish(parsedMessage);

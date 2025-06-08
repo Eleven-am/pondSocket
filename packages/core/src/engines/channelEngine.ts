@@ -149,11 +149,9 @@ export class ChannelEngine {
             recipients,
         };
 
-        // Publish locally
         this.#publisher.publish(internalEvent);
 
-        // If distributed and this is a user message, broadcast to other nodes
-        if (this.#backend && action === ServerActions.BROADCAST && sender !== SystemSender.CHANNEL) {
+        if (this.#backend) {
             this.#broadcastToNodes({
                 type: DistributedMessageType.USER_MESSAGE,
                 endpointName: this.#endpointId,
@@ -210,7 +208,6 @@ export class ChannelEngine {
 
         presenceEngine.trackPresence(userId, presence);
 
-        // Broadcast presence update to other nodes
         if (this.#backend) {
             this.#broadcastToNodes({
                 type: DistributedMessageType.PRESENCE_UPDATE,
@@ -232,7 +229,6 @@ export class ChannelEngine {
 
         presenceEngine.updatePresence(userId, presence);
 
-        // Broadcast presence update to other nodes
         if (this.#backend) {
             this.#broadcastToNodes({
                 type: DistributedMessageType.PRESENCE_UPDATE,
@@ -561,6 +557,7 @@ export class ChannelEngine {
      * Handle messages from other nodes
      */
     #handleDistributedMessage (message: DistributedChannelMessage): void {
+        console.log(message);
         switch (message.type) {
             case DistributedMessageType.STATE_REQUEST:
                 this.#handleStateRequest(message);
@@ -689,19 +686,13 @@ export class ChannelEngine {
      * Handle a remote message
      */
     #handleRemoteMessage (message: UserMessage): void {
-        const localRecipients = message.recipients.filter((userId: string) => this.users.has(userId));
-
-        if (localRecipients.length === 0) {
-            return;
-        }
-
         const internalEvent: InternalChannelEvent = {
             channelName: this.#name,
             requestId: message.requestId,
             action: ServerActions.BROADCAST,
             event: message.event,
             payload: message.payload,
-            recipients: localRecipients,
+            recipients: message.recipients,
         };
 
         this.#publisher.publish(internalEvent);
@@ -711,10 +702,6 @@ export class ChannelEngine {
      * Handle remote presence update
      */
     #handleRemotePresenceUpdate (message: PresenceUpdate): void {
-        if (!this.users.has(message.userId)) {
-            return;
-        }
-
         const presenceEngine = this.#getOrCreatePresenceEngine();
 
         presenceEngine.upsertPresence(message.userId, message.presence);
@@ -724,10 +711,6 @@ export class ChannelEngine {
      * Handle remote presence removed
      */
     #handleRemotePresenceRemoved (message: PresenceRemoved): void {
-        if (!this.users.has(message.userId)) {
-            return;
-        }
-
         if (this.#presenceEngine) {
             this.#presenceEngine.removePresence(message.userId);
         }
@@ -737,10 +720,6 @@ export class ChannelEngine {
      * Handle remote assigns update
      */
     #handleRemoteAssignsUpdate (message: AssignsUpdate): void {
-        if (!this.users.has(message.userId)) {
-            return;
-        }
-
         this.#assignsCache.set(message.userId, message.assigns);
     }
 
@@ -748,10 +727,6 @@ export class ChannelEngine {
      * Handle remote assigns removed
      */
     #handleRemoteAssignsRemoved (message: AssignsRemoved): void {
-        if (!this.users.has(message.userId)) {
-            return;
-        }
-
         this.#assignsCache.set(message.userId, {});
     }
 
@@ -759,10 +734,6 @@ export class ChannelEngine {
      * Handle remote user eviction
      */
     #handleRemoteEvictUser (message: EvictUser): void {
-        if (!this.users.has(message.userId)) {
-            return;
-        }
-
         this.#assignsCache.delete(message.userId);
 
         if (this.#presenceEngine) {
