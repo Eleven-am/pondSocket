@@ -1,6 +1,5 @@
 import { MockLobbyEngine } from './lobbyEngine';
 import { ChannelEngine } from '../../engines/channelEngine';
-import { LobbyEngine } from '../../engines/lobbyEngine';
 
 export class MockChannelEngine extends ChannelEngine {
     addUser = jest.fn();
@@ -34,7 +33,7 @@ export class MockChannelEngine extends ChannelEngine {
     parent = new MockLobbyEngine();
 
     constructor () {
-        super({} as LobbyEngine, 'mockChannel');
+        super(new MockLobbyEngine(), 'mockChannel', null);
     }
 
     private _name = 'mockChannel';

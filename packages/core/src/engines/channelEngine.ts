@@ -1,30 +1,52 @@
 import {
-    ClientMessage,
-    SystemSender,
-    ServerActions,
-    ErrorTypes,
     ChannelEvent,
-    Events,
-    ChannelReceivers,
-    PondMessage,
-    uuid,
     ChannelReceiver,
-    PondPresence,
-    UserAssigns,
-    UserPresences,
+    ChannelReceivers,
+    ClientMessage,
+    ErrorTypes,
+    Events,
     PondAssigns,
-    Unsubscribe,
+    PondMessage,
+    PondPresence,
+    ServerActions,
     Subject,
+    SystemSender,
+    Unsubscribe,
+    UserAssigns,
     UserData,
+    UserPresences,
+    uuid,
 } from '@eleven-am/pondsocket-common';
 
 import { LobbyEngine } from './lobbyEngine';
 import { PresenceEngine } from './presenceEngine';
-import { ChannelSenders, BroadcastEvent, InternalChannelEvent } from '../abstracts/types';
+import {
+    type BroadcastEvent,
+    type ChannelSenders,
+    DistributedMessageType,
+    type InternalChannelEvent,
+} from '../abstracts/types';
 import { HttpError } from '../errors/httpError';
-
+import type {
+    AssignsRemoved,
+    AssignsUpdate,
+    DistributedChannelMessage,
+    EvictUser,
+    IDistributedBackend,
+    PresenceRemoved,
+    PresenceUpdate,
+    StateRequest,
+    StateResponse,
+    UserJoined,
+    UserLeft,
+    UserMessage,
+} from '../types';
 
 export class ChannelEngine {
+    readonly #endpointId: string;
+
+    readonly #backend: IDistributedBackend | null;
+
     #presenceEngine: PresenceEngine | null = null;
 
     #assignsCache: Map<string, PondAssigns> = new Map();
@@ -33,10 +55,18 @@ export class ChannelEngine {
 
     #publisher: Subject<InternalChannelEvent> = new Subject();
 
+    #distributedSubscription: Unsubscribe | null = null;
+
     readonly #name: string;
 
-    constructor (public parent: LobbyEngine, name: string) {
+    constructor (public parent: LobbyEngine, name: string, backend: IDistributedBackend | null = null) {
         this.#name = name;
+        this.#backend = backend;
+        this.#endpointId = parent.parent.path;
+
+        if (this.#backend) {
+            this.#setupDistributedSubscription();
+        }
     }
 
     get name (): string {
@@ -61,11 +91,24 @@ export class ChannelEngine {
             throw new HttpError(400, message);
         }
 
-        // Store user assigns
-        this.#assignsCache.set(userId, assigns);
+        const isFirstUser = this.users.size === 0;
 
-        // Subscribe user to messages
+        this.#assignsCache.set(userId, assigns);
         this.#buildSubscriber(userId, onMessage);
+        if (isFirstUser && this.#backend) {
+            this.#requestChannelState();
+        }
+
+        if (this.#backend) {
+            this.#broadcastToNodes({
+                type: DistributedMessageType.USER_JOINED,
+                endpointName: this.#endpointId,
+                channelName: this.#name,
+                userId,
+                presence: {},
+                assigns,
+            });
+        }
 
         // Send acknowledgment
         this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, Events.ACKNOWLEDGE, {});
@@ -106,17 +149,34 @@ export class ChannelEngine {
             recipients,
         };
 
+        // Publish locally
         this.#publisher.publish(internalEvent);
+
+        // If distributed and this is a user message, broadcast to other nodes
+        if (this.#backend && action === ServerActions.BROADCAST && sender !== SystemSender.CHANNEL) {
+            this.#broadcastToNodes({
+                type: DistributedMessageType.USER_MESSAGE,
+                endpointName: this.#endpointId,
+                channelName: this.#name,
+                fromUserId: sender as string,
+                event,
+                payload,
+                requestId,
+                recipients,
+            });
+        }
     }
 
     /**
      * Broadcasts a message from a user
+     * @param userId - The ID of the user sending the message
+     * @param message - The message to broadcast
      */
     broadcastMessage (userId: string, message: ClientMessage): void {
         if (!this.users.has(userId)) {
-            const message = `ChannelEngine: User with id ${userId} does not exist in channel ${this.name}`;
+            const messageText = `ChannelEngine: User with id ${userId} does not exist in channel ${this.name}`;
 
-            throw new HttpError(404, message);
+            throw new HttpError(404, messageText);
         }
 
         const responseEvent: BroadcastEvent = {
@@ -142,28 +202,65 @@ export class ChannelEngine {
 
     /**
      * Tracks a user's presence
+     * @param userId - The ID of the user
+     * @param presence - The presence data to track
      */
     trackPresence (userId: string, presence: PondPresence): void {
         const presenceEngine = this.#getOrCreatePresenceEngine();
 
         presenceEngine.trackPresence(userId, presence);
+
+        // Broadcast presence update to other nodes
+        if (this.#backend) {
+            this.#broadcastToNodes({
+                type: DistributedMessageType.PRESENCE_UPDATE,
+                endpointName: this.#endpointId,
+                channelName: this.#name,
+                userId,
+                presence,
+            });
+        }
     }
 
     /**
      * Updates a user's presence
+     * @param userId - The ID of the user
+     * @param presence - The presence data to update
      */
     updatePresence (userId: string, presence: PondPresence): void {
         const presenceEngine = this.#getOrCreatePresenceEngine();
 
         presenceEngine.updatePresence(userId, presence);
+
+        // Broadcast presence update to other nodes
+        if (this.#backend) {
+            this.#broadcastToNodes({
+                type: DistributedMessageType.PRESENCE_UPDATE,
+                endpointName: this.#endpointId,
+                channelName: this.#name,
+                userId,
+                presence,
+            });
+        }
     }
 
     /**
      * Removes a user's presence
+     * @param userId - The ID of the user to remove presence for
      */
     removePresence (userId: string): void {
         if (this.#presenceEngine) {
             this.#presenceEngine.removePresence(userId);
+
+            // Broadcast presence removal to other nodes
+            if (this.#backend) {
+                this.#broadcastToNodes({
+                    type: DistributedMessageType.PRESENCE_REMOVED,
+                    endpointName: this.#endpointId,
+                    channelName: this.#name,
+                    userId,
+                });
+            }
         }
     }
 
@@ -174,6 +271,17 @@ export class ChannelEngine {
         const presenceEngine = this.#getOrCreatePresenceEngine();
 
         presenceEngine.upsertPresence(userId, presence);
+
+        // Broadcast presence update to other nodes
+        if (this.#backend) {
+            this.#broadcastToNodes({
+                type: DistributedMessageType.PRESENCE_UPDATE,
+                endpointName: this.#endpointId,
+                channelName: this.#name,
+                userId,
+                presence,
+            });
+        }
     }
 
     /**
@@ -185,11 +293,23 @@ export class ChannelEngine {
         }
 
         const currentAssigns = this.#assignsCache.get(userId) || {};
-
-        this.#assignsCache.set(userId, {
+        const newAssigns = {
             ...currentAssigns,
             ...assigns,
-        });
+        };
+
+        this.#assignsCache.set(userId, newAssigns);
+
+        // Broadcast assigns update to other nodes
+        if (this.#backend) {
+            this.#broadcastToNodes({
+                type: DistributedMessageType.ASSIGNS_UPDATE,
+                endpointName: this.#endpointId,
+                channelName: this.#name,
+                userId,
+                assigns: newAssigns,
+            });
+        }
     }
 
     /**
@@ -200,6 +320,18 @@ export class ChannelEngine {
             message: reason,
             code: 403,
         });
+
+        // Broadcast eviction to other nodes
+        if (this.#backend) {
+            this.#broadcastToNodes({
+                type: DistributedMessageType.EVICT_USER,
+                endpointName: this.#endpointId,
+                channelName: this.#name,
+                userId,
+                reason,
+            });
+        }
+
         this.removeUser(userId);
         this.sendMessage(SystemSender.CHANNEL, ChannelReceiver.ALL_USERS, ServerActions.SYSTEM, 'kicked', {
             userId,
@@ -266,7 +398,16 @@ export class ChannelEngine {
                 this.#userSubscriptions.delete(userId);
             }
 
-            // Trigger leave callback if defined
+            // Broadcast user left to other nodes
+            if (this.#backend) {
+                this.#broadcastToNodes({
+                    type: DistributedMessageType.USER_LEFT,
+                    endpointName: this.#endpointId,
+                    channelName: this.#name,
+                    userId,
+                });
+            }
+
             if (this.parent.leaveCallback) {
                 this.parent.leaveCallback({
                     user: userData,
@@ -274,11 +415,10 @@ export class ChannelEngine {
                 });
             }
 
-            // If no users left, close the channel
             if (this.users.size === 0) {
                 this.close();
             }
-        } catch (error) {
+        } catch {
             // Ignore cleanup errors
         }
     }
@@ -317,6 +457,11 @@ export class ChannelEngine {
             this.#presenceEngine = null;
         }
 
+        if (this.#distributedSubscription) {
+            this.#distributedSubscription();
+            this.#distributedSubscription = null;
+        }
+
         this.#publisher.close();
 
         this.parent.deleteChannel(this.name);
@@ -328,11 +473,11 @@ export class ChannelEngine {
     #buildSubscriber (userId: string, onMessage: (event: ChannelEvent) => void): void {
         const subscription = this.#publisher.subscribe(async ({ recipients, ...event }) => {
             if (recipients.includes(userId)) {
-                if (event.action === ServerActions.SYSTEM) {
+                if (event.action === ServerActions.PRESENCE) {
                     return onMessage(event);
                 }
 
-                const newEvent = await this.parent.manageOutgoingEvents(event, userId, this);
+                const newEvent = await this.parent.processOutgoingEvents(event, this, userId);
 
                 if (newEvent) {
                     onMessage(newEvent);
@@ -397,5 +542,253 @@ export class ChannelEngine {
         }
 
         return users;
+    }
+
+    /**
+     * Setup distributed subscription to listen for messages from other nodes
+     */
+    #setupDistributedSubscription (): void {
+        if (!this.#backend) {
+            return;
+        }
+
+        this.#distributedSubscription = this.#backend.subscribe(this.#endpointId, this.#name, (message) => {
+            this.#handleDistributedMessage(message);
+        });
+    }
+
+    /**
+     * Handle messages from other nodes
+     */
+    #handleDistributedMessage (message: DistributedChannelMessage): void {
+        switch (message.type) {
+            case DistributedMessageType.STATE_REQUEST:
+                this.#handleStateRequest(message);
+                break;
+            case DistributedMessageType.STATE_RESPONSE:
+                this.#handleStateResponse(message);
+                break;
+            case DistributedMessageType.USER_JOINED:
+                this.#handleRemoteUserJoined(message);
+                break;
+            case DistributedMessageType.USER_LEFT:
+                this.#handleRemoteUserLeft(message);
+                break;
+            case DistributedMessageType.USER_MESSAGE:
+                this.#handleRemoteMessage(message);
+                break;
+            case DistributedMessageType.PRESENCE_UPDATE:
+                this.#handleRemotePresenceUpdate(message);
+                break;
+            case DistributedMessageType.PRESENCE_REMOVED:
+                this.#handleRemotePresenceRemoved(message);
+                break;
+            case DistributedMessageType.ASSIGNS_UPDATE:
+                this.#handleRemoteAssignsUpdate(message);
+                break;
+            case DistributedMessageType.ASSIGNS_REMOVED:
+                this.#handleRemoteAssignsRemoved(message);
+                break;
+            case DistributedMessageType.EVICT_USER:
+                this.#handleRemoteEvictUser(message);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Request current channel state from other nodes
+     */
+    #requestChannelState (): void {
+        if (!this.#backend) {
+            return;
+        }
+
+        this.#broadcastToNodes({
+            type: DistributedMessageType.STATE_REQUEST,
+            endpointName: this.#endpointId,
+            channelName: this.#name,
+            fromNode: 'current-node',
+        });
+    }
+
+    /**
+     * Handle state request from another node
+     * @param _message - The state request message
+     */
+    #handleStateRequest (_message: StateRequest): void {
+        if (this.users.size === 0) {
+            return;
+        }
+
+        const users = Array.from(this.#assignsCache.entries()).map(([id, assigns]) => ({
+            id,
+            assigns,
+            presence: this.#presenceEngine?.getPresence(id) || {},
+        }));
+
+        this.#broadcastToNodes({
+            type: DistributedMessageType.STATE_RESPONSE,
+            endpointName: this.#endpointId,
+            channelName: this.#name,
+            users,
+        });
+    }
+
+    /**
+     * Handle state response from another node
+     */
+    #handleStateResponse (message: StateResponse): void {
+        if (!message.users) {
+            return;
+        }
+
+        message.users.forEach((user) => {
+            if (!this.users.has(user.id)) {
+                this.#assignsCache.set(user.id, user.assigns);
+
+                if (user.presence && Object.keys(user.presence).length > 0) {
+                    const presenceEngine = this.#getOrCreatePresenceEngine();
+
+                    presenceEngine.trackPresence(user.id, user.presence);
+                }
+            }
+        });
+    }
+
+    /**
+     * Handle remote user joined
+     */
+    #handleRemoteUserJoined (message: UserJoined): void {
+        if (this.users.has(message.userId)) {
+            return;
+        }
+
+        this.#assignsCache.set(message.userId, message.assigns);
+
+        if (message.presence && Object.keys(message.presence).length > 0) {
+            const presenceEngine = this.#getOrCreatePresenceEngine();
+
+            presenceEngine.trackPresence(message.userId, message.presence);
+        }
+    }
+
+    /**
+     * Handle remote user left
+     */
+    #handleRemoteUserLeft (message: UserLeft): void {
+        this.#assignsCache.delete(message.userId);
+
+        if (this.#presenceEngine) {
+            this.#presenceEngine.removePresence(message.userId);
+        }
+    }
+
+    /**
+     * Handle a remote message
+     */
+    #handleRemoteMessage (message: UserMessage): void {
+        const localRecipients = message.recipients.filter((userId: string) => this.users.has(userId));
+
+        if (localRecipients.length === 0) {
+            return;
+        }
+
+        const internalEvent: InternalChannelEvent = {
+            channelName: this.#name,
+            requestId: message.requestId,
+            action: ServerActions.BROADCAST,
+            event: message.event,
+            payload: message.payload,
+            recipients: localRecipients,
+        };
+
+        this.#publisher.publish(internalEvent);
+    }
+
+    /**
+     * Handle remote presence update
+     */
+    #handleRemotePresenceUpdate (message: PresenceUpdate): void {
+        if (!this.users.has(message.userId)) {
+            return;
+        }
+
+        const presenceEngine = this.#getOrCreatePresenceEngine();
+
+        presenceEngine.upsertPresence(message.userId, message.presence);
+    }
+
+    /**
+     * Handle remote presence removed
+     */
+    #handleRemotePresenceRemoved (message: PresenceRemoved): void {
+        if (!this.users.has(message.userId)) {
+            return;
+        }
+
+        if (this.#presenceEngine) {
+            this.#presenceEngine.removePresence(message.userId);
+        }
+    }
+
+    /**
+     * Handle remote assigns update
+     */
+    #handleRemoteAssignsUpdate (message: AssignsUpdate): void {
+        if (!this.users.has(message.userId)) {
+            return;
+        }
+
+        this.#assignsCache.set(message.userId, message.assigns);
+    }
+
+    /**
+     * Handle remote assigns removed
+     */
+    #handleRemoteAssignsRemoved (message: AssignsRemoved): void {
+        if (!this.users.has(message.userId)) {
+            return;
+        }
+
+        this.#assignsCache.set(message.userId, {});
+    }
+
+    /**
+     * Handle remote user eviction
+     */
+    #handleRemoteEvictUser (message: EvictUser): void {
+        if (!this.users.has(message.userId)) {
+            return;
+        }
+
+        this.#assignsCache.delete(message.userId);
+
+        if (this.#presenceEngine) {
+            this.#presenceEngine.removePresence(message.userId);
+        }
+
+        const unsubscribe = this.#userSubscriptions.get(message.userId);
+
+        if (unsubscribe) {
+            unsubscribe();
+            this.#userSubscriptions.delete(message.userId);
+        }
+    }
+
+    /**
+     * Broadcast message to other nodes
+     */
+    async #broadcastToNodes (message: DistributedChannelMessage): Promise<void> {
+        if (!this.#backend) {
+            return;
+        }
+
+        try {
+            await this.#backend.broadcast(this.#endpointId, this.#name, message);
+        } catch {
+            // Silently ignore broadcast errors to prevent cascading failures
+        }
     }
 }

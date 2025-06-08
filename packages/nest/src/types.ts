@@ -1,17 +1,18 @@
 import type {
-    LeaveEvent,
-    ConnectionContext,
-    JoinContext,
-    EventContext,
-    PondAssigns,
-    PondMessage,
-    PondPresence,
+	ConnectionContext,
+	EventContext,
+	IDistributedBackend,
+	JoinContext,
+	LeaveEvent,
+	PondAssigns,
+	PondMessage,
+	PondPresence,
 } from '@eleven-am/pondsocket/types';
-import type { DiscoveredClass } from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
-import type { ModuleMetadata, PipeTransform } from '@nestjs/common';
-import type { ModuleRef } from '@nestjs/core';
+import type {DiscoveredClass} from '@golevelup/nestjs-discovery/lib/discovery.interfaces';
+import type {ModuleMetadata, PipeTransform} from '@nestjs/common';
+import type {ModuleRef} from '@nestjs/core';
 
-import type { Context } from './context/context';
+import type {Context} from './context/context';
 
 export interface NestContext {
     connection?: ConnectionContext<string>;
@@ -54,7 +55,15 @@ export interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     guards?: Constructor<CanActivate>[];
     pipes?: Constructor<PipeTransform>[];
     isExclusiveSocketServer?: boolean;
+	backend?: IDistributedBackend;
     isGlobal?: boolean;
+}
+
+export interface AsyncMetadata extends Omit<Metadata, 'backend'> {
+	isGlobal?: boolean;
+	inject?: any[];
+	imports?: any[];
+	useFactory: (...args: any[]) => Promise<IDistributedBackend> | IDistributedBackend;
 }
 
 export type PondResponse<Event extends string = string, Payload extends PondMessage = PondMessage, Presence extends PondPresence = PondPresence, Assigns extends PondAssigns = PondAssigns> = {

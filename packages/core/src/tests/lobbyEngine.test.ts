@@ -1,4 +1,4 @@
-import { PondPath, UserData, ServerActions } from '@eleven-am/pondsocket-common';
+import { PondPath, ServerActions, UserData } from '@eleven-am/pondsocket-common';
 
 import { BroadcastEvent, LeaveEvent } from '../abstracts/types';
 import { EventContext } from '../contexts/eventContext';
@@ -15,7 +15,7 @@ describe('LobbyEngine', () => {
 
     beforeEach(() => {
         mockEndpointEngine = new MockEndpointEngine();
-        lobbyEngine = new LobbyEngine(mockEndpointEngine);
+        lobbyEngine = new LobbyEngine(mockEndpointEngine, null);
     });
 
     describe('onLeave', () => {

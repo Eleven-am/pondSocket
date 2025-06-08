@@ -1,6 +1,6 @@
 {
   "name": "@eleven-am/pondsocket-nest",
-  "version": "0.0.117",
+  "version": "0.0.119",
   "description": "PondSocket is a fast simple socket server",
   "keywords": [
     "socket",
@@ -28,7 +28,7 @@
     "pipeline": "npm run build && npm run push"
   },
   "dependencies": {
-    "@eleven-am/pondsocket": "^0.1.200",
+    "@eleven-am/pondsocket": "^0.1.202",
     "@golevelup/nestjs-discovery": "^5.0.0"
   },
   "devDependencies": {

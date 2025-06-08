@@ -1,23 +1,24 @@
-import { IncomingHttpHeaders, Server as HTTPServer } from 'http';
+import { IncomingHttpHeaders } from 'http';
 import { IncomingMessage } from 'node:http';
 import internal from 'node:stream';
 
 import {
-    PondAssigns,
     ChannelEvent,
-    JoinParams,
     EventParams,
+    JoinParams,
+    PondAssigns,
     PondMessage,
     ServerActions,
     SystemSender,
-    UserData,
     Unsubscribe,
+    UserData,
 } from '@eleven-am/pondsocket-common';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
 import { ConnectionContext } from '../contexts/connectionContext';
 import { EventContext } from '../contexts/eventContext';
 import { JoinContext } from '../contexts/joinContext';
+import { OutgoingContext } from '../contexts/outgoingContext';
 import { EndpointEngine } from '../engines/endpointEngine';
 import { HttpError } from '../errors/httpError';
 import { Channel } from '../wrappers/channel';
@@ -32,28 +33,13 @@ export interface SocketRequest {
     address: string;
 }
 
-export interface PondSocketOptions {
-    server?: HTTPServer;
-    socketServer?: WebSocketServer;
-    exclusiveServer?: boolean;
-}
-
-export interface OutgoingEvent<Event extends string> {
-    event: EventParams<Event>;
-    payload: PondMessage;
-    userData: UserData;
-    channel: Channel;
-}
-
 export type ConnectionHandler<Path extends string> = (ctx: ConnectionContext<Path>, next: NextFunction) => void | Promise<void>;
 
 export type AuthorizationHandler<Path extends string> = (ctx: JoinContext<Path>, next: NextFunction) => void | Promise<void>;
 
 export type EventHandler<Path extends string> = (ctx: EventContext<Path>, next: NextFunction) => void | Promise<void>;
 
-export type OutgoingEventHandler<Event extends string> = (event: OutgoingEvent<Event>) => PondMessage | Promise<PondMessage> | void | Promise<void>;
-
-export type InternalOutgoingEventHandler = (event: ChannelEvent, channel: Channel, userId: string) => Promise<PondMessage | boolean>;
+export type OutgoingEventHandler<Event extends string> = (event: OutgoingContext<Event>, next: NextFunction) => PondMessage | Promise<PondMessage> | void | Promise<void>;
 
 export interface ConnectionParams {
     head: Buffer;
@@ -106,4 +92,15 @@ export interface LeaveEvent {
 
 export type LeaveCallback = (event: LeaveEvent) => void;
 
-
+export enum DistributedMessageType {
+    STATE_REQUEST = 'STATE_REQUEST',
+    STATE_RESPONSE = 'STATE_RESPONSE',
+    USER_JOINED = 'USER_JOINED',
+    USER_LEFT = 'USER_LEFT',
+    USER_MESSAGE = 'USER_MESSAGE',
+    PRESENCE_UPDATE = 'PRESENCE_UPDATE',
+    PRESENCE_REMOVED = 'PRESENCE_REMOVED',
+    ASSIGNS_UPDATE = 'ASSIGNS_UPDATE',
+    ASSIGNS_REMOVED = 'ASSIGNS_REMOVED',
+    EVICT_USER = 'EVICT_USER'
+}

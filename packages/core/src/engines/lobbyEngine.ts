@@ -1,35 +1,33 @@
-import { PondPath, ChannelEvent } from '@eleven-am/pondsocket-common';
+import { Event, PondPath } from '@eleven-am/pondsocket-common';
 
 import { ChannelEngine } from './channelEngine';
 import { EndpointEngine } from './endpointEngine';
 import { Middleware } from '../abstracts/middleware';
-import {
-    EventHandler,
-    BroadcastEvent,
-    LeaveCallback,
-    OutgoingEventHandler,
-    InternalOutgoingEventHandler,
-    OutgoingEvent,
-} from '../abstracts/types';
+import { BroadcastEvent, EventHandler, LeaveCallback, OutgoingEventHandler } from '../abstracts/types';
 import { EventContext } from '../contexts/eventContext';
+import { OutgoingContext } from '../contexts/outgoingContext';
 import { HttpError } from '../errors/httpError';
 import { parseAddress } from '../matcher/matcher';
+import { IDistributedBackend } from '../types';
 import { Channel } from '../wrappers/channel';
 
 
 export class LobbyEngine {
+    leaveCallback: LeaveCallback | undefined;
+
     readonly middleware: Middleware<BroadcastEvent, ChannelEngine>;
 
-    leaveCallback: LeaveCallback | undefined;
+    readonly outgoing: Middleware<OutgoingContext<string>, Event>;
+
+    readonly #backend: IDistributedBackend | null;
 
     readonly #channels: Map<string, ChannelEngine>;
 
-    readonly #outGoingEvents: InternalOutgoingEventHandler[];
-
-    constructor (public parent: EndpointEngine) {
+    constructor (public parent: EndpointEngine, backend: IDistributedBackend | null) {
         this.middleware = new Middleware();
+        this.outgoing = new Middleware();
         this.#channels = new Map();
-        this.#outGoingEvents = [];
+        this.#backend = backend;
     }
 
     /**
@@ -52,7 +50,6 @@ export class LobbyEngine {
 
             const context = new EventContext(requestEvent, params, channel);
 
-
             return handler(context, next);
         });
     }
@@ -61,61 +58,53 @@ export class LobbyEngine {
      * Attaches a handler for outgoing events
      */
     handleOutgoingEvent<Event extends string> (event: PondPath<Event>, handler: OutgoingEventHandler<Event>) {
-        const handlerWrapper: InternalOutgoingEventHandler = async (request, channel, userId) => {
-            try {
-                const params = parseAddress(event, request.event);
+        this.outgoing.use(async (context, chEvent, next) => {
+            const params = parseAddress(event, chEvent.event);
 
-                if (!params) {
-                    return true;
-                }
-
-                const userData = channel.getUserData(userId);
-
-                const newEvent: OutgoingEvent<any> = {
-                    channel,
-                    userData,
-                    event: params,
-                    payload: request.payload,
-                };
-
-                const response = await handler(newEvent);
-
-                if (response) {
-                    return response;
-                }
-
-                return false;
-            } catch {
-                return false;
+            if (!params || context.isBlocked()) {
+                return next();
             }
-        };
 
-        this.#outGoingEvents.push(handlerWrapper);
+            context.updateParams(params);
+            const payload = await handler(context, next);
+
+            if (payload === undefined || payload === null) {
+                return;
+            }
+
+            context.transform({
+                ...chEvent,
+                payload,
+            });
+
+            return next();
+        });
     }
 
     /**
-     * Internal method to handle outgoing events
-     * @param request - The request object
-     * @param userId - The user ID
-     * @param channel - The channel engine
+     * Processes an outgoing event, applying middleware and returning a new event
+     * @param event - The channel event to process
+     * @param engine - The channel engine handling the event
+     * @param userId - The ID of the user sending the event
+     * @returns A new ChannelEvent or undefined if blocked
      */
-    async manageOutgoingEvents (request: ChannelEvent, userId: string, channel: ChannelEngine) {
-        if (!this.#outGoingEvents.length) {
-            return request;
+    async processOutgoingEvents (event: Event, engine: ChannelEngine, userId: string): Promise<Event | undefined> {
+        const params = parseAddress('*', event.event);
+        const context = new OutgoingContext(event, params!, engine, userId);
+
+        await this.outgoing.runAsync(context, event, () => {
+            // no-op
+        });
+
+        if (context.isBlocked()) {
+            return;
         }
 
-        const promises = this.#outGoingEvents.map((handler) => handler(request, this.wrapChannel(channel), userId));
-        const results = await Promise.all(promises);
-
-        if (results.some((result) => result === false)) {
-            return null;
-        }
-
-        request.payload = results
-            .filter((result) => typeof result !== 'boolean')
-            .reduce((acc, result) => Object.assign(acc, result), {});
-
-        return request;
+        return {
+            ...event,
+            payload: context.payload,
+            event: context.event.event,
+        };
     }
 
     /**
@@ -133,7 +122,7 @@ export class LobbyEngine {
 
     /**
      * Gets a channel by name
-     * @throws HttpError if channel not found
+     * @throws HttpError if a channel not found
      */
     getChannel (channelName: string): ChannelEngine {
         const channel = this.#channels.get(channelName);
@@ -175,19 +164,10 @@ export class LobbyEngine {
      * Creates a new channel
      */
     #createChannel (channelName: string) {
-        // Create the channel engine
-        const channel = new ChannelEngine(this, channelName);
+        const channel = new ChannelEngine(this, channelName, this.#backend);
 
-        // Add it to the channels map
         this.#channels.set(channelName, channel);
 
-        // Set up a way to remove the channel when it's closed
-        // (We'll handle this in the ChannelEngine's close method)
-        const handleChannelClosed = () => {
-            this.#channels.delete(channelName);
-        };
-
-        // Return the new channel engine
         return channel;
     }
 }

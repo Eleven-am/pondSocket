@@ -1,7 +1,7 @@
 import { createServer } from 'http';
 
 import PondSocket from '@eleven-am/pondsocket';
-import { Endpoint, PondPath, RequestHandler, ConnectionContext } from '@eleven-am/pondsocket/types';
+import { ConnectionContext, Endpoint, PondPath, PondSocketOptions, RequestHandler } from '@eleven-am/pondsocket/types';
 import type { Express } from 'express';
 
 declare global {
@@ -37,11 +37,13 @@ interface PondSocketExpressApp extends Express {
 /**
  * @desc Creates a pond socket server
  * @param app - The Express app to be used by the server
+ * @param options - The options to be used by the pond socket server
  * @constructor
  */
-const pondSocket = (app: Express): PondSocketExpressApp => {
+const pondSocket = (app: Express, options: Omit<PondSocketOptions, 'server'>): PondSocketExpressApp => {
     const server = createServer(app);
     const pondSocket = new PondSocket({
+        ...options,
         server,
     });
 

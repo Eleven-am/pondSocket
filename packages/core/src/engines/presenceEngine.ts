@@ -2,9 +2,9 @@ import {
     PondPresence,
     PresenceEventTypes,
     ServerActions,
-    uuid,
-    Unsubscribe,
     Subject,
+    Unsubscribe,
+    uuid,
 } from '@eleven-am/pondsocket-common';
 
 import { InternalChannelEvent } from '../abstracts/types';
@@ -141,7 +141,6 @@ export class PresenceEngine {
         const total = Array.from(this.#presenceCache.values());
         const userIds = Array.from(this.#presenceCache.keys());
 
-        // Create the presence event
         const internalEvent: InternalChannelEvent = {
             event: action,
             requestId: uuid(),

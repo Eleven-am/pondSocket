@@ -1,15 +1,15 @@
 import {
-    UserData,
+    ChannelEvent,
+    ChannelReceiver,
+    ChannelReceivers,
+    ErrorTypes,
     JoinParams,
     PondAssigns,
     PondMessage,
-    ChannelReceiver,
-    ChannelReceivers,
     PondObject,
-    ServerActions,
     PondPresence,
-    ChannelEvent,
-    ErrorTypes,
+    ServerActions,
+    UserData,
 } from '@eleven-am/pondsocket-common';
 
 import { BaseContext } from './baseContext';
@@ -34,7 +34,7 @@ export class JoinContext<Path extends string> extends BaseContext<Path> {
     #accepted: boolean;
 
     constructor (options: JoinRequestOptions<Path>, engine: ChannelEngine, user: RequestCache) {
-        super(engine, options.params, engine.name, options.joinParams);
+        super(engine, options.params, engine.name, options.joinParams, user.clientId);
         this.#options = options;
         this.#user = user;
         this.#executed = false;

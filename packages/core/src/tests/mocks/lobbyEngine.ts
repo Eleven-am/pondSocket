@@ -20,6 +20,6 @@ export class MockLobbyEngine extends LobbyEngine {
     parent = new MockEndpointEngine();
 
     constructor () {
-        super({} as EndpointEngine);
+        super({} as EndpointEngine, null);
     }
 }

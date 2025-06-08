@@ -1,28 +1,25 @@
-import { Server as HTTPServer, IncomingHttpHeaders, IncomingMessage } from 'http';
+import { IncomingHttpHeaders, IncomingMessage, Server as HTTPServer } from 'http';
 import internal from 'node:stream';
 
 import { IncomingConnection, PondPath, uuid } from '@eleven-am/pondsocket-common';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
 import { Middleware } from '../abstracts/middleware';
-import {
-    SocketRequest,
-    PondSocketOptions,
-    ConnectionHandler,
-    ConnectionParams,
-    ConnectionResponseOptions,
-} from '../abstracts/types';
+import { ConnectionHandler, ConnectionParams, ConnectionResponseOptions, SocketRequest } from '../abstracts/types';
 import { ConnectionContext } from '../contexts/connectionContext';
 import { EndpointEngine } from '../engines/endpointEngine';
 import { parseAddress } from '../matcher/matcher';
+import { IDistributedBackend, PondSocketOptions } from '../types';
 import { Endpoint } from '../wrappers/endpoint';
 
 export class PondSocket {
-    readonly #exclusiveServer: boolean;
-
     readonly #server: HTTPServer;
 
+    readonly #exclusiveServer: boolean;
+
     readonly #socketServer: WebSocketServer;
+
+    readonly #backend: IDistributedBackend | null;
 
     readonly #middleware: Middleware<SocketRequest, ConnectionParams>;
 
@@ -30,10 +27,12 @@ export class PondSocket {
         server,
         socketServer,
         exclusiveServer = true,
+        distributedBackend,
     }: PondSocketOptions = {}) {
         this.#middleware = new Middleware();
         this.#exclusiveServer = exclusiveServer;
         this.#server = server ?? new HTTPServer();
+        this.#backend = distributedBackend ?? null;
         this.#socketServer = socketServer ?? new WebSocketServer({ noServer: true });
         this.#init();
     }
@@ -56,7 +55,7 @@ export class PondSocket {
      * Create a new endpoint
      */
     createEndpoint<Path extends string> (path: PondPath<Path>, handler: ConnectionHandler<Path>) {
-        const endpoint = new EndpointEngine();
+        const endpoint = new EndpointEngine(String(path), this.#backend);
 
         this.#middleware.use((req, params, next) => {
             const event = parseAddress(path, req.address);
@@ -90,7 +89,7 @@ export class PondSocket {
     /**
      * Handle WebSocket upgrade requests
      */
-    handleUpgrade (req: IncomingMessage, socket: internal.Duplex, head: Buffer<ArrayBufferLike>) {
+    #handleUpgrade (req: IncomingMessage, socket: internal.Duplex, head: Buffer) {
         const clientId = req.headers['sec-websocket-key'] as string;
         const request: SocketRequest = {
             id: clientId,
@@ -156,7 +155,7 @@ export class PondSocket {
             clearInterval(timeout);
         });
 
-        this.#server.on('upgrade', this.handleUpgrade.bind(this));
+        this.#server.on('upgrade', this.#handleUpgrade.bind(this));
     }
 
     /**

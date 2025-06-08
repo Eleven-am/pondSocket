@@ -1,21 +1,22 @@
-import { Server, ServerResponse, IncomingMessage, IncomingHttpHeaders } from 'http';
+import {IncomingHttpHeaders, IncomingMessage, Server as HTTPServer, Server, ServerResponse} from 'http';
 
 import {
-    IncomingConnection,
-    PondAssigns,
-    PondEvent,
-    PondEventMap,
-    PondMessage,
-    PondPath,
-    PondPresence,
-    UserData,
-    UserPresences,
-    UserAssigns,
-    JoinParams,
-    EventParams,
-    Params,
+	EventParams,
+	IncomingConnection,
+	JoinParams,
+	Params,
+	PondAssigns,
+	PondEvent,
+	PondEventMap,
+	PondMessage,
+	PondPath,
+	PondPresence,
+	Unsubscribe,
+	UserAssigns,
+	UserData,
+	UserPresences,
 } from '@eleven-am/pondsocket-common';
-import { WebSocket, WebSocketServer } from 'ws';
+import {WebSocket, WebSocketServer} from 'ws';
 
 export * from '@eleven-am/pondsocket-common';
 
@@ -24,22 +25,126 @@ export interface LeaveEvent<EventTypes extends PondEventMap = PondEventMap, Pres
     channel: Channel<EventTypes, PresenceType, AssignType>;
 }
 
-export interface OutgoingEvent<Event extends string, EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
-    payload: PondMessage;
-    event: EventParams<Event>;
-    channel: Channel<EventTypes, PresenceType, AssignType>;
-}
-
 export type LeaveCallback<EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> = (event: LeaveEvent<EventTypes, PresenceType, AssignType>) => void;
-
-export type OutgoingHandler<Event extends string, EventTypes extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> = (event: OutgoingEvent<Event, EventTypes, PresenceType, AssignType>) => PondMessage | Promise<PondMessage> | void | Promise<void>;
 
 export type RequestHandler<Request> = (request: Request) => void | Promise<void>;
 
+export interface RedisDistributedBackendOptions {
+    host?: string;
+    port?: number;
+    password?: string;
+    database?: number;
+    url?: string;
+    keyPrefix?: string;
+}
+
 export interface PondSocketOptions {
-    server?: Server;
-    exclusiveServer?: boolean;
+    server?: HTTPServer;
     socketServer?: WebSocketServer;
+    exclusiveServer?: boolean;
+    distributedBackend?: IDistributedBackend;
+}
+
+export enum DistributedMessageType {
+    STATE_REQUEST = 'STATE_REQUEST',
+    STATE_RESPONSE = 'STATE_RESPONSE',
+    USER_JOINED = 'USER_JOINED',
+    USER_LEFT = 'USER_LEFT',
+    USER_MESSAGE = 'USER_MESSAGE',
+    PRESENCE_UPDATE = 'PRESENCE_UPDATE',
+    PRESENCE_REMOVED = 'PRESENCE_REMOVED',
+    ASSIGNS_UPDATE = 'ASSIGNS_UPDATE',
+    ASSIGNS_REMOVED = 'ASSIGNS_REMOVED',
+    EVICT_USER = 'EVICT_USER'
+}
+
+export interface DistributedMessage {
+    type: DistributedMessageType;
+    endpointName: string;
+    channelName: string;
+    timestamp?: number;
+}
+
+export interface StateRequest extends DistributedMessage {
+    type: DistributedMessageType.STATE_REQUEST;
+    fromNode: string;
+}
+
+export interface StateResponse extends DistributedMessage {
+    type: DistributedMessageType.STATE_RESPONSE;
+    users: Array<{
+        id: string;
+        presence: PondPresence;
+        assigns: PondAssigns;
+    }>;
+}
+
+export interface UserJoined extends DistributedMessage {
+    type: DistributedMessageType.USER_JOINED;
+    userId: string;
+    presence: PondPresence;
+    assigns: PondAssigns;
+}
+
+export interface UserLeft extends DistributedMessage {
+    type: DistributedMessageType.USER_LEFT;
+    userId: string;
+}
+
+export interface UserMessage extends DistributedMessage {
+    type: DistributedMessageType.USER_MESSAGE;
+    fromUserId: string;
+    event: string;
+    payload: PondMessage;
+    requestId: string;
+    recipients: string[];
+}
+
+export interface PresenceUpdate extends DistributedMessage {
+    type: DistributedMessageType.PRESENCE_UPDATE;
+    userId: string;
+    presence: PondPresence;
+}
+
+export interface PresenceRemoved extends DistributedMessage {
+    type: DistributedMessageType.PRESENCE_REMOVED;
+    userId: string;
+}
+
+export interface AssignsUpdate extends DistributedMessage {
+    type: DistributedMessageType.ASSIGNS_UPDATE;
+    userId: string;
+    assigns: PondAssigns;
+}
+
+export interface AssignsRemoved extends DistributedMessage {
+    type: DistributedMessageType.ASSIGNS_REMOVED;
+    userId: string;
+}
+
+export interface EvictUser extends DistributedMessage {
+    type: DistributedMessageType.EVICT_USER;
+    userId: string;
+    reason: string;
+    fromNode?: string;
+}
+
+export type DistributedChannelMessage =
+   | StateRequest
+   | StateResponse
+   | UserJoined
+   | UserLeft
+   | UserMessage
+   | PresenceUpdate
+   | PresenceRemoved
+   | AssignsUpdate
+   | AssignsRemoved
+   | EvictUser;
+
+export interface IDistributedBackend {
+    broadcast(endpointName: string, channelName: string, message: DistributedChannelMessage): Promise<void>;
+    subscribe(endpointName: string, channelName: string, handler: (message: DistributedChannelMessage) => void): Unsubscribe;
+    cleanup(): Promise<void>;
 }
 
 export declare class PondSocket {
@@ -130,15 +235,15 @@ export declare class PondChannel<EventType extends PondEventMap = PondEventMap, 
     /**
      * @desc Handles an outgoing event, this is useful for modifying the event before it is sent to the client
      * @param {PondPath<string>} event - The event to handle
-     * @param {OutgoingHandler} handler - The handler to execute when the event is sent
+     * @param {RequestHandler} handler - The handler to execute when the event is sent
      * @example
-     * pond.onOutgoing('echo', (event) => {
+     * pond.handleOutgoingEvent('echo', (event) => {
      *     return {
      *         message: 'Hello, world!'
      *     };
      * });
      */
-    onOutgoing<Event extends string> (event: PondPath<Event>, handler: OutgoingHandler<Event, EventType, PresenceType, AssignType>): void;
+    handleOutgoingEvent<Event extends string> (event: PondPath<Event>, handler: RequestHandler<OutgoingContext<Event, PresenceType, AssignType>>): void;
 
     /**
      * @desc Gets a channel by name
@@ -360,7 +465,7 @@ export declare class ConnectionContext<Path extends string> {
     reply(event: string, payload: PondMessage): ConnectionContext<Path>;
 }
 
-export declare class JoinContext<Path extends string, EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
+export declare class BaseContext<Path extends string, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
     /**
      * @desc Get the event information.
      */
@@ -377,11 +482,6 @@ export declare class JoinContext<Path extends string, EventType extends PondEven
     get channel(): Channel;
 
     /**
-     * @desc Get the join parameters.
-     */
-    get joinParams(): JoinParams;
-
-    /**
      * @desc Get all current presences in the channel.
      */
     get presences(): UserPresences;
@@ -392,9 +492,21 @@ export declare class JoinContext<Path extends string, EventType extends PondEven
     get assigns(): UserAssigns;
 
     /**
-     * @desc Get the user data.
+     * @desc Get the user who sent the request.
      */
     get user(): UserData<PresenceType, AssignType>;
+}
+
+export declare class JoinContext<
+    Path extends string,
+    EventType extends PondEventMap = PondEventMap,
+    PresenceType extends PondPresence = PondPresence,
+    AssignType extends PondAssigns = PondAssigns
+> extends BaseContext<Path, PresenceType, AssignType> {
+    /**
+     * @desc Get the join parameters.
+     */
+    get joinParams(): JoinParams;
 
     /**
      * @desc Checks if the server has responded to the join request.
@@ -456,37 +568,12 @@ export declare class JoinContext<Path extends string, EventType extends PondEven
     trackPresence(presence: PresenceType): JoinContext<Path, PresenceType, AssignType>;
 }
 
-export declare class EventContext<Path extends string, EventType extends PondEventMap = PondEventMap, PresenceType extends PondPresence = PondPresence, AssignType extends PondAssigns = PondAssigns> {
-    /**
-     * @desc Get the event information.
-     */
-    get event(): PondEvent<Path>;
-
-    /**
-     * @desc Get the channel name.
-     */
-    get channelName(): string;
-
-    /**
-     * @desc Get the channel instance.
-     */
-    get channel(): Channel;
-
-    /**
-     * @desc Get all current presences in the channel.
-     */
-    get presences(): UserPresences;
-
-    /**
-     * @desc Get all current assigns in the channel.
-     */
-    get assigns(): UserAssigns;
-
-    /**
-     * @desc Get the user who sent the request.
-     */
-    get user(): UserData<PresenceType, AssignType>;
-
+export declare class EventContext<
+    Path extends string,
+    EventType extends PondEventMap = PondEventMap,
+    PresenceType extends PondPresence = PondPresence,
+    AssignType extends PondAssigns = PondAssigns
+> extends BaseContext<Path, PresenceType, AssignType> {
     /**
      * @desc Assigns data to the client.
      * @param {PondAssigns} assigns - The data to assign to the client.
@@ -557,4 +644,51 @@ export declare class EventContext<Path extends string, EventType extends PondEve
      * @returns {EventContext} - The EventContext instance for chaining.
      */
     evictUser(reason: string, userId?: string): EventContext<Path, EventType, PresenceType, AssignType>;
+}
+
+export class OutgoingContext<
+    Path extends string,
+    PresenceType extends PondPresence = PondPresence,
+    AssignType extends PondAssigns = PondAssigns
+> extends BaseContext<Path, PresenceType, AssignType> {
+    /**
+     * @desc Get the join parameters.
+     */
+    get payload(): PondMessage;
+
+    /**
+     * @desc Blocks the outgoing context, preventing further processing of the event.
+     */
+    block(): OutgoingContext<Path, PresenceType, AssignType>;
+
+    /**
+     * desc Transforms the outgoing context with a new payload.
+     * @param payload - The new payload to set for the context.
+     */
+    transform(payload: PondMessage): OutgoingContext<Path, PresenceType, AssignType>;
+}
+
+export declare class RedisDistributedBackend implements IDistributedBackend {
+    constructor(options?: RedisDistributedBackendOptions);
+
+    /**
+     * @desc Gets the subject for subscribing to distributed messages
+     * @param endpointName - The name of the endpoint to subscribe to
+     * @param channelName - The name of the channel to subscribe to
+     * @param message - The message to send
+     */
+    broadcast (endpointName: string, channelName: string, message: DistributedChannelMessage): Promise<void>;
+
+    /**
+     * @desc Cleans up the distributed backend, closing any connections and cleaning up resources
+     */
+    cleanup (): Promise<void>;
+
+    /**
+     * @desc Subscribe to messages for a specific endpoint and channel
+     * @param endpointName - The name of the endpoint to subscribe to
+     * @param channelName - The name of the channel to subscribe to
+     * @param handler - The handler function to call when a message is received
+     */
+    subscribe (endpointName: string, channelName: string, handler: (message: DistributedChannelMessage) => void): Unsubscribe;
 }

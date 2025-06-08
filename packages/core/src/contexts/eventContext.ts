@@ -1,13 +1,13 @@
 import {
-    EventParams,
-    PondObject,
-    ServerActions,
-    PondPresence,
-    PondMessage,
     ChannelReceiver,
     ChannelReceivers,
-    SystemSender,
+    EventParams,
     PondAssigns,
+    PondMessage,
+    PondObject,
+    PondPresence,
+    ServerActions,
+    SystemSender,
 } from '@eleven-am/pondsocket-common';
 
 import { BaseContext } from './baseContext';
@@ -25,16 +25,9 @@ export class EventContext<Path extends string> extends BaseContext<Path> {
     readonly #requestId: string;
 
     constructor (event: BroadcastEvent, params: EventParams<Path>, engine: ChannelEngine) {
-        super(engine, params, event.event, event.payload);
+        super(engine, params, event.event, event.payload, event.sender);
         this.#event = event;
         this.#requestId = event.requestId;
-    }
-
-    /**
-     * The user who sent the request
-     */
-    get user () {
-        return this.channel.getUserData(this.#event.sender);
     }
 
     /**

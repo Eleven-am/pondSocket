@@ -1,19 +1,20 @@
 import type {
-    Channel as PondChannel,
-    LeaveEvent,
-    ConnectionContext,
-    JoinContext,
-    EventContext,
-    PondAssigns,
-    PondEvent,
-    PondEventMap,
-    PondMessage,
-    PondPresence,
-    UserData,
-    Params,
-    JoinParams,
+	Channel as PondChannel,
+	ConnectionContext,
+	EventContext,
+	IDistributedBackend,
+	JoinContext,
+	JoinParams,
+	LeaveEvent,
+	Params,
+	PondAssigns,
+	PondEvent,
+	PondEventMap,
+	PondMessage,
+	PondPresence,
+	UserData,
 } from '@eleven-am/pondsocket/types';
-import type { DynamicModule, ModuleMetadata, PipeTransform } from '@nestjs/common';
+import type {DynamicModule, ModuleMetadata, PipeTransform} from '@nestjs/common';
 
 type Constructor<T> = new (...args: any[]) => T;
 
@@ -33,6 +34,13 @@ interface Metadata extends Omit<ModuleMetadata, 'controllers'> {
     pipes?: Constructor<PipeTransform>[];
     isExclusiveSocketServer?: boolean;
     isGlobal?: boolean;
+}
+
+interface AsyncMetadata extends Omit<Metadata, 'backend'> {
+	isGlobal?: boolean;
+	inject?: any[];
+	imports?: any[];
+	useFactory: (...args: any[]) => Promise<IDistributedBackend> | IDistributedBackend;
 }
 
 type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
@@ -273,5 +281,7 @@ declare function createParamDecorator<Input, ParamType> (callback: ParamDecorato
 
 declare class PondSocketModule {
     static forRoot({ guards, providers, imports, exports, isGlobal }: Metadata): DynamicModule;
+	
+	static forRootAsync({ guards, providers, imports, exports, isGlobal, inject, useFactory }: AsyncMetadata): DynamicModule;
 }
 

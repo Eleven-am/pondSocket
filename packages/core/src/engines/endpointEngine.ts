@@ -1,45 +1,49 @@
 import {
     ChannelEvent,
-    PondPath,
-    JoinParams,
-    ClientMessage,
     ClientActions,
+    ClientMessage,
     clientMessageSchema,
     ErrorTypes,
-    ServerActions,
-    uuid,
-    SystemSender,
     Events,
+    JoinParams,
+    PondPath,
+    ServerActions,
+    SystemSender,
+    uuid,
 } from '@eleven-am/pondsocket-common';
 import { WebSocket } from 'ws';
 
 import { LobbyEngine } from './lobbyEngine';
 import { Middleware } from '../abstracts/middleware';
-import { SocketCache, AuthorizationHandler, RequestCache, JoinRequestOptions } from '../abstracts/types';
+import { AuthorizationHandler, JoinRequestOptions, RequestCache, SocketCache } from '../abstracts/types';
 import { JoinContext } from '../contexts/joinContext';
 import { HttpError } from '../errors/httpError';
 import { parseAddress } from '../matcher/matcher';
+import { IDistributedBackend } from '../types';
 import { PondChannel } from '../wrappers/pondChannel';
 
 
 export class EndpointEngine {
     readonly #sockets: Map<string, SocketCache>;
 
+    readonly #backend: IDistributedBackend | null;
+
     readonly #middleware: Middleware<RequestCache, JoinParams>;
 
     readonly #lobbyEngines: Map<PondPath<string>, LobbyEngine>;
 
-    constructor () {
+    constructor (public readonly path: string, backend: IDistributedBackend | null) {
         this.#sockets = new Map();
         this.#lobbyEngines = new Map();
         this.#middleware = new Middleware();
+        this.#backend = backend || null;
     }
 
     /**
      * Creates a new channel on a specified path
      */
     createChannel<Path extends string> (path: PondPath<Path>, handler: AuthorizationHandler<Path>) {
-        const lobbyEngine = new LobbyEngine(this);
+        const lobbyEngine = new LobbyEngine(this, this.#backend);
 
         this.#middleware.use((user, joinParams, next) => {
             const event = parseAddress(path, user.channelName);

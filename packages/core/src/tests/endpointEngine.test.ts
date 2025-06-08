@@ -1,10 +1,10 @@
 import {
     ChannelEvent,
-    ServerActions,
-    SystemSender,
-    PondPath,
     ClientActions,
     ClientMessage,
+    PondPath,
+    ServerActions,
+    SystemSender,
 } from '@eleven-am/pondsocket-common';
 
 import { SocketCache } from '../abstracts/types';
@@ -17,7 +17,7 @@ describe('EndpointEngine', () => {
     let endpointEngine: EndpointEngine;
 
     beforeEach(() => {
-        endpointEngine = new EndpointEngine();
+        endpointEngine = new EndpointEngine('/test-channel', null);
     });
 
     afterEach(() => {

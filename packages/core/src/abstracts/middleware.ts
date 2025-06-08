@@ -67,6 +67,32 @@ export class Middleware<Request, Response> {
         next();
     }
 
+    runAsync (req: Request, res: Response, final: NextFunction): Promise<void> {
+        let index = 0;
+
+        const next = async (err?: HttpError) => {
+            if (err) {
+                return final(this.#handleError(err));
+            }
+
+            if (index >= this.#stack.length) {
+                return final();
+            }
+
+            const middleware = this.#stack[index];
+
+            index++;
+
+            try {
+                await middleware(req, res, next);
+            } catch (error) {
+                return final(this.#handleError(error));
+            }
+        };
+
+        return next();
+    }
+
     #handleError (error: unknown): HttpError {
         if (error instanceof HttpError) {
             return error;
