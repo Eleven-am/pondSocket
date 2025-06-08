@@ -1,22 +1,22 @@
-import {IncomingHttpHeaders, IncomingMessage, Server as HTTPServer, Server, ServerResponse} from 'http';
+import { IncomingHttpHeaders, IncomingMessage, Server as HTTPServer, Server, ServerResponse } from 'http';
 
 import {
-	EventParams,
-	IncomingConnection,
-	JoinParams,
-	Params,
-	PondAssigns,
-	PondEvent,
-	PondEventMap,
-	PondMessage,
-	PondPath,
-	PondPresence,
-	Unsubscribe,
-	UserAssigns,
-	UserData,
-	UserPresences,
+    EventParams,
+    IncomingConnection,
+    JoinParams,
+    Params,
+    PondAssigns,
+    PondEvent,
+    PondEventMap,
+    PondMessage,
+    PondPath,
+    PondPresence,
+    Unsubscribe,
+    UserAssigns,
+    UserData,
+    UserPresences,
 } from '@eleven-am/pondsocket-common';
-import {WebSocket, WebSocketServer} from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
 export * from '@eleven-am/pondsocket-common';
 
