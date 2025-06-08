@@ -42,7 +42,7 @@ export class PondSocketModule {
 					resolvedMetadata,
 				);
 			},
-			inject: [ModuleRef, DiscoveryService, HttpAdapterHost, ...(metadata.inject || [])],
+			inject: [ModuleRef, HttpAdapterHost, DiscoveryService, ...(metadata.inject || [])],
 		};
 		
 		return this.buildModule(pondSocketProvider, metadata);

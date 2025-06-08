@@ -1,7 +1,8 @@
 import { Subject, Unsubscribe } from '@eleven-am/pondsocket-common';
 import { createClient, RedisClientType } from 'redis';
 
-import { DistributedChannelMessage, DistributedMessageType, IDistributedBackend } from '../types';
+import { DistributedChannelMessage, IDistributedBackend } from '../types';
+import { DistributedMessageType } from './types';
 
 interface RedisDistributedBackendOptions {
     host?: string;
