@@ -561,7 +561,6 @@ export class ChannelEngine {
      * Handle messages from other nodes
      */
     #handleDistributedMessage (message: DistributedChannelMessage): void {
-        console.log(message);
         switch (message.type) {
             case DistributedMessageType.STATE_REQUEST:
                 this.#handleStateRequest(message);

@@ -1,514 +1,502 @@
-# PondSocket
+# PondSocket NestJS Integration
 
-PondSocket is a high-performance, minimalist, and bidirectional socket framework designed for Node.js. It provides a seamless way to handle real-time communication between server and client applications, making it an ideal choice for building WebSocket-based projects.
+This package provides a NestJS integration layer for PondSocket, making it easy to use PondSocket's real-time WebSocket functionality within NestJS applications.
 
 ## Installation
 
-To integrate PondSocket into your Node.js project, simply install it via npm:
-
 ```bash
-npm install @eleven-am/pondsocket-client
+npm install @eleven-am/pondsocket-nest
 ```
 
 ## Overview
 
-PondSocket simplifies the complexity of handling WebSocket connections by abstracting the communication process into individual requests rather than dealing with intricate callbacks within the connection event. It offers a lightweight yet powerful solution for managing bidirectional communication channels, enabling real-time updates and collaboration between server and client components.
-
-## Server-side Usage
-
-When setting up the server, PondSocket allows you to create multiple endpoints, each serving as a gateway for sockets to connect and communicate. Each endpoint operates independently, ensuring that sockets from one endpoint cannot interact with sockets from another. This isolation enhances security and simplifies resource management.
-
-```javascript
-import PondSocket from "@eleven-am/pondsocket";
-
-const pond = new PondSocket();
-
-// Create an endpoint for handling socket connections
-const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
-    // Handle socket connection and authentication
-});
-
-// Start the server
-pond.listen(3000);
-
-// Or alternatively, working with express
-import pondSocket from "@eleven-am/pondsocket/express";
-import express from "express";
-
-const app = pondSocket(express());
-
-const endpoint = app.upgrade('/api/socket', (req, res) => {
-    // Handle socket connection and authentication
-});
-
-app.listen(3000);
-```
-
-Within each endpoint, sockets interact through channels. Channels provide an organized way to group users and manage efficient communication among them. When users join a channel, they can participate in real-time events and exchange information with other users in the same channel.
-
-```javascript
-const channel = endpoint.createChannel('/channel/:id', (req, res) => {
-    // Handle the join request, which is sent when a user attempts to join the channel
-});
-```
-
-## Client-side Usage
-
-On the client-side, PondSocket provides the PondClient class to establish connections with the server. Clients can easily initiate connections, join channels, and participate in real-time interactions.
-
-```javascript
-import PondClient from "@eleven-am/pondsocket-client";
-
-const socket = new PondClient('/api/socket', {});
-socket.connect();
-```
-
-Once connected, clients can create and join channels to engage in real-time communication with other users and the server.
-
-```javascript
-const channel = socket.createChannel('/channel/123');
-channel.join();
-```
-
-### Node Client
-
-PondSocket also offers a Node.js client, which can be imported using:
-
-```javascript
-import PondClient from "@eleven-am/pondsocket-client";
-```
-
-This node client allows you to turn another server into a client, enabling easy communication between different server instances.
+This package integrates PondSocket's powerful WebSocket capabilities with NestJS's architecture and dependency injection system. It provides decorators and services that make it natural to use WebSocket functionality in a NestJS application while maintaining all of PondSocket's features.
 
 ## Key Features
 
-- **Simple and Efficient API**: PondSocket offers an easy-to-use API, making WebSocket communication straightforward and hassle-free.
-- **Organized Channels**: Channels provide a structured approach for grouping users and facilitating efficient communication.
-- **Assigns**: PondSocket allows the storage of private information for users and channels, enhancing data security.
-- **Presence**: The presence feature keeps track of users' current states and notifies other users about any changes.
-- **Broadcasting**: PondSocket enables broadcasting messages to all users or specific groups within a channel, facilitating real-time updates.
-- **Typed and Well-documented**: The codebase is thoroughly documented and typed, providing a seamless development experience with improved IDE suggestions.
+- **NestJS Integration**: Seamless integration with NestJS's module system and dependency injection
+- **Decorator-based API**: Use familiar NestJS-style decorators for WebSocket endpoints and channels
+- **Guard Support**: Full integration with NestJS guards for authentication and authorization
+- **Pipe Support**: Use NestJS pipes for data transformation and validation
+- **Type Safety**: Complete TypeScript support with proper type definitions
+- **Distributed Support**: Maintains PondSocket's distributed backend capabilities
+- **Automatic Discovery**: Uses NestJS's discovery service to automatically find and manage WebSocket endpoints
 
-## Examples
+## Basic Usage
 
-### Client-side Example with Authentication
+### Module Setup
 
-To connect to the PondSocket server and send messages while associating a username with the client connection, follow the steps below:
+```typescript
+import { Module } from '@nestjs/common';
+import { PondSocketModule } from '@eleven-am/pondsocket-nest';
 
-```javascript
+@Module({
+  imports: [
+    PondSocketModule.forRoot({
+      guards: [AuthGuard], // Optional: Global guards
+      pipes: [ValidationPipe], // Optional: Global pipes
+      isGlobal: true, // Optional: Make the module global
+    })
+  ]
+})
+export class AppModule {}
+```
+
+### Creating WebSocket Endpoints
+
+```typescript
+import { Controller } from '@nestjs/common';
+import { PondSocketEndpoint, PondSocketConnection, Context } from '@eleven-am/pondsocket-nest';
+
+@PondSocketEndpoint('/api/socket')
+export class SocketController {
+  @PondSocketConnection()
+  async handleConnection(ctx: Context) {
+    const token = ctx.request.query.token;
+    
+    if (isValidToken(token)) {
+      const role = getRoleFromToken(token);
+      ctx.accept({ role });
+    } else {
+      ctx.reject('Invalid token', 401);
+    }
+  }
+}
+```
+
+### Creating Channels
+
+```typescript
+import { Controller } from '@nestjs/common';
+import { PondSocketChannel, PondSocketJoin, Context } from '@eleven-am/pondsocket-nest';
+
+@PondSocketChannel('/channel/:id')
+export class ChannelController {
+  @PondSocketJoin()
+  async handleJoin(ctx: Context) {
+    const { role } = ctx.user.assigns;
+    const { username } = ctx.joinParams;
+    const { id } = ctx.event.params;
+
+    if (role === 'admin') {
+      ctx.accept({ username })
+        .trackPresence({
+          username,
+          role,
+          status: 'online',
+          onlineSince: Date.now(),
+        });
+    } else {
+      ctx.decline('Insufficient permissions', 403);
+    }
+  }
+}
+```
+
+### Handling Channel Events
+
+```typescript
+import { Controller } from '@nestjs/common';
+import { PondSocketEvent, Context } from '@eleven-am/pondsocket-nest';
+
+@PondSocketChannel('/channel/:id')
+export class ChannelController {
+  @PondSocketEvent('message')
+  async handleMessage(ctx: Context) {
+    const { text } = ctx.event.payload;
+    
+    // Broadcast to all users in the channel
+    ctx.broadcast('message', { text });
+    
+    // Broadcast to specific users
+    ctx.broadcastTo(['user1', 'user2'], 'message', { text });
+    
+    // Broadcast to all except sender
+    ctx.broadcastFrom('message', { text });
+  }
+}
+```
+
+## Advanced Features
+
+### Presence Management
+
+```typescript
+@PondSocketChannel('/channel/:id')
+export class ChannelController {
+  @PondSocketEvent('presence')
+  async handlePresence(ctx: Context) {
+    ctx.trackPresence({
+      username: ctx.user.assigns.username,
+      status: 'online',
+      lastSeen: Date.now()
+    });
+  }
+}
+```
+
+### User Assigns
+
+```typescript
+@PondSocketChannel('/channel/:id')
+export class ChannelController {
+  @PondSocketEvent('update-profile')
+  async handleProfileUpdate(ctx: Context) {
+    ctx.assign({
+      ...ctx.user.assigns,
+      profile: ctx.event.payload
+    });
+  }
+}
+```
+
+### Error Handling
+
+```typescript
+@PondSocketChannel('/channel/:id')
+export class ChannelController {
+  @PondSocketEvent('message')
+  async handleMessage(ctx: Context) {
+    try {
+      // Your logic here
+      ctx.accept();
+    } catch (error) {
+      ctx.decline(error.message, 400);
+    }
+  }
+}
+```
+
+## Distributed Deployment
+
+The package maintains PondSocket's distributed deployment capabilities:
+
+```typescript
+import { Module } from '@nestjs/common';
+import { PondSocketModule } from '@eleven-am/pondsocket-nest';
+import { RedisBackend } from '@eleven-am/pondsocket';
+
+@Module({
+  imports: [
+    PondSocketModule.forRoot({
+      backend: new RedisBackend({
+        host: 'localhost',
+        port: 6379
+      })
+    })
+  ]
+})
+export class AppModule {}
+```
+
+### Distributed Mode Features
+
+The distributed mode enables you to scale your WebSocket application across multiple server instances while maintaining state synchronization. Here are the key features:
+
+1. **State Synchronization**
+   - Channel presence is synchronized across all instances
+   - User assigns are shared between instances
+   - Channel events are broadcasted to all instances
+
+2. **Load Balancing**
+   - Multiple server instances can handle WebSocket connections
+   - Connections are distributed across available instances
+   - Automatic failover if an instance goes down
+
+3. **Backend Options**
+   ```typescript
+   // Redis Backend (Recommended for production)
+   import { RedisBackend } from '@eleven-am/pondsocket';
+   
+   PondSocketModule.forRoot({
+     backend: new RedisBackend({
+       host: 'localhost',
+       port: 6379,
+       password: 'optional-password',
+       db: 0,
+       keyPrefix: 'pondsocket:', // Optional prefix for Redis keys
+     })
+   })
+
+   // Memory Backend (For development/testing)
+   import { MemoryBackend } from '@eleven-am/pondsocket';
+   
+   PondSocketModule.forRoot({
+     backend: new MemoryBackend()
+   })
+   ```
+
+4. **Configuration Options**
+   ```typescript
+   interface DistributedBackendOptions {
+     // Redis specific options
+     host?: string;
+     port?: number;
+     password?: string;
+     db?: number;
+     keyPrefix?: string;
+     
+     // General options
+     reconnectInterval?: number; // Time between reconnection attempts
+     maxRetries?: number; // Maximum number of reconnection attempts
+     timeout?: number; // Operation timeout in milliseconds
+   }
+   ```
+
+5. **Error Handling**
+   ```typescript
+   @PondSocketChannel('/channel/:id')
+   export class ChannelController {
+     @PondSocketEvent('message')
+     async handleMessage(ctx: Context) {
+       try {
+         // Your logic here
+         ctx.accept();
+       } catch (error) {
+         // Handle distributed backend errors
+         if (error instanceof DistributedBackendError) {
+           // Handle specific distributed backend errors
+           ctx.decline('Backend error occurred', 500);
+         } else {
+           ctx.decline(error.message, 400);
+         }
+       }
+     }
+   }
+   ```
+
+6. **Health Checks**
+   ```typescript
+   import { PondSocketService } from '@eleven-am/pondsocket-nest';
+
+   @Controller('health')
+   export class HealthController {
+     constructor(private readonly pondSocketService: PondSocketService) {}
+
+     @Get('websocket')
+     async checkWebSocketHealth() {
+       const isHealthy = await this.pondSocketService.isHealthy();
+       return {
+         status: isHealthy ? 'healthy' : 'unhealthy',
+         timestamp: new Date().toISOString()
+       };
+     }
+   }
+   ```
+
+7. **Best Practices**
+   - Use Redis backend in production environments
+   - Implement proper error handling for distributed operations
+   - Monitor backend connection health
+   - Use appropriate Redis configuration for your scale
+   - Consider using Redis Cluster for high availability
+   - Implement proper logging for distributed operations
+
+8. **Scaling Considerations**
+   - Monitor Redis memory usage
+   - Implement proper cleanup of stale data
+   - Consider using Redis Cluster for larger deployments
+   - Implement proper error handling and retry mechanisms
+   - Monitor network latency between instances
+   - Implement proper logging and monitoring
+
+## Configuration Options
+
+The `PondSocketModule.forRoot()` method accepts the following options:
+
+```typescript
+interface PondSocketOptions {
+  guards?: any[]; // Global guards
+  pipes?: any[]; // Global pipes
+  providers?: any[]; // Additional providers
+  imports?: any[]; // Additional imports
+  exports?: any[]; // Additional exports
+  isGlobal?: boolean; // Make the module global
+  isExclusiveSocketServer?: boolean; // Use exclusive socket server
+  backend?: IDistributedBackend; // Distributed backend
+}
+```
+
+## Client Usage
+
+The client-side usage remains the same as the core PondSocket package:
+
+```typescript
 import PondClient from "@eleven-am/pondsocket-client";
 
-// Your server URL
-const serverUrl = 'ws://your-server-url/api/socket';
+const socket = new PondClient('ws://your-server/api/socket', {
+    token: 'your-auth-token'
+});
 
-// Your authenticated user's token (replace with actual token)
-const authToken = 'your-auth-token';
-
-// Your username (replace with actual username)
-const username = 'user123';
-
-// Create a new PondClient instance
-const socket = new PondClient(serverUrl, { token: authToken });
-
-// Connect to the server
 socket.connect();
 
-// Add event listeners to handle various scenarios
-socket.onConnectionChange((connected) => {
-    if (connected) {
-        console.log('Connected to the server.');
-    } else {
-        console.log('Disconnected from the server.');
-    }
+const channel = socket.createChannel('/channel/123', {
+    username: 'user123'
 });
 
-// Create a channel and join it
-const channel = socket.createChannel('/channel/123', { username });
 channel.join();
 
-// Send a message to the server
-const message = "Hello, PondSocket!";
-channel.broadcast('message', { text: message });
-
-// Handle received messages
-// Certain methods in the channel instance returns a subscription function, which can be used to unsubscribe from the event
-const subscription = channel.onMessage((event, message) => {
-    console.log(`Received message from server: ${message.text}`);
+channel.onMessage((event, message) => {
+    console.log(`Received message: ${message.text}`);
 });
 
-// Unsubscribe from the event
-subscription();
+channel.broadcast('message', { text: 'Hello, PondSocket!' });
 ```
 
-The client will now connect to the server, and the server will receive the necessary headers automatically, including any authentication tokens or cookies, as required by the browser.
+## Contributing
 
-### Server-side Example with Authentication and check for profanity before broadcasting
-
-To create a PondSocket server that accepts authenticated connections and checks for profanity before broadcasting messages, follow the steps below:
-
-```javascript
-import PondSocket from "@eleven-am/pondsocket";
-
-// Helper functions for token validation
-function isValidToken(token) {
-    // Implement your token validation logic here
-    // Return true if the token is valid, false otherwise
-    return true;
-}
-
-function getRoleFromToken(token) {
-    // Implement the logic to extract the user's role from the token
-    // Return the user's role
-    return 'user';
-}
-
-function isTextProfane(text) {
-    // Implement your profanity check logic here
-    // Return true if the text is profane, false otherwise
-    return false;
-}
-
-function getMessagesFromDatabase(channelId) {
-    // Implement your logic to retrieve messages from the database
-    // Return an array of messages
-    return [];
-}
-
-const pond = new PondSocket();
-
-// Create an endpoint for handling socket connections
-const endpoint = pond.createEndpoint('/api/socket', (req, res) => {
-    // Depending if the user already has cookies set, they can be accessed from the request headers or the request address
-    const token = req.query.token; // If the token is passed as a query parameter
-
-    // Perform token validation here
-    if (isValidToken(token)) {
-        // Extract the authenticated user's username
-        const role = getRoleFromToken(token);
-
-        // Handle socket connection and authentication for valid users
-        res.accept({role}); // Assign the user's role to the socket
-    } else {
-        // Reject the connection for invalid users or without a token
-        res.decline('Invalid token', 401);
-    }
-});
-
-// Create a channel, providing a callback that is called when a user attempts to join the channel
-const profanityChannel = endpoint.createChannel('/channel/:id', async (req, res) => {
-    // When joining the channel, any joinParams passed from the client will be available in the request payload
-    // Also any previous assigns on the socket will be available in the request payload as well
-    const {role} = req.user.assigns;
-    const {username} = req.joinParams;
-    const {id} = req.event.params;
-
-    // maybe retrieve the previous messages from the database
-    const messages = await getMessagesFromDatabase(id);
-
-    // Check if the user has the required role to join the channel
-    if (role === 'admin') {
-        // Accept the join request
-        res.accept({username, profanityCount: 0})
-            // optionally you can track the presence of the user in the channel
-            .trackPresence({
-                username,
-                role,
-                status: 'online',
-                onlineSince: Date.now(),
-            })
-            // and send the user the channel history
-            .reply('history', {messages});
-    } else {
-        // Reject the join request
-        res.decline('You do not have the required role to join this channel', 403);
-    }
-});
-
-// Attach message event listener to the profanityChannel
-profanityChannel.onEvent('message', (req, res) => {
-    const {text} = req.event.payload;
-
-    // Check for profanity
-    if (isTextProfane(text)) {
-        // Reject the message if it contains profanity
-        res.decline('Profanity is not allowed', 400, {
-            profanityCount: req.user.assigns.profanityCount + 1
-        });
-
-        // note that profanityCount is updated so req.user.assigns.profanityCount will be updated
-        if (req.user.assigns.profanityCount >= 3) {
-            // Kick the user from the channel if they have used profanity more than 3 times
-            res.evictUser('You have been kicked from the channel for using profanity');
-        } else {
-            // you can broadcast a message to all users or In the channel that profanity is not allowed
-            res.broadcast('profanity-warning', {message: 'Profanity is not allowed'})
-                // or you can send a message to the user that profanity is not allowed
-                .sendToUsers('profanity-warning', {message: `You have used profanity ${profanityCount} times. You will be kicked from the channel if you use profanity more than 3 times.`}, [req.user.id]);
-        }
-    } else {
-        // Accept the message to allow broadcasting to other clients in the channel
-        res.accept();
-    }
-
-    // for more complete access to the channel, you can use the channel instance
-    // const channel = req.channel;
-});
-
-profanityChannel.onEvent('presence/:presence', (req, res) => {
-    const {presence} = req.event.params;
-    const {username} = req.user.assigns;
-
-    // Handle presence events
-    res.updatePresence({
-        username,
-        role,
-        onlineSince: Date.now(),
-        status: presence,
-    });
-});
-
-profanityChannel.onLeave((event) => {
-    const {username} = event.assigns;
-
-    // When a user leaves the channel, PondSocket will automatically remove the user from the presence list and inform other users in the channel
-
-    // perform a cleanup operation here
-});
-
-// Start the server
-pond.listen(3000, () => {
-    console.log('PondSocket server listening on port 3000');
-});
-```
-
-## API Documentation
-
-### PondSocket
-
-The `PondSocket` class is the core class that represents the socket server.
-
-**Constructor:**
-
-- `constructor(server?: HTTPServer, socketServer?: WebSocketServer)`: Creates a new instance of the PondSocket with an optional HTTP server and WebSocket server.
-
-**Methods:**
-
-- `listen(...args: any[]): HTTPServer`: Specifies the port to listen on with the provided arguments.
-
-- `close(callback?: () => void): HTTPServer`: Closes the server, and an optional callback can be provided.
-
-- `createEndpoint<Path extends string>(path: PondPath<Path>, handler: (request: IncomingConnection<Path>, response: ConnectionResponse) => void | Promise<void>): Endpoint`: Accepts a new socket upgrade request on the provided endpoint using the handler function to authenticate the socket.
-
-### ConnectionResponse
-
-The `ConnectionResponse` class represents the response object for the incoming connection.
-
-**Methods:**
-
-- `accept(assigns?: PondAssigns): void`: Accepts the request and optionally assigns data to the client.
-
-- `reject(message?: string, errorCode?: number): void`: Rejects the request with the given error message and optional error code.
-
-- `send(event: string, payload: PondMessage, assigns?: PondAssigns): void`: Emits a direct message to the client with the specified event and payload.
-
-### Endpoint
-
-The `Endpoint` class represents an endpoint in the PondSocket server where channels can be created.
-
-**Methods:**
-
-- `createChannel<Path extends string>(path: PondPath<Path>, handler: (request: JoinRequest<Path>, response: JoinResponse) => void | Promise<void>): PondChannel`: Adds a new PondChannel to this path on this endpoint with the provided handler function to authenticate the client.
-
-- `broadcast(event: string, payload: PondMessage): void`: Broadcasts a message to all clients connected to this endpoint with the specified event and payload.
-
-- `closeConnection(clientIds: string | string[]): void`: Closes specific clients connected to this endpoint identified by the provided clientIds.
-
-### JoinRequest
-
-The `JoinRequest` class represents the request object when a client joins a channel.
-
-**Properties:**
-
-- `event: PondEvent<Path>`: The event associated with the request.
-
-- `channelName: string`: The name of the channel.
-
-- `assigns: UserAssigns`: The assigns data for the client.
-
-- `presence: UserPresences`: The presence data for the client.
-
-- `joinParams: JoinParams`: The join parameters for the client.
-
-- `user: UserData`: The user data associated with the client.
-
-- `channel: Channel`: The Channel instance associated with the request.
-
-### JoinResponse
-
-The `JoinResponse` class represents the response object for the join request.
-
-**Methods:**
-
-- `accept(assigns?: PondAssigns): JoinResponse`: Accepts the join request and optionally assigns data to the client.
-
-- `reject(message?: string, errorCode?: number): JoinResponse`: Rejects the join request with the given error message and optional error code.
-
-- `send(event: string, payload: PondMessage, assigns?: PondAssigns): JoinResponse`: Emits a direct message to the client with the specified event, payload, and optional assigns data.
-
-- `broadcast(event: string, payload: PondMessage): JoinResponse`: Emits a message to all clients in the channel with the specified event and payload.
-
-- `broadcastFromUser(event: string, payload: PondMessage): JoinResponse`: Emits a message to all clients in the channel except the sender with the specified event and payload.
-
-- `sendToUsers(event: string, payload: PondMessage, userIds: string[]): JoinResponse`: Emits a message to a specific set of clients identified by the provided userIds with the specified event and payload.
-
-- `trackPresence(presence: PondPresence): JoinResponse`: Tracks the presence of the client in the channel.
-
-### PondChannel
-
-The `PondChannel` class represents a Generic channel in the PondSocket server. It is used to create a channel whose path matches the provided PondPath.
-
-**Methods:**
-
-- `onEvent<Event extends string>(event: PondPath<Event>, handler: (request: EventRequest<Event>, response: EventResponse) => void | Promise<void>): void`: Handles an event request made by a user for the specified event with the provided handler function.
-
-- `broadcast(event: string, payload: PondMessage, channelName?: string): void`: Broadcasts a message to all users in the channel with the specified event and payload. Optionally, a specific channel name can be provided to broadcast the message only to users in that channel.
-
-- `onLeave(handler: (event: LeaveEvent) => void | Promise<void>): void`: Handles a leave event for the channel with the provided handler function when a user leaves the channel.
-
-### EventRequest
-
-The `EventRequest` class represents the request object when an event is received from a client.
-
-**Properties:**
-
-- `event: PondEvent<Path>`: The event associated with the request.
-
-- `channelName: string`: The name of the channel.
-
-- `assigns: UserAssigns`: The assigns data for the client.
-
-- `presence: UserPresences`: The presence data for the client.
-
-- `user: UserData`: The user data associated with the client.
-
-- `channel: Channel`: The Channel instance associated with the request.
-
-### EventResponse
-
-The `EventResponse` class represents the response object for handling events from clients.
-
-**Methods:**
-
-- `accept(assigns?: PondAssigns): EventResponse`: Accepts the request and optionally assigns data to the client.
-
-- `reject(message?: string, errorCode?: number, assigns?: PondAssigns): EventResponse`: Rejects the request with the given error message, optional error code, and optional assigns data.
-
-- `send(event: string, payload: PondMessage, assigns?: PondAssigns): void`: Emits a direct message to the client with the specified event, payload, and optional assigns data.
-
-- `broadcast(event: string, payload: PondMessage): EventResponse`: Sends a message to all clients in the channel with the specified event and payload.
-
-- `broadcastFromUser(event: string, payload: PondMessage): EventResponse`: Sends a message to all clients in the channel except the sender with the specified event and payload.
-
-- `sendToUsers(event: string, payload: PondMessage, userIds: string[]): EventResponse`: Sends a message to a specific set of clients identified by the provided userIds with the specified event and payload.
-
-- `trackPresence(presence: PondPresence, userId?: string): EventResponse`: Tracks a user's presence in the channel.
-
-- `updatePresence(presence: PondPresence, userId?: string): EventResponse`: Updates a user's presence in the channel.
-
-- `unTrackPresence(userId?: string): EventResponse`: Removes a user's presence from the channel.
-
-- `evictUser(reason: string, userId?: string): void`: Evicts a user from the channel.
-
-- `closeChannel(reason: string): void`: Closes the channel from the server-side for all clients.
-
-### Channel
-
-The `Channel` class represents a single Channel created by the PondSocket server. Note that a PondChannel can have multiple channels associated with it.
-
-**Methods:**
-
-- `name: string`: The name of the channel.
-
-- `getAssigns: UserAssigns`: Gets the current assign data for the client.
-
-- `getUserData(userId: string): UserData`: Gets the assign data for a specific user identified by the provided `userId`.
-
-- `broadcastMessage(event: string, payload: PondMessage): void`: Broadcasts a message to every client in the channel with the specified event and payload.
-
-- `sendToUser(userId: string, event: string, payload: PondMessage): void`: Sends a message to a specific client in the channel identified by the provided `userId`, with the specified event and payload.
-
-- `sendToUsers(userIdS: string[], event: string, payload: PondMessage): void`: Sends a message to a specific set of clients identified by the provided `userIdS`, with the specified event and payload.
-
-- `evictUser(userId: string, reason?: string): void`: Bans a user from the channel identified by the provided `userId`. Optionally, you can provide a `reason` for the ban.
-
-- `trackPresence(userId: string, presence: PondPresence): void`: Tracks a user's presence in the channel identified by the provided `userId`.
-
-- `removePresence(userId: string): void`: Removes a user's presence from the channel identified by the provided `userId`.
-
-- `updatePresence(userId: string, presence: PondPresence): void`: Updates a user's presence in the channel identified by the provided `userId`.
-
-### PondClient
-
-The `PondClient` class represents a client that connects to the PondSocket server.
-
-**Constructor:**
-
-- `constructor(endpoint: string, params?: Record<string, any>)`: Creates a new instance of the PondClient with the provided endpoint URL and optional parameters.
-
-**Methods:**
-
-- `connect(backoff?: number): void`: Connects to the server with an optional backoff time.
-
-- `getState(): boolean`: Returns the current state of the socket.
-
-- `disconnect(): void`: Disconnects the socket.
-
-- `createChannel(name: string, params?: JoinParams): ClientChannel`: Creates a channel with the given name and optional join parameters.
-
-- `onConnectionChange(callback: (state: boolean) => void): Unsubscribe`: Subscribes to the connection state changes and calls the provided callback when the state changes.
-
-### ClientChannel
-
-The `ClientChannel` class represents a channel in the PondClient.
-
-**Methods:**
-
-- `join(): void`: Connects to the channel.
-
-- `leave(): void`: Disconnects from the channel.
-
-- `onMessage(callback: (event: string, message: PondMessage) => void): Unsubscribe`: Monitors the channel for messages and calls the provided callback when a message is received.
-
-- `onMessageEvent(event: string, callback: (message: PondMessage) => void): Unsubscribe`: Monitors the channel for messages with the specified event and calls the provided callback when a message is received.
-
-- `onChannelStateChange(callback: (connected: ChannelState) => void): Unsubscribe`: Monitors the channel state of the channel and calls the provided callback when the connection state changes.
-
-- `onJoin(callback: (presence: PondPresence) => void): Unsubscribe`: Detects when clients join the channel and calls the provided callback when a client joins the channel.
-
-- `onLeave(callback: (presence: PondPresence) => void): Unsubscribe`: Detects when clients leave the channel and calls the provided callback when a client leaves the channel.
-
-- `onPresenceChange(callback: (presence: PresencePayload) => void): Unsubscribe`: Detects when clients change their presence in the channel and calls the provided callback when a client changes their presence in the channel.
-
-- `sendMessage(event: string, payload: PondMessage, recipient: string[]): void`: Sends a message to specific clients in the channel with the specified event, payload, and recipient.
-
-- `sendForResponse(event: string, payload: PondMessage): Promise<PondMessage>`: Sends a message to the server with the specified event, payload, and returns a promise that resolves with the response.
-
-- `broadcastFrom(event: string, payload: PondMessage): void`: Broadcasts a message to every other client in the channel except yourself with the specified event and payload.
-
-- `broadcast(event: string, payload: PondMessage): void`: Broadcasts a message to the channel, including yourself, with the specified event and payload.
-
-- `getPresence(): PondPresence[]`: Gets the current presence of the channel.
-
-- `onUsersChange(callback: (users: PondPresence[]) => void): Unsubscribe`: Monitors the presence of the channel and calls the provided callback when the presence changes.
-
-- `isConnected(): boolean`: Gets the current connection state of the channel.
-
-- `onConnectionChange(callback: (connected: boolean) => void): Unsubscribe`: Monitors the connection state of the channel and calls the provided callback when the connection state changes.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-PondSocket is released under the GPL-3.0 License. Please refer to the `LICENSE` file for detailed licensing information.
+This project is licensed under the GPL-3.0 License - see the LICENSE file for details.
 
-## Conclusion
+## Return Type Functionality
 
-PondSocket is a powerful and versatile solution for building real-time applications that require efficient bidirectional communication between server and client components. Its minimalist design and comprehensive feature set make it an excellent choice for WebSocket-based projects, providing developers with a straightforward and reliable tool for building real-time communication systems. With the Node.js client, it also allows for easy communication between multiple server instances, expanding its capabilities even further.
+The NestJS integration provides a powerful return type system that allows you to declaratively specify actions to be taken when handling WebSocket events. Instead of using the context object directly, you can return an object with specific properties to trigger various actions.
+
+### Return Type Interface
+
+```typescript
+type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
+    // Send an event to the user
+    event?: Event;
+    
+    // Broadcast to all users in the channel
+    broadcast?: Event;
+    
+    // Broadcast to all users except the sender
+    broadcastFrom?: Event;
+    
+    // Update user assigns
+    assigns?: Partial<Assigns>;
+    
+    // Update user presence
+    presence?: Presence;
+} & Payload;
+```
+
+### Usage Examples
+
+#### Channel Join with Multiple Actions
+
+```typescript
+@PondSocketChannel('/chat/:roomId')
+export class ChatController {
+    @PondSocketJoin()
+    async handleJoin(ctx: Context) {
+        const { username } = ctx.joinParams;
+        
+        return {
+            // Send welcome message to the joining user
+            event: 'welcome',
+            message: 'Welcome to the chat!',
+            
+            // Broadcast join notification to all users
+            broadcast: 'user_joined',
+            username,
+            timestamp: Date.now(),
+            
+            // Update user's assigns
+            assigns: {
+                username,
+                joinedAt: Date.now(),
+                role: 'member'
+            },
+            
+            // Update user's presence
+            presence: {
+                username,
+                status: 'online',
+                lastSeen: Date.now()
+            }
+        };
+    }
+}
+```
+
+#### Message Handling
+
+```typescript
+@PondSocketChannel('/chat/:roomId')
+export class ChatController {
+    @PondSocketEvent('message')
+    async handleMessage(ctx: Context) {
+        const { text } = ctx.event.payload;
+        const { username } = ctx.user.assigns;
+        
+        return {
+            // Broadcast the message to all users
+            broadcast: 'message',
+            text,
+            username,
+            timestamp: Date.now(),
+            
+            // Update user's last message timestamp
+            assigns: {
+                lastMessageAt: Date.now()
+            }
+        };
+    }
+}
+```
+
+#### Presence Updates
+
+```typescript
+@PondSocketChannel('/chat/:roomId')
+export class ChatController {
+    @PondSocketEvent('status')
+    async handleStatus(ctx: Context) {
+        const { status } = ctx.event.payload;
+        
+        return {
+            // Update user's presence
+            presence: {
+                status,
+                lastSeen: Date.now()
+            },
+            
+            // Notify others about the status change
+            broadcastFrom: 'status_change',
+            username: ctx.user.assigns.username,
+            status,
+            timestamp: Date.now()
+        };
+    }
+}
+```
+
+### Benefits
+
+1. **Declarative Code**: Actions are clearly specified in the return object, making the code more readable and maintainable.
+
+2. **Type Safety**: The return type is fully typed, providing excellent TypeScript support and IDE autocompletion.
+
+3. **Reduced Boilerplate**: No need to call multiple context methods; all actions are specified in a single return statement.
+
+4. **Flexible Combinations**: You can combine multiple actions in a single return statement, making it easy to handle complex scenarios.
+
+5. **Automatic Handling**: The framework automatically processes the returned object and executes the specified actions in the correct order.
+
+### Best Practices
+
+1. **Type Your Returns**: Use TypeScript interfaces to define the shape of your return objects:
+   ```typescript
+   interface ChatMessage {
+       text: string;
+       username: string;
+       timestamp: number;
+   }
+
+   @PondSocketEvent('message')
+   async handleMessage(ctx: Context): Promise<NestFuncType<'message', ChatMessage, UserPresence>> {
+       // Your implementation
+   }
+   ```
+
+2. **Keep It Simple**: While you can combine multiple actions, try to keep the return object focused on a single responsibility when possible.
+
+3. **Use TypeScript**: Take advantage of TypeScript's type system to ensure your return objects are correctly structured.
+
+4. **Handle Errors**: Remember that you can still use `ctx.decline()` for error cases where returning an object isn't appropriate.
