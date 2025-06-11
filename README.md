@@ -79,7 +79,7 @@ Channels are communication groups where users can interact. Each channel:
 
 ```typescript
 // Create a channel with path parameters
-const channel = endpoint.createChannel('/chat/:roomId', (ctx, next) => {
+const channel = endpoint.createChannel('/chat/:roomId', async (ctx, next) => {
     const { role } = ctx.user.assigns;
     const { username } = ctx.joinParams;
     const { roomId } = ctx.event.params;
@@ -268,9 +268,9 @@ import { PondSocketModule } from '@eleven-am/pondsocket-nest';
 export class AppModule {}
 
 // Create a WebSocket endpoint
-@PondSocketEndpoint('/api/socket')
+@Endpoint('/api/socket')
 export class SocketController {
-    @PondSocketConnection()
+    @OnConnection()
     async handleConnection(ctx: Context) {
         const token = ctx.request.query.token;
         if (isValidToken(token)) {
@@ -282,9 +282,9 @@ export class SocketController {
 }
 
 // Create a channel
-@PondSocketChannel('/chat/:roomId')
+@Channel('/chat/:roomId')
 export class ChatController {
-    @PondSocketJoin()
+    @OnJoin()
     async handleJoin(ctx: Context) {
         // You can return an object with specific properties to trigger actions
         return {
@@ -315,7 +315,7 @@ export class ChatController {
         };
     }
 
-    @PondSocketEvent('message')
+    @OnEvent('message')
     async handleMessage(ctx: Context) {
         const { text } = ctx.event.payload;
         
@@ -328,7 +328,7 @@ export class ChatController {
         };
     }
 
-    @PondSocketEvent('presence')
+    @OnEvent('presence')
     async handlePresence(ctx: Context) {
         const { status } = ctx.event.payload;
         
