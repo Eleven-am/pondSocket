@@ -1,9 +1,9 @@
 import {
     ChannelReceiver,
-    ServerActions,
-    PondPresence,
-    PondAssigns,
     ClientActions,
+    PondAssigns,
+    PondPresence,
+    ServerActions,
     SystemSender,
 } from '@eleven-am/pondsocket-common';
 
@@ -50,8 +50,7 @@ describe('ChannelEngine', () => {
             channelEngine.addUser(userId, assigns, onMessage);
 
             expect(channelEngine.users.has(userId)).toBe(true);
-            // Just check that sendMessage was called without specific parameters
-            expect(channelEngine.sendMessage).toHaveBeenCalled();
+            expect(onMessage).toHaveBeenCalled();
         });
 
         it('should throw an error if user already exists', () => {
