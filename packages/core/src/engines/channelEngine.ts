@@ -1,45 +1,45 @@
 import {
-    ChannelEvent,
-    ChannelReceiver,
-    ChannelReceivers,
-    ClientMessage,
-    ErrorTypes,
-    Events,
-    PondAssigns,
-    PondMessage,
-    PondPresence,
-    ServerActions,
-    Subject,
-    SystemSender,
-    Unsubscribe,
-    UserAssigns,
-    UserData,
-    UserPresences,
-    uuid,
+	ChannelEvent,
+	ChannelReceiver,
+	ChannelReceivers,
+	ClientMessage,
+	ErrorTypes,
+	Events,
+	PondAssigns,
+	PondMessage,
+	PondPresence,
+	ServerActions,
+	Subject,
+	SystemSender,
+	Unsubscribe,
+	UserAssigns,
+	UserData,
+	UserPresences,
+	uuid,
 } from '@eleven-am/pondsocket-common';
 
-import { LobbyEngine } from './lobbyEngine';
-import { PresenceEngine } from './presenceEngine';
+import {LobbyEngine} from './lobbyEngine';
+import {PresenceEngine} from './presenceEngine';
 import {
-    type BroadcastEvent,
-    type ChannelSenders,
-    DistributedMessageType,
-    type InternalChannelEvent,
+	type BroadcastEvent,
+	type ChannelSenders,
+	DistributedMessageType,
+	type InternalChannelEvent,
 } from '../abstracts/types';
-import { HttpError } from '../errors/httpError';
+import {HttpError} from '../errors/httpError';
 import type {
-    AssignsRemoved,
-    AssignsUpdate,
-    DistributedChannelMessage,
-    EvictUser,
-    IDistributedBackend,
-    PresenceRemoved,
-    PresenceUpdate,
-    StateRequest,
-    StateResponse,
-    UserJoined,
-    UserLeft,
-    UserMessage,
+	AssignsRemoved,
+	AssignsUpdate,
+	DistributedChannelMessage,
+	EvictUser,
+	IDistributedBackend,
+	PresenceRemoved,
+	PresenceUpdate,
+	StateRequest,
+	StateResponse,
+	UserJoined,
+	UserLeft,
+	UserMessage,
 } from '../types';
 
 export class ChannelEngine {
@@ -93,15 +93,25 @@ export class ChannelEngine {
 
         const isFirstUser = this.users.size === 0;
 
+        // Acknowledge directly to the user as send message is asynchronous
+        onMessage({
+            channelName: this.#name,
+            requestId: uuid(),
+            action: ServerActions.SYSTEM,
+            event: Events.ACKNOWLEDGE,
+            payload: {
+                userId,
+                assigns,
+            },
+        });
+
         this.#assignsCache.set(userId, assigns);
         this.#buildSubscriber(userId, onMessage);
-        this.sendMessage(SystemSender.CHANNEL, [userId], ServerActions.SYSTEM, Events.ACKNOWLEDGE, {});
+        if (isFirstUser && this.#backend) {
+            this.#requestChannelState();
+        }
 
         if (this.#backend) {
-            if (isFirstUser) {
-                this.#requestChannelState();
-            }
-
             this.#broadcastToNodes({
                 type: DistributedMessageType.USER_JOINED,
                 endpointName: this.#endpointId,
