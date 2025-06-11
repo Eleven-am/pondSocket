@@ -503,27 +503,88 @@ export class ChatController {
 5. **Automatic Handling**: The framework automatically processes the returned object and executes the specified actions
    in the correct order.
 
-### Best Practices
+## Decorators
 
-1. **Type Your Returns**: Use TypeScript interfaces to define the shape of your return objects:
-   ```typescript
-   interface ChatMessage {
-       text: string;
-       username: string;
-       timestamp: number;
-   }
+The PondSocket NestJS integration provides a comprehensive set of decorators to simplify WebSocket endpoint and channel development. These decorators are organized into several categories:
 
-   @PondSocketEvent('message')
-   async handleMessage(ctx: Context): Promise<NestFuncType<'message', ChatMessage, UserPresence>> {
-       // Your implementation
-   }
-   ```
+### Class Decorators
 
-2. **Keep It Simple**: While you can combine multiple actions, try to keep the return object focused on a single
-   responsibility when possible.
+| Decorator | Description |
+|-----------|-------------|
+| `@Channel(path?: string)` | Marks a class as a WebSocket channel handler for the specified path |
+| `@Endpoint(path?: string)` | Registers a class as a WebSocket endpoint at the specified path |
 
-3. **Use TypeScript**: Take advantage of TypeScript's type system to ensure your return objects are correctly
-   structured.
+### Property Decorators
 
-4. **Handle Errors**: Remember that you can still use `ctx.decline()` for error cases where returning an object isn't
-   appropriate.
+| Decorator | Description |
+|-----------|-------------|
+| `@ChannelInstance(channel?: string)` | Injects the underlying PondSocket channel instance into a property |
+| `@EndpointInstance()` | Injects the endpoint instance into a property |
+
+### Method Decorators
+
+| Decorator | Description |
+|-----------|-------------|
+| `@OnConnectionRequest()` | Marks a method to handle new socket connections (authentication, setup, etc.) |
+| `@OnEvent(event?: string)` | Marks a method to handle a specific event in a channel |
+| `@OnJoinRequest()` | Marks a method to handle when a user joins a channel |
+| `@OnLeave()` | Marks a method to handle when a user leaves a channel |
+| `@UseGuards(...guards)` | Attaches guard(s) to a class or method for authorization logic |
+| `@UsePipes(...pipes)` | Attaches pipe(s) (validators/transformers) to a class or method |
+
+### Parameter Decorators
+
+These decorators inject request-specific data into handler method parameters:
+
+| Decorator | Description |
+|-----------|-------------|
+| `@GetChannel()` | Injects the current channel instance |
+| `@GetConnectionHeaders()` | Injects the current connection headers |
+| `@GetConnectionContext()` | Injects the current connection context |
+| `@GetContext()` | Injects the current request context |
+| `@GetEventParams()` | Injects the current event parameters |
+| `@GetEventPayload()` | Injects the current event payload |
+| `@GetEventQuery()` | Injects the current event query |
+| `@GetEventContext()` | Injects the current event context |
+| `@GetJoinParams()` | Injects the current join parameters |
+| `@GetJoinContext()` | Injects the current join context |
+| `@GetLeaveEvent()` | Injects the current leave event |
+| `@GetUserData()` | Injects the current user data |
+| `@GetUserAssigns()` | Injects the current user assigns |
+| `@GetUserPresence()` | Injects the current user presence |
+
+### Usage Example
+
+Here's an example showing how to use these decorators together:
+
+```typescript
+@Channel('/chat/:roomId')
+export class ChatController {
+  @ChannelInstance()
+  private channel: PondChannel;
+
+  @OnJoinRequest()
+  async handleJoin(
+    @GetContext() ctx: Context,
+    @GetJoinParams() params: any
+  ) {
+    // Handle join request
+  }
+
+  @OnEvent('message')
+  async handleMessage(
+    @GetEventPayload() payload: any,
+    @GetUserData() user: any
+  ) {
+    // Handle message event
+  }
+
+  @OnLeave()
+  async handleLeave(
+    @GetLeaveEvent() event: any,
+    @GetUserPresence() presence: any
+  ) {
+    // Handle leave event
+  }
+}
+```
