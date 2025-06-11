@@ -1,6 +1,7 @@
 # PondSocket NestJS Integration
 
-This package provides a NestJS integration layer for PondSocket, making it easy to use PondSocket's real-time WebSocket functionality within NestJS applications.
+This package provides a NestJS integration layer for PondSocket, making it easy to use PondSocket's real-time WebSocket
+functionality within NestJS applications.
 
 ## Installation
 
@@ -10,7 +11,9 @@ npm install @eleven-am/pondsocket-nest
 
 ## Overview
 
-This package integrates PondSocket's powerful WebSocket capabilities with NestJS's architecture and dependency injection system. It provides decorators and services that make it natural to use WebSocket functionality in a NestJS application while maintaining all of PondSocket's features.
+This package integrates PondSocket's powerful WebSocket capabilities with NestJS's architecture and dependency injection
+system. It provides decorators and services that make it natural to use WebSocket functionality in a NestJS application
+while maintaining all of PondSocket's features.
 
 ## Key Features
 
@@ -27,17 +30,17 @@ This package integrates PondSocket's powerful WebSocket capabilities with NestJS
 ### Module Setup
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { PondSocketModule } from '@eleven-am/pondsocket-nest';
+import {Module} from '@nestjs/common';
+import {PondSocketModule} from '@eleven-am/pondsocket-nest';
 
-@Module({
-  imports: [
-    PondSocketModule.forRoot({
-      guards: [AuthGuard], // Optional: Global guards
-      pipes: [ValidationPipe], // Optional: Global pipes
-      isGlobal: true, // Optional: Make the module global
-    })
-  ]
+@Module ({
+	imports: [
+		PondSocketModule.forRoot ({
+			guards: [AuthGuard], // Optional: Global guards
+			pipes: [ValidationPipe], // Optional: Global pipes
+			isGlobal: true, // Optional: Make the module global
+		})
+	]
 })
 export class AppModule {}
 ```
@@ -45,75 +48,75 @@ export class AppModule {}
 ### Creating WebSocket Endpoints
 
 ```typescript
-import { Controller } from '@nestjs/common';
-import { PondSocketEndpoint, PondSocketConnection, Context } from '@eleven-am/pondsocket-nest';
+import {Controller} from '@nestjs/common';
+import {PondSocketEndpoint, PondSocketConnection, Context} from '@eleven-am/pondsocket-nest';
 
-@PondSocketEndpoint('/api/socket')
+@Endpoint('/api/socket')
 export class SocketController {
-  @PondSocketConnection()
-  async handleConnection(ctx: Context) {
-    const token = ctx.request.query.token;
-    
-    if (isValidToken(token)) {
-      const role = getRoleFromToken(token);
-      ctx.accept({ role });
-    } else {
-      ctx.reject('Invalid token', 401);
-    }
-  }
+	@OnConnection()
+	async handleConnection (ctx: Context) {
+		const token = ctx.request.query.token;
+		
+		if (isValidToken (token)) {
+			const role = getRoleFromToken (token);
+			ctx.accept ({role});
+		} else {
+			ctx.reject ('Invalid token', 401);
+		}
+	}
 }
 ```
 
 ### Creating Channels
 
 ```typescript
-import { Controller } from '@nestjs/common';
-import { PondSocketChannel, PondSocketJoin, Context } from '@eleven-am/pondsocket-nest';
+import {Controller} from '@nestjs/common';
+import {PondSocketChannel, PondSocketJoin, Context} from '@eleven-am/pondsocket-nest';
 
-@PondSocketChannel('/channel/:id')
+@Channel('/channel/:id')
 export class ChannelController {
-  @PondSocketJoin()
-  async handleJoin(ctx: Context) {
-    const { role } = ctx.user.assigns;
-    const { username } = ctx.joinParams;
-    const { id } = ctx.event.params;
-
-    if (role === 'admin') {
-      ctx.accept({ username })
-        .trackPresence({
-          username,
-          role,
-          status: 'online',
-          onlineSince: Date.now(),
-        });
-    } else {
-      ctx.decline('Insufficient permissions', 403);
-    }
-  }
+	@OnJoin()
+	async handleJoin (ctx: Context) {
+		const {role} = ctx.user.assigns;
+		const {username} = ctx.joinParams;
+		const {id} = ctx.event.params;
+		
+		if (role === 'admin') {
+			ctx.accept({username})
+				.trackPresence({
+					username,
+					role,
+					status: 'online',
+					onlineSince: Date.now (),
+				});
+		} else {
+			ctx.decline('Insufficient permissions', 403);
+		}
+	}
 }
 ```
 
 ### Handling Channel Events
 
 ```typescript
-import { Controller } from '@nestjs/common';
-import { PondSocketEvent, Context } from '@eleven-am/pondsocket-nest';
+import {Controller} from '@nestjs/common';
+import {PondSocketEvent, Context} from '@eleven-am/pondsocket-nest';
 
-@PondSocketChannel('/channel/:id')
+@Channel('/channel/:id')
 export class ChannelController {
-  @PondSocketEvent('message')
-  async handleMessage(ctx: Context) {
-    const { text } = ctx.event.payload;
-    
-    // Broadcast to all users in the channel
-    ctx.broadcast('message', { text });
-    
-    // Broadcast to specific users
-    ctx.broadcastTo(['user1', 'user2'], 'message', { text });
-    
-    // Broadcast to all except sender
-    ctx.broadcastFrom('message', { text });
-  }
+	@OnEvent('message')
+	async handleMessage (ctx: Context) {
+		const {text} = ctx.event.payload;
+		
+		// Broadcast to all users in the channel
+		ctx.broadcast('message', {text});
+		
+		// Broadcast to specific users
+		ctx.broadcastTo(['user1', 'user2'], 'message', {text});
+		
+		// Broadcast to all except sender
+		ctx.broadcastFrom('message', {text});
+	}
 }
 ```
 
@@ -122,48 +125,56 @@ export class ChannelController {
 ### Presence Management
 
 ```typescript
-@PondSocketChannel('/channel/:id')
+
+@Channel ('/channel/:id')
 export class ChannelController {
-  @PondSocketEvent('presence')
-  async handlePresence(ctx: Context) {
-    ctx.trackPresence({
-      username: ctx.user.assigns.username,
-      status: 'online',
-      lastSeen: Date.now()
-    });
-  }
+	@OnEvent ('presence')
+	async handlePresence (ctx: Context) {
+		ctx.trackPresence ({
+			username: ctx.user.assigns.username,
+			status: 'online',
+			lastSeen: Date.now ()
+		});
+	}
 }
 ```
 
 ### User Assigns
 
 ```typescript
-@PondSocketChannel('/channel/:id')
+
+@Channel ('/channel/:id')
 export class ChannelController {
-  @PondSocketEvent('update-profile')
-  async handleProfileUpdate(ctx: Context) {
-    ctx.assign({
-      ...ctx.user.assigns,
-      profile: ctx.event.payload
-    });
-  }
+	@OnEvent ('update-profile')
+	async handleProfileUpdate (ctx: Context) {
+		ctx.assign ({
+			...ctx.user.assigns,
+			profile: ctx.event.payload
+		});
+	}
 }
 ```
 
 ### Error Handling
 
 ```typescript
-@PondSocketChannel('/channel/:id')
+import {PondChannel} from "@eleven-am/pondsocket/types";
+import {ChannelInstance} from "@eleven-am/pondsocke-nest";
+
+@Channel ('/channel/:id')
 export class ChannelController {
-  @PondSocketEvent('message')
-  async handleMessage(ctx: Context) {
-    try {
-      // Your logic here
-      ctx.accept();
-    } catch (error) {
-      ctx.decline(error.message, 400);
-    }
-  }
+	@ChannelInstance()
+	instancd: PondChannel // Instance of the channel
+	
+	@OnEvent ('message')
+	async handleMessage (ctx: Context) {
+		try {
+			// Your logic here
+			ctx.accept();
+		} catch (error) {
+			ctx.decline (error.message, 400);
+		}
+	}
 }
 ```
 
@@ -172,36 +183,38 @@ export class ChannelController {
 The package maintains PondSocket's distributed deployment capabilities:
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { PondSocketModule } from '@eleven-am/pondsocket-nest';
-import { RedisBackend } from '@eleven-am/pondsocket';
+import {Module} from '@nestjs/common';
+import {PondSocketModule} from '@eleven-am/pondsocket-nest';
+import {RedisBackend} from '@eleven-am/pondsocket';
 
 @Module({
-  imports: [
-    PondSocketModule.forRoot({
-      backend: new RedisBackend({
-        host: 'localhost',
-        port: 6379
-      })
-    })
-  ]
+	imports: [
+		PondSocketModule.forRoot({
+			backend: new RedisBackend({
+				host: 'localhost',
+				port: 6379
+			})
+		})
+	]
 })
-export class AppModule {}
+export class AppModule {
+}
 ```
 
 ### Distributed Mode Features
 
-The distributed mode enables you to scale your WebSocket application across multiple server instances while maintaining state synchronization. Here are the key features:
+The distributed mode enables you to scale your WebSocket application across multiple server instances while maintaining
+state synchronization. Here are the key features:
 
 1. **State Synchronization**
-   - Channel presence is synchronized across all instances
-   - User assigns are shared between instances
-   - Channel events are broadcasted to all instances
+    - Channel presence is synchronized across all instances
+    - User assigns are shared between instances
+    - Channel events are broadcasted to all instances
 
 2. **Load Balancing**
-   - Multiple server instances can handle WebSocket connections
-   - Connections are distributed across available instances
-   - Automatic failover if an instance goes down
+    - Multiple server instances can handle WebSocket connections
+    - Connections are distributed across available instances
+    - Automatic failover if an instance goes down
 
 3. **Backend Options**
    ```typescript
@@ -245,9 +258,9 @@ The distributed mode enables you to scale your WebSocket application across mult
 
 5. **Error Handling**
    ```typescript
-   @PondSocketChannel('/channel/:id')
+   @Channel('/channel/:id')
    export class ChannelController {
-     @PondSocketEvent('message')
+     @OnEvent('message')
      async handleMessage(ctx: Context) {
        try {
          // Your logic here
@@ -285,20 +298,20 @@ The distributed mode enables you to scale your WebSocket application across mult
    ```
 
 7. **Best Practices**
-   - Use Redis backend in production environments
-   - Implement proper error handling for distributed operations
-   - Monitor backend connection health
-   - Use appropriate Redis configuration for your scale
-   - Consider using Redis Cluster for high availability
-   - Implement proper logging for distributed operations
+    - Use Redis backend in production environments
+    - Implement proper error handling for distributed operations
+    - Monitor backend connection health
+    - Use appropriate Redis configuration for your scale
+    - Consider using Redis Cluster for high availability
+    - Implement proper logging for distributed operations
 
 8. **Scaling Considerations**
-   - Monitor Redis memory usage
-   - Implement proper cleanup of stale data
-   - Consider using Redis Cluster for larger deployments
-   - Implement proper error handling and retry mechanisms
-   - Monitor network latency between instances
-   - Implement proper logging and monitoring
+    - Monitor Redis memory usage
+    - Implement proper cleanup of stale data
+    - Consider using Redis Cluster for larger deployments
+    - Implement proper error handling and retry mechanisms
+    - Monitor network latency between instances
+    - Implement proper logging and monitoring
 
 ## Configuration Options
 
@@ -306,14 +319,14 @@ The `PondSocketModule.forRoot()` method accepts the following options:
 
 ```typescript
 interface PondSocketOptions {
-  guards?: any[]; // Global guards
-  pipes?: any[]; // Global pipes
-  providers?: any[]; // Additional providers
-  imports?: any[]; // Additional imports
-  exports?: any[]; // Additional exports
-  isGlobal?: boolean; // Make the module global
-  isExclusiveSocketServer?: boolean; // Use exclusive socket server
-  backend?: IDistributedBackend; // Distributed backend
+	guards?: any[]; // Global guards
+	pipes?: any[]; // Global pipes
+	providers?: any[]; // Additional providers
+	imports?: any[]; // Additional imports
+	exports?: any[]; // Additional exports
+	isGlobal?: boolean; // Make the module global
+	isExclusiveSocketServer?: boolean; // Use exclusive socket server
+	backend?: IDistributedBackend; // Distributed backend
 }
 ```
 
@@ -325,22 +338,22 @@ The client-side usage remains the same as the core PondSocket package:
 import PondClient from "@eleven-am/pondsocket-client";
 
 const socket = new PondClient('ws://your-server/api/socket', {
-    token: 'your-auth-token'
+	token: 'your-auth-token'
 });
 
-socket.connect();
+socket.connect ();
 
 const channel = socket.createChannel('/channel/123', {
-    username: 'user123'
+	username: 'user123'
 });
 
-channel.join();
+channel.join ();
 
 channel.onMessage((event, message) => {
-    console.log(`Received message: ${message.text}`);
+	console.log (`Received message: ${message.text}`);
 });
 
-channel.broadcast('message', { text: 'Hello, PondSocket!' });
+channel.broadcast('message', {text: 'Hello, PondSocket!'});
 ```
 
 ## Contributing
@@ -353,27 +366,31 @@ This project is licensed under the GPL-3.0 License - see the LICENSE file for de
 
 ## Return Type Functionality
 
-The NestJS integration provides a powerful return type system that allows you to declaratively specify actions to be taken when handling WebSocket events. Instead of using the context object directly, you can return an object with specific properties to trigger various actions.
+The NestJS integration provides a powerful return type system that allows you to declaratively specify actions to be
+taken when handling WebSocket events. Instead of using the context object directly, you can return an object with
+specific properties to trigger various actions.
 
 ### Return Type Interface
 
 ```typescript
-type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> = {
-    // Send an event to the user
-    event?: Event;
-    
-    // Broadcast to all users in the channel
-    broadcast?: Event;
-    
-    // Broadcast to all users except the sender
-    broadcastFrom?: Event;
-    
-    // Update user assigns
-    assigns?: Partial<Assigns>;
-    
-    // Update user presence
-    presence?: Presence;
-} & Payload;
+type NestFuncType<Event extends string, Payload extends PondMessage, Presence extends PondPresence, Assigns extends PondAssigns = PondAssigns> =
+	{
+		// Send an event to the user
+		event?: Event;
+		
+		// Broadcast to all users in the channel
+		broadcast?: Event;
+		
+		// Broadcast to all users except the sender
+		broadcastFrom?: Event;
+		
+		// Update user assigns
+		assigns?: Partial<Assigns>;
+		
+		// Update user presence
+		presence?: Presence;
+	}
+	& Payload;
 ```
 
 ### Usage Examples
@@ -381,103 +398,110 @@ type NestFuncType<Event extends string, Payload extends PondMessage, Presence ex
 #### Channel Join with Multiple Actions
 
 ```typescript
+
 @PondSocketChannel('/chat/:roomId')
 export class ChatController {
-    @PondSocketJoin()
-    async handleJoin(ctx: Context) {
-        const { username } = ctx.joinParams;
-        
-        return {
-            // Send welcome message to the joining user
-            event: 'welcome',
-            message: 'Welcome to the chat!',
-            
-            // Broadcast join notification to all users
-            broadcast: 'user_joined',
-            username,
-            timestamp: Date.now(),
-            
-            // Update user's assigns
-            assigns: {
-                username,
-                joinedAt: Date.now(),
-                role: 'member'
-            },
-            
-            // Update user's presence
-            presence: {
-                username,
-                status: 'online',
-                lastSeen: Date.now()
-            }
-        };
-    }
+	@PondSocketJoin()
+	async handleJoin (ctx: Context) {
+		const {username} = ctx.joinParams;
+		
+		return {
+			// Send welcome message to the joining user
+			event: 'welcome',
+			message: 'Welcome to the chat!',
+			
+			// Broadcast join notification to all users
+			broadcast: 'user_joined',
+			username,
+			timestamp: Date.now(),
+			
+			// Update user's assigns
+			assigns: {
+				username,
+				joinedAt: Date.now(),
+				role: 'member'
+			},
+			
+			// Update user's presence
+			presence: {
+				username,
+				status: 'online',
+				lastSeen: Date.now()
+			}
+		};
+	}
 }
 ```
 
 #### Message Handling
 
 ```typescript
+
 @PondSocketChannel('/chat/:roomId')
 export class ChatController {
-    @PondSocketEvent('message')
-    async handleMessage(ctx: Context) {
-        const { text } = ctx.event.payload;
-        const { username } = ctx.user.assigns;
-        
-        return {
-            // Broadcast the message to all users
-            broadcast: 'message',
-            text,
-            username,
-            timestamp: Date.now(),
-            
-            // Update user's last message timestamp
-            assigns: {
-                lastMessageAt: Date.now()
-            }
-        };
-    }
+	@PondSocketEvent('message')
+	async handleMessage(ctx: Context) {
+		const {text} = ctx.event.payload;
+		const {username} = ctx.user.assigns;
+		
+		return {
+			// Broadcast the message to all users
+			broadcast: 'message',
+			text,
+			username,
+			timestamp: Date.now(),
+			
+			// Update user's last message timestamp
+			assigns: {
+				lastMessageAt: Date.now()
+			}
+		};
+	}
 }
 ```
 
 #### Presence Updates
 
 ```typescript
-@PondSocketChannel('/chat/:roomId')
+
+@PondSocketChannel ('/chat/:roomId')
 export class ChatController {
-    @PondSocketEvent('status')
-    async handleStatus(ctx: Context) {
-        const { status } = ctx.event.payload;
-        
-        return {
-            // Update user's presence
-            presence: {
-                status,
-                lastSeen: Date.now()
-            },
-            
-            // Notify others about the status change
-            broadcastFrom: 'status_change',
-            username: ctx.user.assigns.username,
-            status,
-            timestamp: Date.now()
-        };
-    }
+	@PondSocketEvent('status')
+	async handleStatus(ctx: Context) {
+		const {status} = ctx.event.payload;
+		
+		return {
+			// Update user's presence
+			presence: {
+				status,
+				lastSeen: Date.now()
+			},
+			
+			// Notify others about the status change
+			broadcastFrom: 'status_change',
+			username: ctx.user.assigns.username,
+			status,
+			timestamp: Date.now()
+		};
+	}
 }
 ```
 
 ### Benefits
 
-1. **Declarative Code**: Actions are clearly specified in the return object, making the code more readable and maintainable.
+1. **Declarative Code**: Actions are clearly specified in the return object, making the code more readable and
+   maintainable.
 
 2. **Type Safety**: The return type is fully typed, providing excellent TypeScript support and IDE autocompletion.
 
-3. **Reduced Boilerplate**: No need to call multiple context methods; all actions are specified in a single return statement.
+3. **Reduced Boilerplate**: No need to call multiple context methods; all actions are specified in a single return
+   statement.
 
-4. **Flexible Combinations**: You can combine multiple actions in a single return statement, making it easy to handle complex scenarios.
+4. **Flexible Combinations**: You can combine multiple actions in a single return statement, making it easy to handle
+   complex scenarios.
 
-5. **Automatic Handling**: The framework automatically processes the returned object and executes the specified actions in the correct order.
+5. **Automatic Handling**: The framework automatically processes the returned object and executes the specified actions
+   in the correct order.
 
 ### Best Practices
 
@@ -495,8 +519,11 @@ export class ChatController {
    }
    ```
 
-2. **Keep It Simple**: While you can combine multiple actions, try to keep the return object focused on a single responsibility when possible.
+2. **Keep It Simple**: While you can combine multiple actions, try to keep the return object focused on a single
+   responsibility when possible.
 
-3. **Use TypeScript**: Take advantage of TypeScript's type system to ensure your return objects are correctly structured.
+3. **Use TypeScript**: Take advantage of TypeScript's type system to ensure your return objects are correctly
+   structured.
 
-4. **Handle Errors**: Remember that you can still use `ctx.decline()` for error cases where returning an object isn't appropriate.
+4. **Handle Errors**: Remember that you can still use `ctx.decline()` for error cases where returning an object isn't
+   appropriate.
